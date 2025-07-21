@@ -12,6 +12,10 @@ import {
   PieChart,
   Settings2,
   SquareTerminal,
+  Cloud,
+  CloudAlert,
+  CloudyIcon,
+  ChartBar
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -29,118 +33,77 @@ import {
 // This is sample data.
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
+    name: "Palawan Weather",
+    email: "palawanweather@gmail.com",
     avatar: "/avatars/shadcn.jpg",
   },
   teams: [
     {
-      name: "Weather Dash",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
+      name: "Palawan Weather",
+      logo: Cloud,
+      plan: "Monitoring",
     },
   ],
   navMain: [
     {
-      title: "Home",
+      title: "Weather Overview",
       url: "/weather",
-      icon: Bot,
+      icon: CloudyIcon,
     },
     {
-      title: "Charts",
+      title: "Weather Charts",
       url: "#",
-      icon: SquareTerminal,
+      icon: ChartBar,
       isActive: true,
       items: [
         {
-          title: "Line Chart",
+          title: "Temperature Trends",
           url: "/charts/line/",
         },
         {
-          title: "Starred",
+          title: "Rainfall Patterns",
           url: "#",
         },
         {
-          title: "Settings",
+          title: "Wind Speed Graph",
           url: "#",
         },
       ],
     },
     
-    // {
-    //   title: "Documentation",
-    //   url: "#",
-    //   icon: BookOpen,
-    //   items: [
-    //     {
-    //       title: "Introduction",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Get Started",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Tutorials",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Changelog",
-    //       url: "#",
-    //     },
-    //   ],
-    // },
     {
       title: "Settings",
       url: "#",
       icon: Settings2,
       items: [
         {
-          title: "General",
+          title: "Unit Preference",
           url: "#",
         },
         {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
+          title: "Notification",
           url: "#",
         },
       ],
     },
   ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "/",
-      icon: Map,
-    },
-  ],
+  // projects: [
+  //   {
+  //     name: "Design Engineering",
+  //     url: "#",
+  //     icon: Frame,
+  //   },
+  //   {
+  //     name: "Sales & Marketing",
+  //     url: "#",
+  //     icon: PieChart,
+  //   },
+  //   {
+  //     name: "Travel",
+  //     url: "/",
+  //     icon: Map,
+  //   },
+  // ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -151,7 +114,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
+        {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />

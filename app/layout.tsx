@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Newbie",
-  description: "Created",
+  title: "palawan-weather-app",
+  description: "pwa",
 };
 
 export default function RootLayout({
