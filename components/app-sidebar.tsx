@@ -15,9 +15,16 @@ import {
   Cloud,
   CloudAlert,
   CloudyIcon,
-  ChartBar
+  ChartBar,
+  CloudDrizzle,
+  CloudLightningIcon,
+  Droplet,
+  SquareDashedKanbanIcon,
+  LayoutDashboard,
+  PlusCircleIcon
 } from "lucide-react"
-
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { Session } from "@supabase/auth-helpers-nextjs"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
@@ -30,42 +37,95 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// This is sample data.
+
+
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+
+
+
+
+  
+  const supabase = createClientComponentClient()
+  const [userEmail, setUserEmail] = React.useState("Loading...")
+  const [userName, setUserName] = React.useState("User")
+  
+  
+  React.useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+  
+      if (session?.user) {
+        const userId = session.user.id
+  
+        // fetch full_name from "profiles" table
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", userId)
+          .single()
+  
+        if (error) {
+          console.error("Failed to fetch profile:", error.message)
+        }
+  
+        setUserEmail(session.user.email ?? "Unknown")
+        setUserName(profile?.full_name || "User")
+      }
+    }
+  
+    getUser()
+  }, [supabase])
+  
+
+
+
+  // This is sample data.
 const data = {
   user: {
-    name: "Palawan Weather",
-    email: "palawanweather@gmail.com",
-    avatar: "/avatars/shadcn.jpg",
+    name: userName,
+    email: userEmail,
+    avatar: "/logo.png",
   },
   teams: [
     {
-      name: "Palawan Weather",
-      logo: Cloud,
-      plan: "Monitoring",
+      name: "Petrosphere",
+      logo: Droplet,
+      plan: "Customer Relationship Management",
     },
   ],
   navMain: [
     {
-      title: "Weather Overview",
-      url: "/weather",
-      icon: CloudyIcon,
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: LayoutDashboard,
     },
     {
-      title: "Weather Charts",
+      title: "Create",
+      url: "/employees",
+      icon: PlusCircleIcon,
+    },
+    {
+      title: "Manage Lead",
       url: "#",
       icon: ChartBar,
       isActive: true,
       items: [
         {
-          title: "Temperature Trends",
-          url: "/charts/line/",
+          title: "Leads List",
+          url: "/leads-list",
         },
         {
-          title: "Rainfall Patterns",
+          title: "Add New Lead",
           url: "#",
         },
         {
-          title: "Wind Speed Graph",
+          title: "Lead Insights",
+          url: "#",
+        },
+        {
+          title: "Lead Activity Log",
           url: "#",
         },
       ],
@@ -77,11 +137,11 @@ const data = {
       icon: Settings2,
       items: [
         {
-          title: "Unit Preference",
+          title: "User Management",
           url: "#",
         },
         {
-          title: "Notification",
+          title: "CRM Settings",
           url: "#",
         },
       ],
@@ -106,7 +166,6 @@ const data = {
   // ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>

@@ -1,10 +1,13 @@
+// ✅ SERVER COMPONENT (app/layout.tsx)
+
 import type { Metadata } from "next";
-import { Geist, Geist_Mono,Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ModeToggle } from "@/components/mode-toggle";
+import { ClientLayoutWrapper } from "@/components/client-layout-wrapper"; // we’ll create this
+import dynamic from 'next/dynamic'
+
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,40 +20,28 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "palawan-weather-app",
+  title: "petrosphere-survey-web",
   description: "pwa",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-
-        <SidebarProvider>
-          <AppSidebar />
-          <main>
-            <div className="fixed top-4">
-            <SidebarTrigger />
-            <ModeToggle />
-            </div>
-          {children}
-          </main>
-        </SidebarProvider>
-        
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
         </ThemeProvider>
-        
       </body>
     </html>
   );

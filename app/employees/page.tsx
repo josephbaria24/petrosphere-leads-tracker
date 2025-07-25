@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Cloud, CloudDrizzle, CloudFog, CloudRain, CloudSun, Droplet, Snowflake, Sun, Zap } from "lucide-react"
+import ScrollFloat from "@/components/scroll-float"
+import ClickSpark from "@/components/click-spark"
+
 
 const API_KEY = "b4f287e75e221d9d3135d41c86b54784"
 
@@ -53,12 +56,14 @@ export default function WeatherPage() {
     }, [])
 
     return (
-        <div className="">
-            <div className="flex justify-center p-10">
-            <p className="text-[50px] font-semibold md:grid-cols-3">Weather overview</p>
+        <div className="min-h-screen py-10">
+            <div className="text-center 0">
+            <p className="text-[50px] font-semibold tracking-tight">Weather overview</p>
+            <p className="mt-2 text-muted-foreground text-lg">Live weather across Palawan municipalities</p>
             </div>
+            
         
-        <div className="grid grid-cols-1 p-10 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 p-10 md:grid-cols-6 gap-4">
             
             {weatherData.map((city) => (
                 <Card key={city.name} className="bg-transparent">
@@ -75,7 +80,7 @@ export default function WeatherPage() {
             ))}
 
             </div>
+            
         </div>
-        
     )
 }
