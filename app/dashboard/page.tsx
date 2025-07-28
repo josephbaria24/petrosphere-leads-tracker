@@ -26,7 +26,7 @@ export default function Page() {
   })
 
 
-  const [selectedRange, setSelectedRange] = useState<'3m' | '30d' | '7d'>('3m')
+  const [selectedRange,] = useState<'3m' | '30d' | '7d'>('3m')
   const [serviceChartData, setServiceChartData] = useState<{ service_product: string; count: number }[]>([])
 
   type AreaData = {

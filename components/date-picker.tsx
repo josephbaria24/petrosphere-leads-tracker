@@ -37,7 +37,7 @@ interface DatePickerProps {
     onChange?: (date: Date | undefined) => void
   }
   
-  export function DatePicker({ label = 'Date', value, onChange }: DatePickerProps) {
+  export function DatePicker({ value, onChange }: DatePickerProps) {
     const [open, setOpen] = React.useState(false)
     const [month, setMonth] = React.useState<Date | undefined>(value)
     const [inputValue, setInputValue] = React.useState(formatDate(value))

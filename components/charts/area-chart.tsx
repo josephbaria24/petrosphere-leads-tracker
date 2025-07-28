@@ -9,7 +9,9 @@ import {
     Legend,
   } from 'recharts'
   import Image from 'next/image'
-  
+  import { LegendProps } from 'recharts'
+import type { Payload } from 'recharts/types/component/DefaultLegendContent'
+
   type AreaData = {
     date: string
     [leadSource: string]: string | number
@@ -31,10 +33,10 @@ import {
   }
   
   // 2. Custom legend renderer
-  const CustomLegend = ({ payload }: any) => (
+  const CustomLegend = ({ payload }: LegendProps) => (
     <ul className="flex flex-wrap gap-4 mt-2 text-sm">
-      {payload.map((entry: any, index: number) => {
-        const label = entry.value
+      {(payload as Payload[]).map((entry, index) => {
+        const label = entry.value as string
         const icon = iconMap[label.toLowerCase()]
         return (
           <li key={`item-${index}`} className="flex items-center gap-1">
@@ -53,6 +55,7 @@ import {
       })}
     </ul>
   )
+  
   
   export function LeadSourceAreaChart({ data }: { data: AreaData[] }) {
     const colors = [

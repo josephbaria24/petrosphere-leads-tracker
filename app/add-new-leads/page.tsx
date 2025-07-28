@@ -86,7 +86,7 @@ export default function AddNewLeadPage() {
   }
 
   const handleSubmit = async () => {
-    const { data, error } = await supabase.from('crm_leads').insert([form])
+    const { error } = await supabase.from('crm_leads').insert([form])
   
     if (error) {
       toast.error('Submission Failed', {
