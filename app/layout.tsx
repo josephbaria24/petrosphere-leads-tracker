@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "petrosphere-survey-web",
-  description: "pwa",
+  title: "petrosphere-crm",
+  description: "petrosphere-crm",
 };
 
 export default function RootLayout({

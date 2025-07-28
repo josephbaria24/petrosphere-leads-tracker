@@ -71,6 +71,7 @@ export default function AddNewLeadPage() {
     phone: '',
     mobile: '',
     company: '',
+    address: '',
     region: '',
     service_product: '',
     lead_source: '',
@@ -86,7 +87,14 @@ export default function AddNewLeadPage() {
   }
 
   const handleSubmit = async () => {
-    const { error } = await supabase.from('crm_leads').insert([form])
+    const fullCompany = `${form.company} - ${form.address}`.trim()
+  
+    const { error } = await supabase.from('crm_leads').insert([
+      {
+        ...form,
+        company: fullCompany,
+      },
+    ])
   
     if (error) {
       toast.error('Submission Failed', {
@@ -97,13 +105,13 @@ export default function AddNewLeadPage() {
         description: 'The new lead has been successfully added.',
       })
   
-      // Optional: reset form
       setForm({
         contact_name: '',
         email: '',
         phone: '',
         mobile: '',
         company: '',
+        address: '',
         region: '',
         service_product: '',
         lead_source: '',
@@ -115,6 +123,7 @@ export default function AddNewLeadPage() {
       })
     }
   }
+  
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -138,12 +147,21 @@ export default function AddNewLeadPage() {
             </div>
             <div>
               <Label htmlFor="phone">Mobile</Label>
-              <Input id="phone" value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} />
+              <Input id="phone" value={form.mobile} onChange={(e) => handleChange('phone', e.target.value)} />
             </div>
             <div>
               <Label htmlFor="company">Company</Label>
               <Input id="company" value={form.company} onChange={(e) => handleChange('company', e.target.value)} />
             </div>
+            <div>
+                <Label htmlFor="address">Company Address</Label>
+                <Input
+                    id="address"
+                    value={form.address}
+                    onChange={(e) => handleChange('address', e.target.value)}
+                />
+                </div>
+
             {/* Region dropdown */}
             <div>
               <Label htmlFor="region">Region</Label>

@@ -156,91 +156,100 @@ const handleCancelEdit = () => {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">All CRM Leads</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-  <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead onClick={() => handleSort('contact_name')} className="cursor-pointer px-2">
-            Contact Name {sortBy === 'contact_name' && (sortAsc ? '▲' : '▼')}
-          </TableHead>
-          <TableHead className="px-2">Company</TableHead>
-          <TableHead className="px-2">Phone</TableHead>
-          <TableHead className="px-2">Email</TableHead>
-          <TableHead className="px-2">Region</TableHead>
-          <TableHead className="px-2">Lead Source</TableHead>
-          <TableHead className="px-2">First Contact</TableHead>
-          <TableHead className="px-2">Last Contact</TableHead>
-          <TableHead className="px-2">Service</TableHead>
-          <TableHead className="px-2">Status</TableHead>
-          <TableHead className="px-2">Captured By</TableHead>
-          <TableHead onClick={() => handleSort('created_at')} className="cursor-pointer px-2">
-            Date {sortBy === 'created_at' && (sortAsc ? '▲' : '▼')}
-          </TableHead>
-        </TableRow>
-      </TableHeader>
+  <CardHeader>
+    <CardTitle className="text-xl">All CRM Leads</CardTitle>
+  </CardHeader>
 
-      <TableBody>
-        {leads.map((lead, rowIndex) => (
-          
-          <TableRow key={lead.id}>
-            {[
-            'contact_name',
-            'company',
-            'phone',
-            'email',
-            'region',
-            'lead_source',
-            'first_contact',
-            'last_contact',
-            'service_product',
-            'status',
-            'captured_by',
-            'created_at',
-          ].map((key, colIndex) => {
-            const fieldKey = key as keyof Lead
-            const value = lead[fieldKey]
-            const val = value as string | number | null
-            const cellValue = typeof val === 'string' ? val : (val ?? '').toString()
-            const isEditable = key !== 'created_at'
+  <CardContent className="p-0">
+    {/* Horizontal scroll wrapper */}
+    <div className="overflow-x-auto">
+      {/* Vertical scroll wrapper inside */}
+      <div className="max-h-[600px] overflow-y-auto">
+        <Table className="min-w-[1400px]">
+          <TableHeader className="sticky top-0 bg-white z-10">
+            <TableRow>
+              <TableHead onClick={() => handleSort('contact_name')} className="cursor-pointer px-2">
+                Contact Name {sortBy === 'contact_name' && (sortAsc ? '▲' : '▼')}
+              </TableHead>
+              <TableHead className="px-2">Company</TableHead>
+              <TableHead className="px-2">Phone</TableHead>
+              <TableHead className="px-2">Mobile</TableHead>
+              <TableHead className="px-2">Email</TableHead>
+              <TableHead className="px-2">Region</TableHead>
+              <TableHead className="px-2">Lead Source</TableHead>
+              <TableHead className="px-2">First Contact</TableHead>
+              <TableHead className="px-2">Last Contact</TableHead>
+              <TableHead className="px-2">Service</TableHead>
+              <TableHead className="px-2">Status</TableHead>
+              <TableHead className="px-2">Captured By</TableHead>
+              <TableHead className="px-2">Notes</TableHead>
+              <TableHead onClick={() => handleSort('created_at')} className="cursor-pointer px-2">
+                Date {sortBy === 'created_at' && (sortAsc ? '▲' : '▼')}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
 
-            return (
-              <TableCell key={colIndex} className="px-2 text-sm">
-                {editingCell?.row === rowIndex && editingCell?.col === colIndex ? (
-                  <input
-                    autoFocus
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={() => handleSaveEdit(rowIndex, fieldKey)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveEdit(rowIndex, fieldKey)
-                      if (e.key === 'Escape') handleCancelEdit()
-                    }}
-                    className="w-full px-1 text-sm border rounded"
-                  />
-                ) : (
-                  <span
-                    onDoubleClick={() => isEditable && handleStartEdit(rowIndex, colIndex, cellValue)}
-                    className={isEditable ? 'cursor-pointer' : ''}
-                  >
-                    {cellValue || '—'}
-                  </span>
-                )}
-              </TableCell>
-            )
-          })}
+          <TableBody>
+            {leads.map((lead, rowIndex) => (
+              <TableRow key={lead.id}>
+                {[
+                  'contact_name',
+                  'company',
+                  'phone',
+                  'mobile',
+                  'email',
+                  'region',
+                  'lead_source',
+                  'first_contact',
+                  'last_contact',
+                  'service_product',
+                  'status',
+                  'captured_by',
+                  'notes',
+                  'created_at',
+                ].map((key, colIndex) => {
+                  const fieldKey = key as keyof Lead
+                  const value = lead[fieldKey]
+                  const val = value as string | number | null
+                  const cellValue = typeof val === 'string' ? val : (val ?? '').toString()
+                  const isEditable = key !== 'created_at'
 
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  </div>
-</CardContent>
+                  return (
+                    <TableCell key={colIndex} className="px-2 text-sm">
+                      {editingCell?.row === rowIndex && editingCell?.col === colIndex ? (
+                        <input
+                          autoFocus
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => handleSaveEdit(rowIndex, fieldKey)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveEdit(rowIndex, fieldKey)
+                            if (e.key === 'Escape') handleCancelEdit()
+                          }}
+                          className="w-full px-1 text-sm border rounded"
+                        />
+                      ) : (
+                        <span
+                          onDoubleClick={() =>
+                            isEditable && handleStartEdit(rowIndex, colIndex, cellValue)
+                          }
+                          className={isEditable ? 'cursor-pointer' : ''}
+                        >
+                          {cellValue || '—'}
+                        </span>
+                      )}
+                    </TableCell>
+                  )
+                })}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  </CardContent>
+</Card>
 
-      </Card>
     </div>
   )
 }
