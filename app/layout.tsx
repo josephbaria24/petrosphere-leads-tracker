@@ -5,8 +5,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ClientLayoutWrapper } from "@/components/client-layout-wrapper"; // we’ll create this
-import dynamic from 'next/dynamic'
-
 
 
 const geistSans = Geist({

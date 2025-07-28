@@ -2,31 +2,14 @@
 
 import * as React from "react"
 import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
-  PieChart,
   Settings2,
-  SquareTerminal,
-  Cloud,
-  CloudAlert,
-  CloudyIcon,
   ChartBar,
-  CloudDrizzle,
-  CloudLightningIcon,
   Droplet,
-  SquareDashedKanbanIcon,
   LayoutDashboard,
   PlusCircleIcon
 } from "lucide-react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { Session } from "@supabase/auth-helpers-nextjs"
 import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import {
@@ -118,7 +101,7 @@ const data = {
         },
         {
           title: "Add New Lead",
-          url: "#",
+          url: "/add-new-leads",
         },
         {
           title: "Lead Insights",

@@ -69,6 +69,64 @@ export default function LeadsListPage() {
     }
   }
 
+
+
+
+
+
+
+
+  const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null)
+const [editValue, setEditValue] = useState('')
+const [originalLeads, setOriginalLeads] = useState<Lead[]>([])
+
+const handleStartEdit = (row: number, col: number, currentValue: string) => {
+  setEditingCell({ row, col })
+  setEditValue(currentValue)
+  if (originalLeads.length === 0) {
+    setOriginalLeads(JSON.parse(JSON.stringify(leads))) // deep clone
+  }
+}
+
+const handleSaveEdit = async (rowIndex: number, key: keyof Lead) => {
+  const updatedLeads = [...leads]
+  const updatedLead = { ...updatedLeads[rowIndex], [key]: editValue }
+
+  // Optimistically update the local state
+  updatedLeads[rowIndex] = updatedLead
+  setLeads(updatedLeads)
+  setEditingCell(null)
+
+  // Update Supabase
+  const { error } = await supabase
+    .from('crm_leads')
+    .update({ [key]: editValue })
+    .eq('id', updatedLead.id)
+
+  if (error) {
+    console.error('Error updating lead:', error)
+    // Optionally rollback UI on failure
+    setLeads(originalLeads)
+  } else {
+    // Clear undo state if update succeeds
+    setOriginalLeads([])
+  }
+}
+
+
+const handleCancelEdit = () => {
+  if (originalLeads.length > 0) {
+    setLeads(originalLeads)
+    setOriginalLeads([])
+  }
+  setEditingCell(null)
+}
+
+
+
+
+
+
   return (
     <div>
       {/* Topbar */}
@@ -102,39 +160,78 @@ export default function LeadsListPage() {
           <CardTitle className="text-xl">All CRM Leads</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-  <div className="max-h-[600px] overflow-y-auto">
+  <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead onClick={() => handleSort('contact_name')} className="cursor-pointer">Contact Name</TableHead>
-          <TableHead>Company</TableHead>
-          <TableHead>Phone</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Region</TableHead>
-          <TableHead>Lead Source</TableHead>
-          <TableHead>First Contact</TableHead>
-          <TableHead>Last Contact</TableHead>
-          <TableHead>Service</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Captured By</TableHead>
-          <TableHead onClick={() => handleSort('created_at')} className="cursor-pointer">Date</TableHead>
+          <TableHead onClick={() => handleSort('contact_name')} className="cursor-pointer px-2">
+            Contact Name {sortBy === 'contact_name' && (sortAsc ? '▲' : '▼')}
+          </TableHead>
+          <TableHead className="px-2">Company</TableHead>
+          <TableHead className="px-2">Phone</TableHead>
+          <TableHead className="px-2">Email</TableHead>
+          <TableHead className="px-2">Region</TableHead>
+          <TableHead className="px-2">Lead Source</TableHead>
+          <TableHead className="px-2">First Contact</TableHead>
+          <TableHead className="px-2">Last Contact</TableHead>
+          <TableHead className="px-2">Service</TableHead>
+          <TableHead className="px-2">Status</TableHead>
+          <TableHead className="px-2">Captured By</TableHead>
+          <TableHead onClick={() => handleSort('created_at')} className="cursor-pointer px-2">
+            Date {sortBy === 'created_at' && (sortAsc ? '▲' : '▼')}
+          </TableHead>
         </TableRow>
       </TableHeader>
+
       <TableBody>
-        {leads.map((lead) => (
+        {leads.map((lead, rowIndex) => (
+          
           <TableRow key={lead.id}>
-            <TableCell>{lead.contact_name || '—'}</TableCell>
-            <TableCell>{lead.company || '—'}</TableCell>
-            <TableCell>{lead.phone || '—'}</TableCell>
-            <TableCell>{lead.email || '—'}</TableCell>
-            <TableCell>{lead.region || '—'}</TableCell>
-            <TableCell>{lead.lead_source || '—'}</TableCell>
-            <TableCell>{lead.first_contact || '—'}</TableCell>
-            <TableCell>{lead.last_contact || '—'}</TableCell>
-            <TableCell>{lead.service_product || '—'}</TableCell>
-            <TableCell>{lead.status || '—'}</TableCell>
-            <TableCell>{lead.captured_by || '—'}</TableCell>
-            <TableCell>{new Date(lead.created_at!).toISOString().split('T')[0]}</TableCell>
+            {[
+            'contact_name',
+            'company',
+            'phone',
+            'email',
+            'region',
+            'lead_source',
+            'first_contact',
+            'last_contact',
+            'service_product',
+            'status',
+            'captured_by',
+            'created_at',
+          ].map((key, colIndex) => {
+            const fieldKey = key as keyof Lead
+            const value = lead[fieldKey]
+            const val = value as string | number | null
+            const cellValue = typeof val === 'string' ? val : (val ?? '').toString()
+            const isEditable = key !== 'created_at'
+
+            return (
+              <TableCell key={colIndex} className="px-2 text-sm">
+                {editingCell?.row === rowIndex && editingCell?.col === colIndex ? (
+                  <input
+                    autoFocus
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={() => handleSaveEdit(rowIndex, fieldKey)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveEdit(rowIndex, fieldKey)
+                      if (e.key === 'Escape') handleCancelEdit()
+                    }}
+                    className="w-full px-1 text-sm border rounded"
+                  />
+                ) : (
+                  <span
+                    onDoubleClick={() => isEditable && handleStartEdit(rowIndex, colIndex, cellValue)}
+                    className={isEditable ? 'cursor-pointer' : ''}
+                  >
+                    {cellValue || '—'}
+                  </span>
+                )}
+              </TableCell>
+            )
+          })}
 
           </TableRow>
         ))}

@@ -4,7 +4,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
 import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
+import { Toaster } from "sonner"
 
 export function ClientLayoutWrapper({
   children,
@@ -25,9 +25,11 @@ export function ClientLayoutWrapper({
 
   // 👉 app layout with sidebar + sidebar-aligned content
   return (
+    
     <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden">
         <AppSidebar />
+        <Toaster richColors position="top-right" />
 
         <div className="relative flex-1 overflow-y-auto">
           {/* SidebarToggle inside relative parent */}

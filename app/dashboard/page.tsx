@@ -13,10 +13,9 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { LineChart } from "@/components/charts/line-chart"
 import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
+import { LeadSourceAreaChart } from '@/components/charts/area-chart'
 
 export default function Page() {
   const [stats, setStats] = useState({
@@ -30,48 +29,75 @@ export default function Page() {
   const [selectedRange, setSelectedRange] = useState<'3m' | '30d' | '7d'>('3m')
   const [serviceChartData, setServiceChartData] = useState<{ service_product: string; count: number }[]>([])
 
-  const [leadChartData, setLeadChartData] = useState<{ lead_source: string, count: number }[]>([])
-
-  const fetchLeadChartData = async (range: '3m' | '30d' | '7d') => {
-    const now = new Date()
-    let fromDate = new Date()
-  
-    if (range === '3m') fromDate.setMonth(now.getMonth() - 3)
-    else if (range === '30d') fromDate.setDate(now.getDate() - 30)
-    else if (range === '7d') fromDate.setDate(now.getDate() - 7)
-  
-    const { data, error } = await supabase
-      .from('crm_leads')
-      .select('lead_source, created_at')
-      .gte('created_at', fromDate.toISOString())
-  
-    if (error) {
-      console.error('Error fetching lead sources:', error)
-      return
-    }
-  
-    const counts: Record<string, number> = {}
-  
-    data?.forEach((item) => {
-      const source = item.lead_source?.trim().toLowerCase() || 'unknown'
-      counts[source] = (counts[source] || 0) + 1
-    })
-  
-    const chartData = Object.entries(counts)
-      .map(([lead_source, count]) => ({ lead_source, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3)
-  
-    setLeadChartData(chartData)
+  type AreaData = {
+    date: string
+    [leadSource: string]: string | number
   }
   
+  const [leadAreaChartData, setLeadAreaChartData] = useState<AreaData[]>([])
 
 
+  const currentYear = new Date().getFullYear()
+const [selectedYear, setSelectedYear] = useState<number>(currentYear)
+const [availableYears, setAvailableYears] = useState<number[]>([])
+
+
+
+const fetchLeadsBySourcePerMonth = async (year: number) => {
+  const startOfYear = new Date(year, 0, 1)
+  const endOfYear = new Date(year + 1, 0, 1)
+
+  const { data, error } = await supabase
+    .from('crm_leads')
+    .select('lead_source, first_contact')
+    .gte('first_contact', startOfYear.toISOString())
+    .lt('first_contact', endOfYear.toISOString())
+
+  if (error) {
+    console.error('Error fetching leads:', error)
+    return
+  }
+
+  const grouped: Record<string, Record<string, number>> = {}
+  const uniqueSources = new Set<string>()
+
+  data?.forEach(({ lead_source, first_contact }) => {
+    if (!first_contact) return
+
+    const date = new Date(first_contact)
+    const month = date.toLocaleString('default', { month: 'short' })
+    const source = lead_source?.trim().toLowerCase() || 'unknown'
+
+    uniqueSources.add(source)
+
+    if (!grouped[month]) grouped[month] = {}
+    grouped[month][source] = (grouped[month][source] || 0) + 1
+  })
+
+  const allSources = Array.from(uniqueSources)
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ]
+
+  const formatted = months.map((month) => {
+    const base: { date: string; [key: string]: string | number } = { date: month }
+  
+    allSources.forEach((source) => {
+      base[source] = grouped[month]?.[source] || 0
+    })
+  
+    return base
+  })
+  
+
+  setLeadAreaChartData(formatted)
+}
 
 
   const fetchTopServices = async (range: '3m' | '30d' | '7d') => {
     const now = new Date()
-    let fromDate = new Date()
+    const fromDate = new Date()
   
     if (range === '3m') fromDate.setMonth(now.getMonth() - 3)
     else if (range === '30d') fromDate.setDate(now.getDate() - 30)
@@ -97,21 +123,45 @@ export default function Page() {
     const chartData = Object.entries(counts)
       .map(([service_product, count]) => ({ service_product, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 3)
   
     setServiceChartData(chartData)
   }
 
   
 
-
-
+  useEffect(() => {
+    fetchLeadsBySourcePerMonth(selectedYear)
+  }, [selectedYear])
+  
 
   useEffect(() => {
-    fetchLeadChartData(selectedRange)
     fetchTopServices(selectedRange)
   }, [selectedRange])
 
+  useEffect(() => {
+    const init = async () => {
+      const { data, error } = await supabase
+        .from('crm_leads')
+        .select('first_contact')
+  
+      if (error) return console.error(error)
+  
+      const years = new Set<number>()
+      data?.forEach(({ first_contact }) => {
+        if (first_contact) {
+          const y = new Date(first_contact).getFullYear()
+          years.add(y)
+        }
+      })
+  
+      const sorted = Array.from(years).sort((a, b) => b - a)
+      setAvailableYears(sorted)
+    }
+  
+    init()
+  }, [])
+
+  
   
   useEffect(() => {
     const fetchStats = async () => {
@@ -201,48 +251,39 @@ export default function Page() {
         />
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 justify-evenly w-full pt-5">
   {/* Chart 1 */}
+  <div className="py-4">
+    
+  
   <Card className="flex-1">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <div>
         <CardTitle className="text-lg">Lead Captures Over Time</CardTitle>
         <CardDescription></CardDescription>
       </div>
-      <div className="flex gap-2">
-        <Button
-          variant={selectedRange === '3m' ? 'outline' : 'ghost'}
-          size="sm"
-          onClick={() => setSelectedRange('3m')}
-        >
-          Last 3 months
-        </Button>
-        <Button
-          variant={selectedRange === '30d' ? 'outline' : 'ghost'}
-          size="sm"
-          onClick={() => setSelectedRange('30d')}
-        >
-          Last 30 days
-        </Button>
-        <Button
-          variant={selectedRange === '7d' ? 'outline' : 'ghost'}
-          size="sm"
-          onClick={() => setSelectedRange('7d')}
-        >
-          Last 7 days
-        </Button>
-      </div>
+      <div>
+          <select
+            className="border px-2 py-1 rounded-md text-sm"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+          >
+            {availableYears.map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
     </CardHeader>
     <CardContent>
-      <LineChart data={leadChartData} />
+    <LeadSourceAreaChart data={leadAreaChartData} />
     </CardContent>
   </Card>
+  </div>
 
   {/* Chart 2: Top 3 Services */}
 <Card className="flex-1">
   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
     <div>
-      <CardTitle className="text-lg">Top 3 Services</CardTitle>
+      <CardTitle className="text-lg">Services / Products</CardTitle>
       <CardDescription>Most requested services by leads</CardDescription>
     </div>
   </CardHeader>
@@ -250,7 +291,6 @@ export default function Page() {
     <ServiceBarChart data={serviceChartData} />
   </CardContent>
 </Card>
-</div>
 
     </SidebarInset>
   )
