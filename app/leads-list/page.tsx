@@ -1,24 +1,38 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  flexRender,
+  ColumnDef,
+  SortingState,
+} from '@tanstack/react-table'
 import { supabase } from '@/lib/supabase'
 import {
-  Card, CardHeader, CardTitle, CardContent
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
 } from '@/components/ui/card'
 import {
-  Table, TableHead, TableHeader, TableBody, TableRow, TableCell
-} from '@/components/ui/table'
-import {
-  Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink,
-  BreadcrumbSeparator, BreadcrumbPage
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbSeparator,
+  BreadcrumbPage,
 } from '@/components/ui/breadcrumb'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 
 type Lead = {
   id: string
   contact_name: string
   email: string
   phone?: string
+  mobile?: string
   company?: string
   status?: string
   region?: string
@@ -27,6 +41,7 @@ type Lead = {
   first_contact?: string
   last_contact?: string
   captured_by?: string
+  notes?: string
   created_at?: string
 }
 
@@ -35,16 +50,96 @@ export default function LeadsListPage() {
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<'contact_name' | 'created_at'>('created_at')
   const [sortAsc, setSortAsc] = useState(false)
+  const [editingCell, setEditingCell] = useState<{ row: string; col: keyof Lead } | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [originalLeads, setOriginalLeads] = useState<Lead[]>([])
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
+  const [forceUpdate, setForceUpdate] = useState(0) // Force re-render trigger
+  const [editMode, setEditMode] = useState(false)
+  const [page, setPage] = useState(1)
+  const pageSize = 50
+  const [totalCount, setTotalCount] = useState(0)
+  
+  const toggleRowSelection = (id: string) => {
+    console.log('Toggling row:', id) // Debug log
+    setSelectedRowIds(prev => {
+      const updated = new Set(prev)
+      if (updated.has(id)) {
+        updated.delete(id)
+        console.log('Removed:', id) // Debug log
+      } else {
+        updated.add(id)
+        console.log('Added:', id) // Debug log
+      }
+      console.log('Updated set:', Array.from(updated)) // Debug log
+      return updated
+    })
+    setForceUpdate(prev => prev + 1) // Force re-render
+  }
+
+  const selectAll = () => {
+    setSelectedRowIds(new Set(leads.map(lead => lead.id)))
+  }
+
+  const clearSelection = () => {
+    setSelectedRowIds(new Set())
+  }
+
+  const handleDeleteSelected = async () => {
+    const idsToDelete = Array.from(selectedRowIds)
+    const { error } = await supabase.from('crm_leads').delete().in('id', idsToDelete)
+
+    if (error) {
+      console.error('Error deleting leads:', error)
+    } else {
+      setLeads(leads.filter(lead => !selectedRowIds.has(lead.id)))
+      clearSelection()
+    }
+  }
+
+  const handleStartEdit = (rowId: string, col: keyof Lead, value: string) => {
+    setEditingCell({ row: rowId, col })
+    setEditValue(value)
+    if (!originalLeads.length) setOriginalLeads([...leads])
+  }
+
+  const handleSaveEdit = async (rowId: string, key: keyof Lead) => {
+    const updated = leads.map(lead =>
+      lead.id === rowId ? { ...lead, [key]: editValue } : lead
+    )
+    setLeads(updated)
+    setEditingCell(null)
+
+    const { error } = await supabase.from('crm_leads').update({ [key]: editValue }).eq('id', rowId)
+    if (error) {
+      setLeads(originalLeads)
+      console.error(error)
+    } else {
+      setOriginalLeads([])
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setLeads(originalLeads)
+    setEditingCell(null)
+    setOriginalLeads([])
+  }
+
+  const [sorting, setSorting] = useState<SortingState>([])
 
   useEffect(() => {
     const fetchLeads = async () => {
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+  
       const query = supabase
         .from('crm_leads')
-        .select('*')
+        .select('*', { count: 'exact' }) // 👈 get total count too
         .order(sortBy, { ascending: sortAsc })
-
-      const { data, error } = await query
-
+        .range(from, to)
+  
+      const { data, count, error } = await query
+  
       if (error) {
         console.error('Error fetching leads:', error)
       } else {
@@ -53,83 +148,113 @@ export default function LeadsListPage() {
           lead.company?.toLowerCase().includes(search.toLowerCase()) ||
           lead.email?.toLowerCase().includes(search.toLowerCase())
         )
+  
         setLeads(filtered)
+        setTotalCount(count || 0)
+  
+        const validIds = new Set(filtered.map(lead => lead.id))
+        setSelectedRowIds(prev => {
+          const updated = new Set<string>()
+          prev.forEach(id => {
+            if (validIds.has(id)) {
+              updated.add(id)
+            }
+          })
+          return updated
+        })
       }
     }
-
+  
     fetchLeads()
-  }, [search, sortBy, sortAsc])
+  }, [search, sortBy, sortAsc, page])
+  
 
-  const handleSort = (column: 'contact_name' | 'created_at') => {
-    if (sortBy === column) {
-      setSortAsc(!sortAsc)
-    } else {
-      setSortBy(column)
-      setSortAsc(true)
-    }
-  }
+  // Check if all rows are selected
+  const isAllSelected = leads.length > 0 && selectedRowIds.size === leads.length
+  const isIndeterminate = selectedRowIds.size > 0 && selectedRowIds.size < leads.length
 
+  // Debug: Log the state to see what's happening
+  useEffect(() => {
+    console.log('Selected IDs:', Array.from(selectedRowIds))
+    console.log('Leads count:', leads.length)
+    console.log('Is all selected:', isAllSelected)
+  }, [selectedRowIds, leads, isAllSelected])
 
+  const columns = useRef<ColumnDef<Lead>[]>([
+    
+    
+    
+    {
+      accessorKey: 'contact_name',
+      header: 'Contact Name',
+      enableSorting: true,
+    },
+    {
+      accessorKey: 'company',
+      header: 'Company',
+    },
+    {
+      accessorKey: 'phone',
+      header: 'Phone',
+    },
+    {
+      accessorKey: 'mobile',
+      header: 'Mobile',
+    },
+    {
+      accessorKey: 'email',
+      header: 'Email',
+    },
+    {
+      accessorKey: 'region',
+      header: 'Region',
+    },
+    {
+      accessorKey: 'lead_source',
+      header: 'Lead Source',
+    },
+    {
+      accessorKey: 'first_contact',
+      header: 'First Contact',
+    },
+    {
+      accessorKey: 'last_contact',
+      header: 'Last Contact',
+    },
+    {
+      accessorKey: 'service_product',
+      header: 'Service',
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+    },
+    {
+      accessorKey: 'captured_by',
+      header: 'Captured By',
+    },
+    {
+      accessorKey: 'notes',
+      header: 'Notes',
+    },
+    {
+      accessorKey: 'created_at',
+      header: 'Date',
+    },
+  ])
 
-
-
-
-
-
-  const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null)
-const [editValue, setEditValue] = useState('')
-const [originalLeads, setOriginalLeads] = useState<Lead[]>([])
-
-const handleStartEdit = (row: number, col: number, currentValue: string) => {
-  setEditingCell({ row, col })
-  setEditValue(currentValue)
-  if (originalLeads.length === 0) {
-    setOriginalLeads(JSON.parse(JSON.stringify(leads))) // deep clone
-  }
-}
-
-const handleSaveEdit = async (rowIndex: number, key: keyof Lead) => {
-  const updatedLeads = [...leads]
-  const updatedLead = { ...updatedLeads[rowIndex], [key]: editValue }
-
-  // Optimistically update the local state
-  updatedLeads[rowIndex] = updatedLead
-  setLeads(updatedLeads)
-  setEditingCell(null)
-
-  // Update Supabase
-  const { error } = await supabase
-    .from('crm_leads')
-    .update({ [key]: editValue })
-    .eq('id', updatedLead.id)
-
-  if (error) {
-    console.error('Error updating lead:', error)
-    // Optionally rollback UI on failure
-    setLeads(originalLeads)
-  } else {
-    // Clear undo state if update succeeds
-    setOriginalLeads([])
-  }
-}
-
-
-const handleCancelEdit = () => {
-  if (originalLeads.length > 0) {
-    setLeads(originalLeads)
-    setOriginalLeads([])
-  }
-  setEditingCell(null)
-}
-
-
-
-
-
+  const table = useReactTable({
+    data: leads,
+    columns: columns.current,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    state: { sorting },
+    onSortingChange: setSorting,
+    columnResizeMode: 'onChange',
+  })
 
   return (
     <div>
-      {/* Topbar */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4 pl-10">
           <Breadcrumb>
@@ -154,101 +279,203 @@ const handleCancelEdit = () => {
           />
         </div>
       </div>
+      
+      {selectedRowIds.size > 0 && (
+        <div className="flex items-center justify-end px-10 mb-2 gap-2">
+          <span>{selectedRowIds.size} selected</span>
+          <button
+            onClick={handleDeleteSelected}
+            className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Delete Selected
+          </button>
+          <button
+            onClick={clearSelection}
+            className="px-3 py-1 text-sm bg-gray-300 rounded hover:bg-gray-400"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+
+      <div className="flex items-center justify-between px-10 mb-4">
+        <button
+          onClick={() => setEditMode(prev => !prev)}
+          className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          {editMode ? 'Exit Edit Mode' : 'Edit'}
+        </button>
+
+        {editMode && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={selectAll}
+              className="px-3 py-1 text-sm bg-gray-300 rounded hover:bg-gray-400"
+            >
+              Select All
+            </button>
+            <button
+              onClick={clearSelection}
+              className="px-3 py-1 text-sm bg-gray-300 rounded hover:bg-gray-400"
+            >
+              Clear
+            </button>
+            <button
+              onClick={() => {
+                const confirmed = window.confirm('Are you sure you want to delete selected leads?')
+                if (confirmed) {
+                  const doubleConfirm = window.confirm('This action is irreversible. Confirm again?')
+                  if (doubleConfirm) {
+                    handleDeleteSelected()
+                  }
+                }
+              }}
+              className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+              disabled={selectedRowIds.size === 0}
+            >
+              Delete Selected
+            </button>
+          </div>
+        )}
+      </div>
+
 
       <Card>
-  <CardHeader>
-    <CardTitle className="text-xl">All CRM Leads</CardTitle>
-  </CardHeader>
+        <CardHeader>
+          <CardTitle className="text-xl">All CRM Leads</CardTitle>
+        </CardHeader>
 
-  <CardContent className="p-0">
-    {/* Horizontal scroll wrapper */}
-    <div className="overflow-x-auto">
-      {/* Vertical scroll wrapper inside */}
-      <div className="max-h-[600px] overflow-y-auto">
-        <Table className="min-w-[1400px]">
-          <TableHeader className="sticky top-0 bg-white z-10">
-            <TableRow>
-              <TableHead onClick={() => handleSort('contact_name')} className="cursor-pointer px-2">
-                Contact Name {sortBy === 'contact_name' && (sortAsc ? '▲' : '▼')}
-              </TableHead>
-              <TableHead className="px-2">Company</TableHead>
-              <TableHead className="px-2">Phone</TableHead>
-              <TableHead className="px-2">Mobile</TableHead>
-              <TableHead className="px-2">Email</TableHead>
-              <TableHead className="px-2">Region</TableHead>
-              <TableHead className="px-2">Lead Source</TableHead>
-              <TableHead className="px-2">First Contact</TableHead>
-              <TableHead className="px-2">Last Contact</TableHead>
-              <TableHead className="px-2">Service</TableHead>
-              <TableHead className="px-2">Status</TableHead>
-              <TableHead className="px-2">Captured By</TableHead>
-              <TableHead className="px-2">Notes</TableHead>
-              <TableHead onClick={() => handleSort('created_at')} className="cursor-pointer px-2">
-                Date {sortBy === 'created_at' && (sortAsc ? '▲' : '▼')}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-
-          <TableBody>
-            {leads.map((lead, rowIndex) => (
-              <TableRow key={lead.id}>
-                {[
-                  'contact_name',
-                  'company',
-                  'phone',
-                  'mobile',
-                  'email',
-                  'region',
-                  'lead_source',
-                  'first_contact',
-                  'last_contact',
-                  'service_product',
-                  'status',
-                  'captured_by',
-                  'notes',
-                  'created_at',
-                ].map((key, colIndex) => {
-                  const fieldKey = key as keyof Lead
-                  const value = lead[fieldKey]
-                  const val = value as string | number | null
-                  const cellValue = typeof val === 'string' ? val : (val ?? '').toString()
-                  const isEditable = key !== 'created_at'
-
-                  return (
-                    <TableCell key={colIndex} className="px-2 text-sm">
-                      {editingCell?.row === rowIndex && editingCell?.col === colIndex ? (
-                        <input
-                          autoFocus
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={() => handleSaveEdit(rowIndex, fieldKey)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveEdit(rowIndex, fieldKey)
-                            if (e.key === 'Escape') handleCancelEdit()
-                          }}
-                          className="w-full px-1 text-sm border rounded"
-                        />
-                      ) : (
-                        <span
-                          onDoubleClick={() =>
-                            isEditable && handleStartEdit(rowIndex, colIndex, cellValue)
-                          }
-                          className={isEditable ? 'cursor-pointer' : ''}
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            
+            <div style={{ maxHeight: '500px' }} className="overflow-y-auto">
+              <table className="min-w-[1400px] border-separate border-spacing-0">
+                <thead className="sticky top-0 bg-white z-10">
+                  
+                  {table.getHeaderGroups().map(headerGroup => (
+                    <tr key={headerGroup.id}>
+                      {headerGroup.headers.map(header => (
+                        <th
+                          key={header.id}
+                          onClick={header.column.getToggleSortingHandler()}
+                          style={{ width: header.getSize() }}
+                          className="relative px-2 text-left border-b whitespace-nowrap cursor-pointer"
                         >
-                          {cellValue || '—'}
-                        </span>
-                      )}
-                    </TableCell>
-                  )
-                })}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  </CardContent>
-</Card>
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {{
+                            asc: ' ▲',
+                            desc: ' ▼',
+                          }[header.column.getIsSorted() as string] ?? null}
+
+                          {header.column.getCanResize() && (
+                            <div
+                              onMouseDown={header.getResizeHandler()}
+                              onTouchStart={header.getResizeHandler()}
+                              className="absolute right-0 top-0 h-full w-1 cursor-col-resize select-none bg-gray-200"
+                            />
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                    
+                  ))}
+                </thead>
+                <tbody>
+                  
+                {table.getRowModel().rows.map(row => (
+                  
+                      <tr
+                      key={row.id}
+                      className={`cursor-pointer ${
+                        editMode && selectedRowIds.has(row.original.id) ? 'bg-yellow-100' : ''
+                      } ${editMode ? 'hover:bg-yellow-50' : ''}`}
+                      onClick={() => {
+                        if (editMode) toggleRowSelection(row.original.id)
+                      }}
+                    >
+                      {row.getVisibleCells().map(cell => {
+                        // Directly compare column.id, not colKey
+                        if (cell.column.id === 'select') {
+                          return (
+                            <td key={cell.id} className="px-2 text-sm border-b">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          );
+                        }
+
+                        const colKey = cell.column.id as keyof Lead;
+                        const rawValue = cell.getValue() as string | number | null;
+                        const display = rawValue == null ? '' : String(rawValue);
+                        const isEditing =
+                          editingCell?.row === row.original.id &&
+                          editingCell.col === colKey;
+
+                        return (
+                          <td
+                            key={cell.id}
+                            className="px-2 text-sm border-b cursor-pointer"
+                            onDoubleClick={() => {
+                              if (!isEditing) {
+                                handleStartEdit(row.original.id, colKey, display);
+                              }
+                            }}
+                          >
+                            {isEditing ? (
+                              <input
+                                autoFocus
+                                value={editValue}
+                                onChange={e => setEditValue(e.target.value)}
+                                onBlur={() => handleSaveEdit(row.original.id, colKey)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleSaveEdit(row.original.id, colKey);
+                                  if (e.key === 'Escape') handleCancelEdit();
+                                }}
+                                className="w-full px-1 text-sm border rounded"
+                              />
+                            ) : (
+                              <span className="block w-full truncate" title={display || '—'}>
+                                {display || '—'}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <div className="flex justify-between items-center px-10 mt-4 text-sm">
+  <span>
+    Showing {(page - 1) * pageSize + 1}–
+    {Math.min(page * pageSize, totalCount)} of {totalCount.toLocaleString()} leads
+  </span>
+  <div className="flex gap-2">
+    <button
+      onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+      disabled={page === 1}
+      className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+    >
+      Previous
+    </button>
+    <button
+      onClick={() => setPage(prev => (page * pageSize < totalCount ? prev + 1 : prev))}
+      disabled={page * pageSize >= totalCount}
+      className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+    >
+      Next
+    </button>
+  </div>
+</div>
+
+      <div className="flex justify-end px-10 mt-2 text-sm text-muted-foreground">
+  Showing {leads.length.toLocaleString()} {leads.length === 1 ? 'lead' : 'leads'}
+</div>
 
     </div>
   )

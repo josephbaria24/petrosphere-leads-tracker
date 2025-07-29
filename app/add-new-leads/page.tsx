@@ -61,7 +61,7 @@ const services = [
 // Lead sources
 const leadSources = [
   'facebook', 'viber', 'teams', 'phone call', 'tawk.to', 'unknown',
-  'phone text', 'site visit', 'peza', 'e-mail', 'google'
+  'phone Text', 'site Visit', 'peza', 'e-mail', 'google'
 ]
 
 export default function AddNewLeadPage() {

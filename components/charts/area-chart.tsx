@@ -8,7 +8,6 @@ import {
     ResponsiveContainer,
     Legend,
   } from 'recharts'
-  import Image from 'next/image'
   import { LegendProps } from 'recharts'
 import type { Payload } from 'recharts/types/component/DefaultLegendContent'
 
@@ -17,53 +16,38 @@ import type { Payload } from 'recharts/types/component/DefaultLegendContent'
     [leadSource: string]: string | number
   }
   
-  // 1. Define icons per lead source
-  const iconMap: Record<string, string> = {
-    facebook: '/icons/fb.svg',
-    viber: '/icons/viber.svg',
-    teams: '/icons/teams.svg',
-    'phone call': '/icons/call.svg',
-    'tawk.to': '/icons/tawkto.jpeg',
-    unknown: '/icons/question.svg',
-    'phone text': '/icons/chat.svg',
-    'site visit': '/icons/site.svg',
-    peza: '/icons/site.svg',
-    'e-mail': '/icons/email.svg',
-    google: '/icons/google.svg',
-  }
-  
-  // 2. Custom legend renderer
   const CustomLegend = ({ payload }: LegendProps) => (
     <ul className="flex flex-wrap gap-4 mt-2 text-sm">
-      {(payload as Payload[]).map((entry, index) => {
-        const label = entry.value as string
-        const icon = iconMap[label.toLowerCase()]
-        return (
-          <li key={`item-${index}`} className="flex items-center gap-1">
-            {icon && (
-              <Image
-                src={icon}
-                alt={label}
-                width={14}
-                height={14}
-                style={{ display: 'inline-block' }}
-              />
-            )}
-            <span style={{ color: entry.color }}>{label}</span>
-          </li>
-        )
-      })}
+      {(payload as Payload[]).map((entry, index) => (
+        <li key={`item-${index}`} className="flex items-center gap-1">
+          <span
+            className="inline-block w-3 h-3 rounded-full"
+            style={{ backgroundColor: entry.color }}
+          />
+          <span>{(entry.value as string).charAt(0).toUpperCase() + (entry.value as string).slice(1)}</span>
+
+        </li>
+      ))}
     </ul>
   )
   
   
+  
   export function LeadSourceAreaChart({ data }: { data: AreaData[] }) {
     const colors = [
-      '#42a5f5', '#03fc03', '#6703fc', '#66bb6a', '#ab47bc',
-      '#fc0303', '#ffa726', '#8d6e63', '#f200ff', '#ff0066',
+      '#d6a800', '#42a5f5', '#d6000e', '#66bb6a', '#ab47bc',
+      '#fc0303', '#ffa726', '#8d6e63', '#f200ff', '#590000', '#008a37',
     ]
   
-    const leadSources = Object.keys(data[0] || {}).filter(k => k !== 'date')
+    const leadSources = Array.from(
+      new Set(
+        data.flatMap(row =>
+          Object.keys(row).filter(k => k !== 'date')
+        )
+      )
+    ).sort((a, b) => a.localeCompare(b)) // optional: stable order
+    
+    
   
     return (
       <div className="h-[350px] w-full">

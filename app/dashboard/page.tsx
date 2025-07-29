@@ -25,8 +25,6 @@ export default function Page() {
     totalInProgress: 0
   })
 
-
-  const [selectedRange,] = useState<'3m' | '30d' | '7d'>('3m')
   const [serviceChartData, setServiceChartData] = useState<{ service_product: string; count: number }[]>([])
 
   type AreaData = {
@@ -38,105 +36,119 @@ export default function Page() {
 
 
   const currentYear = new Date().getFullYear()
-const [selectedYear, setSelectedYear] = useState<number>(currentYear)
-const [availableYears, setAvailableYears] = useState<number[]>([])
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear)
+  const [availableYears, setAvailableYears] = useState<number[]>([])
+  const [selectedMonth, setSelectedMonth] = useState<string>('all')  // default is "all"
 
 
+  const [leadSourceTotals, setLeadSourceTotals] = useState<Record<string, number>>({})
 
-const fetchLeadsBySourcePerMonth = async (year: number) => {
-  const startOfYear = new Date(year, 0, 1)
-  const endOfYear = new Date(year + 1, 0, 1)
-
-  const { data, error } = await supabase
-    .from('crm_leads')
-    .select('lead_source, first_contact')
-    .gte('first_contact', startOfYear.toISOString())
-    .lt('first_contact', endOfYear.toISOString())
-
-  if (error) {
-    console.error('Error fetching leads:', error)
-    return
-  }
-
-  const grouped: Record<string, Record<string, number>> = {}
-  const uniqueSources = new Set<string>()
-
-  data?.forEach(({ lead_source, first_contact }) => {
-    if (!first_contact) return
-
-    const date = new Date(first_contact)
-    const month = date.toLocaleString('default', { month: 'short' })
-    const source = lead_source?.trim().toLowerCase() || 'unknown'
-
-    uniqueSources.add(source)
-
-    if (!grouped[month]) grouped[month] = {}
-    grouped[month][source] = (grouped[month][source] || 0) + 1
-  })
-
-  const allSources = Array.from(uniqueSources)
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ]
-
-  const formatted = months.map((month) => {
-    const base: { date: string; [key: string]: string | number } = { date: month }
+  const fetchLeadsBySource = async (year: number, month: string) => {
+    let startDate: Date, endDate: Date;
   
-    allSources.forEach((source) => {
-      base[source] = grouped[month]?.[source] || 0
-    })
-  
-    return base
-  })
-  
-
-  setLeadAreaChartData(formatted)
-}
-
-
-  const fetchTopServices = async (range: '3m' | '30d' | '7d') => {
-    const now = new Date()
-    const fromDate = new Date()
-  
-    if (range === '3m') fromDate.setMonth(now.getMonth() - 3)
-    else if (range === '30d') fromDate.setDate(now.getDate() - 30)
-    else if (range === '7d') fromDate.setDate(now.getDate() - 7)
+    if (month === 'all') {
+      startDate = new Date(year, 0, 1)
+      endDate = new Date(year + 1, 0, 1)
+    } else {
+      const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
+      startDate = new Date(year, monthIndex, 1)
+      endDate = new Date(year, monthIndex + 1, 1)
+    }
   
     const { data, error } = await supabase
       .from('crm_leads')
-      .select('service_product, created_at')
-      .gte('created_at', fromDate.toISOString())
+      .select('lead_source, first_contact')
+      .gte('first_contact', startDate.toISOString())
+      .lt('first_contact', endDate.toISOString())
   
     if (error) {
-      console.error('Error fetching service_product:', error)
+      console.error('Error fetching leads:', error)
       return
     }
   
-    const counts: Record<string, number> = {}
+    const grouped: Record<string, Record<string, number>> = {}
+    const uniqueSources = new Set<string>()
+    const totals: Record<string, number> = {}
   
-    data?.forEach((item) => {
-      const product = item.service_product?.trim().toUpperCase() || 'UNKNOWN'
-      counts[product] = (counts[product] || 0) + 1
+    data?.forEach(({ lead_source, first_contact }) => {
+      if (!first_contact) return
+  
+      const date = new Date(first_contact)
+      const xLabel = month === 'all'
+        ? date.toLocaleString('default', { month: 'short' })
+        : String(date.getDate()).padStart(2, '0')  // '01', '02', ...
+  
+      const normalizedSource = (lead_source || 'Unknown').trim().toLowerCase()
+      uniqueSources.add(normalizedSource)
+  
+      if (!grouped[xLabel]) grouped[xLabel] = {}
+      grouped[xLabel][normalizedSource] = (grouped[xLabel][normalizedSource] || 0) + 1
+  
+      totals[normalizedSource] = (totals[normalizedSource] || 0) + 1
     })
   
-    const chartData = Object.entries(counts)
-      .map(([service_product, count]) => ({ service_product, count }))
-      .sort((a, b) => b.count - a.count)
+    const allSources = Array.from(uniqueSources)
+    const xValues = month === 'all'
+      ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      : Array.from({ length: new Date(year, new Date(`${month} 1, ${year}`).getMonth() + 1, 0).getDate() }, (_, i) => String(i + 1).padStart(2, '0'))
   
-    setServiceChartData(chartData)
+    const formatted = xValues.map((label) => {
+      const row: AreaData = { date: label }
+      allSources.forEach(source => {
+        row[source] = grouped[label]?.[source] || 0
+      })
+      return row
+    })
+  
+    setLeadAreaChartData(formatted)
+    setLeadSourceTotals(totals)
+  }
+  
+
+
+const fetchTopServicesByYear = async (year: number) => {
+  const startOfYear = new Date(year, 0, 1);
+  const endOfYear = new Date(year + 1, 0, 1);
+
+  const { data, error } = await supabase
+    .from('crm_leads')
+    .select('service_product, first_contact')
+    .gte('first_contact', startOfYear.toISOString())
+    .lt('first_contact', endOfYear.toISOString());
+
+  if (error) {
+    console.error('Error fetching service_product:', error);
+    return;
   }
 
+  const counts: Record<string, number> = {};
+
+  data?.forEach((item) => {
+    const product = item.service_product?.trim().toUpperCase() || 'UNKNOWN';
+    counts[product] = (counts[product] || 0) + 1;
+  });
+
+  const chartData = Object.entries(counts)
+    .map(([service_product, count]) => ({ service_product, count }))
+    .sort((a, b) => b.count - a.count);
+
+  setServiceChartData(chartData);
+};
+
+
+useEffect(() => {
+  fetchLeadsBySource(selectedYear, selectedMonth)
+}, [selectedYear, selectedMonth])
+
+
+  // useEffect(() => {
+  //   fetchLeadsBySourcePerMonth(selectedYear)
+  // }, [selectedYear])
   
 
   useEffect(() => {
-    fetchLeadsBySourcePerMonth(selectedYear)
-  }, [selectedYear])
-  
-
-  useEffect(() => {
-    fetchTopServices(selectedRange)
-  }, [selectedRange])
+    fetchTopServicesByYear(selectedYear);  // <-- replace old fetchTopServices call
+  }, [selectedYear]);
 
   useEffect(() => {
     const init = async () => {
@@ -221,35 +233,40 @@ const fetchLeadsBySourcePerMonth = async (year: number) => {
 
       {/* CRM Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Leads"
-          value={stats.totalLeads.toString()}
-          change="+12.5%"
-          trend="up"
-          subtext="All leads recorded"
-        />
-        <StatCard
-          label="Leads Closed"
-          value={stats.closedLeads.toString()}
-          change="+8.0%"
-          trend="up"
-          subtext="Leads marked as closed won"
-        />
-        <StatCard
-          label="Leads This Month"
-          value={stats.leadsThisMonth.toString()}
-          change="+15.0%"
-          trend="up"
-          subtext="New leads added this month"
-        />
-        <StatCard
-          label="In progress"
-          value={`${stats.totalInProgress}`}
-          change="+3.5%"
-          trend="up"
-          subtext="Total In-progress"
-        />
-      </div>
+          <StatCard
+            label="Total Leads"
+            value={stats.totalLeads.toString()}
+            change="+12.5%"
+            trend="up"
+            subtext="All leads recorded"
+            className="bg-blue-100 dark:bg-blue-900" // Light and dark variant
+          />
+          <StatCard
+            label="Leads Closed"
+            value={stats.closedLeads.toString()}
+            change="+8.0%"
+            trend="up"
+            subtext="Leads marked as closed won"
+            className="bg-cyan-100 dark:bg-cyan-800"
+          />
+          <StatCard
+            label="Leads This Month"
+            value={stats.leadsThisMonth.toString()}
+            change="+15.0%"
+            trend="up"
+            subtext="New leads added this month"
+            className="bg-amber-100 dark:bg-amber-700"
+          />
+          <StatCard
+            label="In progress"
+            value={`${stats.totalInProgress}`}
+            change="+3.5%"
+            trend="up"
+            subtext="Total In-progress"
+            className="bg-rose-100 dark:bg-rose-800"
+          />
+        </div>
+
 
   {/* Chart 1 */}
   <div className="py-4">
@@ -262,6 +279,18 @@ const fetchLeadsBySourcePerMonth = async (year: number) => {
         <CardDescription></CardDescription>
       </div>
       <div>
+        {/* month dropdown  */}
+      <select
+          className="border px-2 py-1 rounded-md text-sm ml-2"
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+        >
+          <option value="all">All Months</option>
+          {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map(month => (
+            <option key={month} value={month}>{month}</option>
+          ))}
+        </select>
+        {/* year dropdown */}          
           <select
             className="border px-2 py-1 rounded-md text-sm"
             value={selectedYear}
@@ -273,8 +302,21 @@ const fetchLeadsBySourcePerMonth = async (year: number) => {
           </select>
         </div>
     </CardHeader>
+
     <CardContent>
     <LeadSourceAreaChart data={leadAreaChartData} />
+    <div className="mt-4 text-sm">
+  <h4 className="font-semibold mb-2">Total Leads per Source (Year {selectedYear})</h4>
+  <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-2">
+    {Object.entries(leadSourceTotals).map(([source, count]) => (
+      <li key={source} className="flex justify-between">
+        <span className="capitalize">{source}</span>
+        <span className="font-medium">{count}</span>
+      </li>
+    ))}
+  </ul>
+</div>
+
     </CardContent>
   </Card>
   </div>
