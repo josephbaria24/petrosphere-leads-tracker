@@ -39,11 +39,12 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       .eq("id", user.id)
       .single()
 
-    if (profile?.role === "admin") {
-      router.push("/dashboard")
-    } else {
-      router.push("/unauthorized")
-    }
+      if (profile?.role === "admin" || profile?.role === "super_admin") {
+        router.push("/dashboard");
+      } else {
+        router.push("/unauthorized");
+      }
+      
   }
 
   return (

@@ -25,7 +25,9 @@ import {
   BreadcrumbPage,
 } from '@/components/ui/breadcrumb'
 import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
+import EditModal from './edit-modal/page'
+import { Pencil } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 type Lead = {
   id: string
@@ -34,9 +36,11 @@ type Lead = {
   phone?: string
   mobile?: string
   company?: string
+  address? : string
   status?: string
   region?: string
   service_product?: string
+  service_price?: Float32Array
   lead_source?: string
   first_contact?: string
   last_contact?: string
@@ -59,6 +63,8 @@ export default function LeadsListPage() {
   const [page, setPage] = useState(1)
   const pageSize = 50
   const [totalCount, setTotalCount] = useState(0)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   
   const toggleRowSelection = (id: string) => {
     console.log('Toggling row:', id) // Debug log
@@ -145,7 +151,11 @@ export default function LeadsListPage() {
       } else {
         const filtered = data.filter((lead) =>
           lead.contact_name?.toLowerCase().includes(search.toLowerCase()) ||
+          lead.address?.toLowerCase().includes(search.toLowerCase()) ||
+          lead.region?.toLowerCase().includes(search.toLowerCase()) ||
+          lead.lead_source?.toLowerCase().includes(search.toLowerCase()) ||
           lead.company?.toLowerCase().includes(search.toLowerCase()) ||
+          lead.service_product?.toLowerCase().includes(search.toLowerCase()) ||
           lead.email?.toLowerCase().includes(search.toLowerCase())
         )
   
@@ -171,7 +181,6 @@ export default function LeadsListPage() {
 
   // Check if all rows are selected
   const isAllSelected = leads.length > 0 && selectedRowIds.size === leads.length
-  const isIndeterminate = selectedRowIds.size > 0 && selectedRowIds.size < leads.length
 
   // Debug: Log the state to see what's happening
   useEffect(() => {
@@ -181,9 +190,6 @@ export default function LeadsListPage() {
   }, [selectedRowIds, leads, isAllSelected])
 
   const columns = useRef<ColumnDef<Lead>[]>([
-    
-    
-    
     {
       accessorKey: 'contact_name',
       header: 'Contact Name',
@@ -192,6 +198,10 @@ export default function LeadsListPage() {
     {
       accessorKey: 'company',
       header: 'Company',
+    },
+    {
+    accessorKey: 'address',
+    header: 'Address',
     },
     {
       accessorKey: 'phone',
@@ -226,6 +236,10 @@ export default function LeadsListPage() {
       header: 'Service',
     },
     {
+      accessorKey: 'service_price',
+      header: 'Service Price',
+      },
+    {
       accessorKey: 'status',
       header: 'Status',
     },
@@ -241,6 +255,9 @@ export default function LeadsListPage() {
       accessorKey: 'created_at',
       header: 'Date',
     },
+
+
+    
   ])
 
   const table = useReactTable({
@@ -280,64 +297,65 @@ export default function LeadsListPage() {
         </div>
       </div>
       
-      {selectedRowIds.size > 0 && (
-        <div className="flex items-center justify-end px-10 mb-2 gap-2">
-          <span>{selectedRowIds.size} selected</span>
-          <button
-            onClick={handleDeleteSelected}
-            className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Delete Selected
-          </button>
-          <button
-            onClick={clearSelection}
-            className="px-3 py-1 text-sm bg-gray-300 rounded hover:bg-gray-400"
-          >
-            Clear
-          </button>
-        </div>
-      )}
+      <div className="flex items-center justify-between px-0 mb-4">
+      <Button
+        onClick={() => {
+          setEditMode(prev => {
+            const newMode = !prev
+            if (newMode) {
+              // Just entered edit mode — clear previous selection
+              setSelectedRowIds(new Set())
+            }
+            return newMode
+          })
+        }}
+        className="px-4 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        {editMode ? 'Exit Edit Mode' : 'Edit'}
+      </Button>
 
-
-      <div className="flex items-center justify-between px-10 mb-4">
-        <button
-          onClick={() => setEditMode(prev => !prev)}
-          className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          {editMode ? 'Exit Edit Mode' : 'Edit'}
-        </button>
 
         {editMode && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={selectAll}
-              className="px-3 py-1 text-sm bg-gray-300 rounded hover:bg-gray-400"
-            >
-              Select All
-            </button>
-            <button
-              onClick={clearSelection}
-              className="px-3 py-1 text-sm bg-gray-300 rounded hover:bg-gray-400"
-            >
-              Clear
-            </button>
-            <button
-              onClick={() => {
-                const confirmed = window.confirm('Are you sure you want to delete selected leads?')
-                if (confirmed) {
-                  const doubleConfirm = window.confirm('This action is irreversible. Confirm again?')
-                  if (doubleConfirm) {
-                    handleDeleteSelected()
-                  }
-                }
-              }}
-              className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-              disabled={selectedRowIds.size === 0}
-            >
-              Delete Selected
-            </button>
-          </div>
-        )}
+  <div className="flex items-center gap-2">
+    <span className="text-sm text-gray-600">
+      {selectedRowIds.size} selected
+    </span>
+
+    <button
+      onClick={selectAll}
+      className="px-3 py-1 text-sm bg-gray-300 rounded hover:bg-gray-400"
+    >
+      Select All
+    </button>
+
+    <button
+      onClick={clearSelection}
+      className="px-3 py-1 text-sm bg-gray-300 rounded hover:bg-gray-400"
+      disabled={selectedRowIds.size === 0}
+    >
+      Clear
+    </button>
+
+    <button
+      onClick={() => {
+        const confirmed = window.confirm('Are you sure you want to delete selected leads?')
+        if (confirmed) {
+          const doubleConfirm = window.confirm('This action is irreversible. Confirm again?')
+          if (doubleConfirm) {
+            handleDeleteSelected()
+          }
+        }
+      }}
+      className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+      disabled={selectedRowIds.size === 0}
+    >
+      Delete Selected
+    </button>
+  </div>
+)}
+
+
+
       </div>
 
 
@@ -385,15 +403,22 @@ export default function LeadsListPage() {
                   
                 {table.getRowModel().rows.map(row => (
                   
-                      <tr
+                  <tr
                       key={row.id}
-                      className={`cursor-pointer ${
-                        editMode && selectedRowIds.has(row.original.id) ? 'bg-yellow-100' : ''
-                      } ${editMode ? 'hover:bg-yellow-50' : ''}`}
+                      className={`cursor-pointer hover:bg-gray-100 ${
+                        editMode && selectedRowIds.has(row.original.id) ? 'bg-red-200' : ''
+                      }`}
+                      
                       onClick={() => {
-                        if (editMode) toggleRowSelection(row.original.id)
+                        if (editMode) {
+                          toggleRowSelection(row.original.id)
+                        } else {
+                          setSelectedLead(row.original)
+                          setEditModalOpen(true)
+                        }
                       }}
                     >
+
                       {row.getVisibleCells().map(cell => {
                         // Directly compare column.id, not colKey
                         if (cell.column.id === 'select') {
@@ -434,9 +459,13 @@ export default function LeadsListPage() {
                                 className="w-full px-1 text-sm border rounded"
                               />
                             ) : (
-                              <span className="block w-full truncate" title={display || '—'}>
-                                {display || '—'}
-                              </span>
+                              <span
+                              className="block w-full overflow-hidden text-ellipsis line-clamp-2 max-h-[3em]"
+                              title={display || '—'}
+                            >
+                              {display || '—'}
+                            </span>
+
                             )}
                           </td>
                         );
@@ -476,7 +505,30 @@ export default function LeadsListPage() {
       <div className="flex justify-end px-10 mt-2 text-sm text-muted-foreground">
   Showing {leads.length.toLocaleString()} {leads.length === 1 ? 'lead' : 'leads'}
 </div>
+    {selectedLead && (
+      <EditModal
+      isOpen={editModalOpen}
+      onClose={() => setEditModalOpen(false)}
+      lead={selectedLead}
+      onSave={async (updated) => {
+        const { error } = await supabase
+          .from('crm_leads')
+          .update(updated)
+          .eq('id', updated.id)
+
+        if (!error) {
+          setLeads((prev) =>
+            prev.map((l) => (l.id === updated.id ? updated as Lead : l))
+          )
+          setEditModalOpen(false)
+          setSelectedLead(null)
+        } else {
+          console.error(error)
+        }
+      }}
+    />)}
 
     </div>
+    
   )
 }

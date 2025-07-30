@@ -1,0 +1,85 @@
+
+
+// Status stages
+const leadStages = [
+  'Lead In',
+  'Contact Made',
+  'Needs Defined',
+  'Proposal Sent',
+  'Negotiation Started',
+  'Closed Win',
+  'Closed Lost',
+]
+
+// Sample region list (customize as needed)
+const regions = [
+    'N/A',
+    'Region I - Ilocos Region',
+    'Region II - Cagayan Valley',
+    'Region III - Central Luzon',
+    'Region IV-A - CALABARZON',
+    'Region IV-B - MIMAROPA Region',
+    'Region V - Bicol Region',
+    'Region VI - Western Visayas',
+    'Region VII - Central Visayas',
+    'Region VIII - Eastern Visayas',
+    'Region IX - Zamboanga Peninsula',
+    'Region X - Northern Mindanao',
+    'Region XI - Davao Region',
+    'Region XII - SOCCSKSARGEN',
+    'Region XIII - Caraga',
+    'NCR - National Capital Region',
+    'CAR - Cordillera Administrative Region',
+    'BARMM - Bangsamoro Autonomous Region in Muslim Mindanao',
+  ]
+  
+
+// Services from your list
+const servicePrices: Record<string, number> = {
+  'BOSH SO2': 2500,
+  'MESH': 3000,
+  'COSH': 2800,
+  'BOSH SO1': 2400,
+  'UNKNOWN': 0,
+  'SAFETY COURSES': 2000,
+  'FOOD SAFETY': 2200,
+  'SFAT': 1800,
+  'ACLS': 2500,
+  'FST': 1900,
+  'LCM': 2100,
+  'ACLS AND BLS': 3500,
+  'NEBOSH': 40000,
+  'IOSH': 15000,
+  'BLS': 1800,
+  'MANDATORY COURSES': 2300,
+  'BLS & ACLS': 3600,
+  'PCO': 2700,
+  'TOT': 3000,
+  'WAH': 2000,
+  'FIRST AID DOLE COURSES': 2500,
+  'BOSH SO3': 2600,
+  'CONFINED SPACE ENTRY': 3200,
+  'CSC': 1500,
+  'OFAT': 1700,
+  'BFAT': 1700,
+  'FIRS AID DOLE COURSES': 2500,
+  'OIL AND GAS': 3800,
+  'ISO COURSES': 3000,
+  'ADVANCED FOOD SAFETY': 2800,
+  'ISO:9001': 3500,
+  'FOOD SAFETY, SPA': 3000,
+  'SPA': 2500,
+  'BOSH': 2800,
+  'LOTO': 1900,
+  'CONFINED SPACE': 3100,
+  'IELTS': 12000,
+  'SCAFFOLDING TRAINING': 3300,
+  'RIG MEDIC': 3200,
+}
+
+
+// Lead sources
+const leadSources = [
+  'facebook', 'viber', 'teams', 'phone call', 'tawk.to', 'unknown',
+  'phone Text', 'site Visit', 'peza', 'e-mail', 'google'
+]

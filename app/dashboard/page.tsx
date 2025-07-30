@@ -18,6 +18,17 @@ import { ServiceBarChart } from '@/components/charts/bar-chart'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
 
 export default function Page() {
+
+  function isLeapYear(year: number): boolean {
+    return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  }
+
+  function weeksInYear(year: number): number {
+    const d = new Date(year, 11, 31);
+    return d.getDay() === 4 || (d.getDay() === 3 && isLeapYear(year)) ? 53 : 52;
+  }
+
+
   const [stats, setStats] = useState({
     totalLeads: 0,
     closedLeads: 0,
@@ -33,26 +44,42 @@ export default function Page() {
   }
   
   const [leadAreaChartData, setLeadAreaChartData] = useState<AreaData[]>([])
+  const [leadSourceDisplayMap, setLeadSourceDisplayMap] = useState<Record<string, string>>({})
+
 
 
   const currentYear = new Date().getFullYear()
   const [selectedYear, setSelectedYear] = useState<number>(currentYear)
   const [availableYears, setAvailableYears] = useState<number[]>([])
   const [selectedMonth, setSelectedMonth] = useState<string>('all')  // default is "all"
+  const [selectedInterval, setSelectedInterval] = useState<string>('monthly')
 
 
   const [leadSourceTotals, setLeadSourceTotals] = useState<Record<string, number>>({})
 
-  const fetchLeadsBySource = async (year: number, month: string) => {
-    let startDate: Date, endDate: Date;
+
+
+  const normalizeKey = (key: string) =>
+    key.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')  // safe for Recharts
   
-    if (month === 'all') {
-      startDate = new Date(year, 0, 1)
-      endDate = new Date(year + 1, 0, 1)
+  const fetchLeadsBySource = async (year: number, month: string, interval: string) => {
+    let startDate: Date;
+    let endDate: Date;
+  
+    if (interval === 'annually') {
+      const minYear = Math.min(...availableYears) || year;
+      const maxYear = Math.max(...availableYears) || year;
+      startDate = new Date(minYear, 0, 1);
+      endDate = new Date(maxYear + 1, 0, 1);
     } else {
-      const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
-      startDate = new Date(year, monthIndex, 1)
-      endDate = new Date(year, monthIndex + 1, 1)
+      startDate = new Date(year, 0, 1);
+      endDate = new Date(year + 1, 0, 1);
+  
+      if (month !== 'all') {
+        const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
+        startDate = new Date(year, monthIndex, 1);
+        endDate = new Date(year, monthIndex + 1, 1);
+      }
     }
   
     const { data, error } = await supabase
@@ -67,34 +94,76 @@ export default function Page() {
     }
   
     const grouped: Record<string, Record<string, number>> = {}
-    const uniqueSources = new Set<string>()
     const totals: Record<string, number> = {}
+    const uniqueSources = new Set<string>()
+    const displayMap: Record<string, string> = {}
   
     data?.forEach(({ lead_source, first_contact }) => {
       if (!first_contact) return
   
       const date = new Date(first_contact)
-      const xLabel = month === 'all'
-        ? date.toLocaleString('default', { month: 'short' })
-        : String(date.getDate()).padStart(2, '0')  // '01', '02', ...
+      let xLabel = ''
   
-      const normalizedSource = (lead_source || 'Unknown').trim().toLowerCase()
-      uniqueSources.add(normalizedSource)
+      switch (interval) {
+        case 'weekly': {
+          const firstJan = new Date(date.getFullYear(), 0, 1)
+          const dayOfYear = Math.floor((date.getTime() - firstJan.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          const week = Math.ceil((dayOfYear + firstJan.getDay()) / 7)
+          xLabel = `W${week}`
+          break
+        }
+        case 'quarterly': {
+          const quarter = Math.floor(date.getMonth() / 3) + 1
+          xLabel = `Q${quarter}`
+          break
+        }
+        case 'annually':
+          xLabel = `${date.getFullYear()}`
+          break
+        default:
+          xLabel = month === 'all'
+            ? date.toLocaleString('default', { month: 'short' })
+            : String(date.getDate()).padStart(2, '0')
+          break
+      }
+  
+      const originalSource = (lead_source || 'Unknown').trim()
+      const normalized = normalizeKey(originalSource)
+      uniqueSources.add(normalized)
+      displayMap[normalized] = originalSource  // keep reference for display
   
       if (!grouped[xLabel]) grouped[xLabel] = {}
-      grouped[xLabel][normalizedSource] = (grouped[xLabel][normalizedSource] || 0) + 1
-  
-      totals[normalizedSource] = (totals[normalizedSource] || 0) + 1
+      grouped[xLabel][normalized] = (grouped[xLabel][normalized] || 0) + 1
+      totals[normalized] = (totals[normalized] || 0) + 1
     })
   
-    const allSources = Array.from(uniqueSources)
-    const xValues = month === 'all'
-      ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-      : Array.from({ length: new Date(year, new Date(`${month} 1, ${year}`).getMonth() + 1, 0).getDate() }, (_, i) => String(i + 1).padStart(2, '0'))
+    let xValues: string[] = []
   
-    const formatted = xValues.map((label) => {
+    switch (interval) {
+      case 'weekly':
+        xValues = Array.from({ length: 52 }, (_, i) => `W${i + 1}`)
+        break
+      case 'quarterly':
+        xValues = ['Q1', 'Q2', 'Q3', 'Q4']
+        break
+      case 'annually':
+        xValues = availableYears.map(String)
+        break
+      default:
+        xValues = month === 'all'
+          ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+          : Array.from(
+              { length: new Date(year, new Date(`${month} 1, ${year}`).getMonth() + 1, 0).getDate() },
+              (_, i) => String(i + 1).padStart(2, '0')
+            )
+        break
+    }
+  
+    const sources = Array.from(uniqueSources)
+  
+    const formatted: AreaData[] = xValues.map((label) => {
       const row: AreaData = { date: label }
-      allSources.forEach(source => {
+      sources.forEach(source => {
         row[source] = grouped[label]?.[source] || 0
       })
       return row
@@ -102,9 +171,13 @@ export default function Page() {
   
     setLeadAreaChartData(formatted)
     setLeadSourceTotals(totals)
+    setLeadSourceDisplayMap(displayMap) // <-- you need this for the chart legend
   }
   
 
+
+
+  // Fetch top services/products for the selected year
 
 const fetchTopServicesByYear = async (year: number) => {
   const startOfYear = new Date(year, 0, 1);
@@ -135,16 +208,12 @@ const fetchTopServicesByYear = async (year: number) => {
   setServiceChartData(chartData);
 };
 
-
 useEffect(() => {
-  fetchLeadsBySource(selectedYear, selectedMonth)
-}, [selectedYear, selectedMonth])
+  fetchLeadsBySource(selectedYear, selectedMonth, selectedInterval)
+}, [selectedYear, selectedMonth, selectedInterval])
 
 
-  // useEffect(() => {
-  //   fetchLeadsBySourcePerMonth(selectedYear)
-  // }, [selectedYear])
-  
+
 
   useEffect(() => {
     fetchTopServicesByYear(selectedYear);  // <-- replace old fetchTopServices call
@@ -232,22 +301,38 @@ useEffect(() => {
       <Separator className="my-4" />
 
       {/* CRM Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard
             label="Total Leads"
             value={stats.totalLeads.toString()}
             change="+12.5%"
             trend="up"
             subtext="All leads recorded"
-            className="bg-blue-100 dark:bg-blue-900" // Light and dark variant
+            className="bg-cyan-100 dark:bg-cyan-900" // Light and dark variant
           />
           <StatCard
-            label="Leads Closed"
+            label="In progress"
+            value={`${stats.totalInProgress}`}
+            change="+3.5%"
+            trend="up"
+            subtext="Total In-progress"
+            className="bg-blue-100 dark:bg-blue-800"
+          />
+          <StatCard
+            label="Win"
             value={stats.closedLeads.toString()}
             change="+8.0%"
             trend="up"
             subtext="Leads marked as closed won"
-            className="bg-cyan-100 dark:bg-cyan-800"
+            className="bg-green-100 dark:bg-green-800"
+          />
+          <StatCard
+            label="Lost"
+            value={stats.closedLeads.toString()}
+            change="+8.0%"
+            trend="up"
+            subtext="Leads marked as closed won"
+            className="bg-red-100 dark:bg-red-800"
           />
           <StatCard
             label="Leads This Month"
@@ -257,14 +342,7 @@ useEffect(() => {
             subtext="New leads added this month"
             className="bg-amber-100 dark:bg-amber-700"
           />
-          <StatCard
-            label="In progress"
-            value={`${stats.totalInProgress}`}
-            change="+3.5%"
-            trend="up"
-            subtext="Total In-progress"
-            className="bg-rose-100 dark:bg-rose-800"
-          />
+          
         </div>
 
 
@@ -278,19 +356,25 @@ useEffect(() => {
         <CardTitle className="text-lg">Lead Captures Over Time</CardTitle>
         <CardDescription></CardDescription>
       </div>
-      <div>
-        {/* month dropdown  */}
-      <select
-          className="border px-2 py-1 rounded-md text-sm ml-2"
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-        >
-          <option value="all">All Months</option>
-          {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map(month => (
-            <option key={month} value={month}>{month}</option>
-          ))}
-        </select>
-        {/* year dropdown */}          
+
+
+      <div className="flex space-x-2">
+        {/* Conditional month dropdown */}
+        {selectedInterval === 'monthly' && (
+          <select
+            className="border px-2 py-1 rounded-md text-sm"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+          >
+            <option value="all">All Months</option>
+            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map(month => (
+              <option key={month} value={month}>{month}</option>
+            ))}
+          </select>
+        )}
+
+        {/* Year dropdown */}          
+        {selectedInterval !== 'annually' && (
           <select
             className="border px-2 py-1 rounded-md text-sm"
             value={selectedYear}
@@ -300,7 +384,21 @@ useEffect(() => {
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
-        </div>
+        )}
+        {/* Interval dropdown */}
+        <select
+          className="border px-2 py-1 rounded-md text-sm"
+          value={selectedInterval}
+          onChange={(e) => setSelectedInterval(e.target.value)}
+        >
+          <option value="monthly">Monthly</option>
+          <option value="quarterly">Quarterly</option>
+          <option value="weekly">Weekly</option>
+          <option value="annually">Annually</option>
+        </select>
+      </div>
+
+
     </CardHeader>
 
     <CardContent>

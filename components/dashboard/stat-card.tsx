@@ -23,7 +23,7 @@ export function StatCard({
   return (
     <Card className={cn(className)}> {/* ✅ apply className here */}
       <CardHeader className="pb-2">
-        <CardDescription>{label}</CardDescription>
+        <CardDescription className="font-normal">{label}</CardDescription>
         <CardTitle className="text-2xl">{value}</CardTitle>
       </CardHeader>
       <CardContent>
