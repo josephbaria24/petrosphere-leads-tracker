@@ -5,12 +5,12 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Eye, EyeOff } from "lucide-react"
-
+import Image from 'next/image'
 
 export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
   const router = useRouter()
@@ -52,7 +52,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       <Card>
         <CardHeader className="text-center">
         <div className="relative text-center text-sm">
-                <img src="/petroslogo.png" alt="logo" className=""/>
+                <img src="/petroslogo.png" alt="logo"/>
               </div>
           <CardTitle className="text-xl">Welcome back</CardTitle>
           

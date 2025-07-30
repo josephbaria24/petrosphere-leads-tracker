@@ -1,4 +1,4 @@
-import { Droplet, GalleryVerticalEnd } from "lucide-react"
+import { Droplet } from "lucide-react"
 import { LoginForm } from "../../components/login-form"
 
 export default function LoginPage() {

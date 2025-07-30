@@ -25,9 +25,9 @@ import {
   BreadcrumbPage,
 } from '@/components/ui/breadcrumb'
 import { Input } from '@/components/ui/input'
-import EditModal from './edit-modal/page'
-import { Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import EditLeadModal from '@/components/EditLeadModal'
+
 
 type Lead = {
   id: string
@@ -58,7 +58,7 @@ export default function LeadsListPage() {
   const [editValue, setEditValue] = useState('')
   const [originalLeads, setOriginalLeads] = useState<Lead[]>([])
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
-  const [forceUpdate, setForceUpdate] = useState(0) // Force re-render trigger
+  const [, setForceUpdate] = useState(0) // Force re-render trigger
   const [editMode, setEditMode] = useState(false)
   const [page, setPage] = useState(1)
   const pageSize = 50
@@ -506,19 +506,19 @@ export default function LeadsListPage() {
   Showing {leads.length.toLocaleString()} {leads.length === 1 ? 'lead' : 'leads'}
 </div>
     {selectedLead && (
-      <EditModal
+      <EditLeadModal
       isOpen={editModalOpen}
       onClose={() => setEditModalOpen(false)}
       lead={selectedLead}
-      onSave={async (updated) => {
+      onSave={async (updated: Partial<Lead>) => {
         const { error } = await supabase
           .from('crm_leads')
           .update(updated)
           .eq('id', updated.id)
-
+      
         if (!error) {
-          setLeads((prev) =>
-            prev.map((l) => (l.id === updated.id ? updated as Lead : l))
+          setLeads(prev =>
+            prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l))
           )
           setEditModalOpen(false)
           setSelectedLead(null)

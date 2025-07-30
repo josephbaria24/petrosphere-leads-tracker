@@ -19,14 +19,7 @@ import { LeadSourceAreaChart } from '@/components/charts/area-chart'
 
 export default function Page() {
 
-  function isLeapYear(year: number): boolean {
-    return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-  }
 
-  function weeksInYear(year: number): number {
-    const d = new Date(year, 11, 31);
-    return d.getDay() === 4 || (d.getDay() === 3 && isLeapYear(year)) ? 53 : 52;
-  }
 
 
   const [stats, setStats] = useState({
@@ -44,7 +37,7 @@ export default function Page() {
   }
   
   const [leadAreaChartData, setLeadAreaChartData] = useState<AreaData[]>([])
-  const [leadSourceDisplayMap, setLeadSourceDisplayMap] = useState<Record<string, string>>({})
+  const [, setLeadSourceDisplayMap] = useState<Record<string, string>>({})
 
 
 
@@ -331,7 +324,7 @@ useEffect(() => {
             value={stats.closedLeads.toString()}
             change="+8.0%"
             trend="up"
-            subtext="Leads marked as closed won"
+            subtext="Leads marked as closed lost"
             className="bg-red-100 dark:bg-red-800"
           />
           <StatCard
