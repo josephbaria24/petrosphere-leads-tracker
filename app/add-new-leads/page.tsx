@@ -27,6 +27,7 @@ export default function AddNewLeadPage() {
   const [leadStatuses, setLeadStatuses] = useState<string[]>([])
   const [servicePrices, setServicePrices] = useState<Record<string, number>>({})
   const [editingDropdown, setEditingDropdown] = useState<string | null>(null)
+  const [isRegionOpen, setIsRegionOpen] = useState(false)
 
   const [form, setForm] = useState({
     contact_name: '',
@@ -92,48 +93,55 @@ export default function AddNewLeadPage() {
 
 
 
-
-useEffect(() => {
-  const fetchOptions = async () => {
-    const [regionRes, sourceRes, statusRes, serviceRes] = await Promise.all([
-      supabase.from('regions').select('name'),
-      supabase.from('lead_sources').select('name'),
-      supabase.from('lead_statuses').select('name'),
-      supabase.from('services').select('*'),
-    ])
-
-    if (regionRes.error || sourceRes.error || statusRes.error || serviceRes.error) {
-      console.error('Error fetching dropdown data:', {
-        region: regionRes.error,
-        source: sourceRes.error,
-        status: statusRes.error,
-        services: serviceRes.error,
-      })
+  const fetchTable = async (table: 'regions' | 'lead_sources' | 'lead_statuses') => {
+    const { data, error } = await supabase.from(table).select('name')
+    if (error) {
+      toast.error(`Failed to fetch ${table}`, { description: error.message })
       return
     }
+  
+    const names = data.map((d) => d.name)
+    if (table === 'regions') setRegions(names)
+    else if (table === 'lead_sources') setLeadSources(names)
+    else if (table === 'lead_statuses') setLeadStatuses(names)
+  }
+  
 
-    // ✅ These are now in the correct scope
-    console.log('Regions:', regionRes.data)
-    console.log('Lead Sources:', sourceRes.data)
-    console.log('Statuses:', statusRes.data)
-    console.log('Services:', serviceRes.data)
-    console.log('Fetched Services:', serviceRes.data)
-    console.log('Service Fetch Error:', serviceRes.error)
-
-
-    setRegions(regionRes.data?.map(r => r.name) || [])
-    setLeadSources(sourceRes.data?.map(s => s.name) || [])
-    setLeadStatuses(statusRes.data?.map(s => s.name) || [])
-    setServicePrices(
-      serviceRes.data?.reduce((acc, cur) => {
-        acc[cur.name] = cur.price
-        return acc
-      }, {} as Record<string, number>) || {}
-    )
+  const fetchRegions = async () => {
+    const { data, error } = await supabase.from('regions').select('name')
+    if (error) {
+      toast.error('Failed to fetch regions', { description: error.message })
+    } else {
+      setRegions(data.map(r => r.name))
+    }
   }
 
-  fetchOptions()
-}, [])
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      await Promise.all([
+        fetchTable('regions'),
+        fetchTable('lead_sources'),
+        fetchTable('lead_statuses'),
+      ])
+  
+      const { data: services, error: serviceError } = await supabase.from('services').select('*')
+      if (serviceError) {
+        toast.error('Failed to fetch services', { description: serviceError.message })
+        return
+      }
+  
+      setServicePrices(
+        services?.reduce((acc, cur) => {
+          acc[cur.name] = cur.price
+          return acc
+        }, {} as Record<string, number>) || {}
+      )
+    }
+  
+    fetchOptions()
+  }, [])
+  
 
   
 
@@ -178,7 +186,11 @@ useEffect(() => {
             <div>
             <Label htmlFor="region">Region</Label>
               <div className="relative">
-                <Select onValueChange={(val) => handleChange('region', val)}>
+              <Select
+                  open={isRegionOpen}
+                  onOpenChange={setIsRegionOpen}
+                  onValueChange={(val) => handleChange('region', val)}
+                >
                   <SelectTrigger id="region">
                     <SelectValue placeholder="Select region" />
                   </SelectTrigger>
@@ -188,7 +200,8 @@ useEffect(() => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          setEditingDropdown('regions') // open modal or inline edit
+                          setIsRegionOpen(false)
+                          setEditingDropdown('regions')
                         }}
                         className="text-xs text-blue-500 hover:underline"
                       >
@@ -349,71 +362,74 @@ useEffect(() => {
 
             {/* Modal Content */}
             <div className="p-6 pt-10"> {/* Extra top padding for close button */}
-              <EditListModal
-                title={
-                  editingDropdown === 'regions'
-                    ? 'Regions'
-                    : editingDropdown === 'leadSources'
-                    ? 'Lead Sources'
-                    : 'Lead Statuses'
-                }
-                values={
-                  editingDropdown === 'regions'
-                    ? regions
-                    : editingDropdown === 'leadSources'
-                    ? leadSources
-                    : leadStatuses
-                }
-                onAdd={async (val) => {
-                  if (!val) return
-                  const table =
-                    editingDropdown === 'regions'
-                      ? 'regions'
-                      : editingDropdown === 'leadSources'
-                      ? 'lead_sources'
-                      : 'lead_statuses'
-
-                  const { error } = await supabase.from(table).insert({ name: val })
-                  if (!error) {
-                    if (editingDropdown === 'regions') setRegions(prev => [...prev, val])
-                    if (editingDropdown === 'leadSources') setLeadSources(prev => [...prev, val])
-                    if (editingDropdown === 'leadStatuses') setLeadStatuses(prev => [...prev, val])
-                  }
-                }}
-                onEdit={async (oldVal, newVal) => {
-                  if (!newVal) return
-                  const table =
-                    editingDropdown === 'regions'
-                      ? 'regions'
-                      : editingDropdown === 'leadSources'
-                      ? 'lead_sources'
-                      : 'lead_statuses'
-
-                  const { error } = await supabase.from(table).update({ name: newVal }).eq('name', oldVal)
-                  if (!error) {
-                    if (editingDropdown === 'regions') setRegions(prev => prev.map(r => (r === oldVal ? newVal : r)))
-                    if (editingDropdown === 'leadSources') setLeadSources(prev => prev.map(s => (s === oldVal ? newVal : s)))
-                    if (editingDropdown === 'leadStatuses') setLeadStatuses(prev => prev.map(s => (s === oldVal ? newVal : s)))
-                  }
-                }}
-                onDelete={async (val) => {
-                  const table =
-                    editingDropdown === 'regions'
-                      ? 'regions'
-                      : editingDropdown === 'leadSources'
-                      ? 'lead_sources'
-                      : 'lead_statuses'
-
-                  const { error } = await supabase.from(table).delete().eq('name', val)
-                  if (!error) {
-                    if (editingDropdown === 'regions') setRegions(prev => prev.filter(r => r !== val))
-                    if (editingDropdown === 'leadSources') setLeadSources(prev => prev.filter(s => s !== val))
-                    if (editingDropdown === 'leadStatuses') setLeadStatuses(prev => prev.filter(s => s !== val))
-                  }
-                }
+            <EditListModal
+              title={
+                editingDropdown === 'regions'
+                  ? 'Regions'
+                  : editingDropdown === 'leadSources'
+                  ? 'Lead Sources'
+                  : 'Lead Statuses'
               }
+              values={
+                editingDropdown === 'regions'
+                  ? regions
+                  : editingDropdown === 'leadSources'
+                  ? leadSources
+                  : leadStatuses
+              }
+              onAdd={async (val) => {
+                if (!val) return
+                const table =
+                  editingDropdown === 'regions'
+                    ? 'regions'
+                    : editingDropdown === 'leadSources'
+                    ? 'lead_sources'
+                    : 'lead_statuses'
+
+                const { error } = await supabase.from(table).insert({ name: val })
+                if (error) {
+                  toast.error('Add failed', { description: error.message })
+                } else {
+                  await fetchTable(table)
+                  toast.success('Added successfully')
+                }
+              }}
+              onEdit={async (oldVal, newVal) => {
+                if (!newVal) return
+                const table =
+                  editingDropdown === 'regions'
+                    ? 'regions'
+                    : editingDropdown === 'leadSources'
+                    ? 'lead_sources'
+                    : 'lead_statuses'
+
+                const { error } = await supabase.from(table).update({ name: newVal }).eq('name', oldVal)
+                if (error) {
+                  toast.error('Update failed', { description: error.message })
+                } else {
+                  await fetchTable(table)
+                  toast.success('Updated successfully')
+                }
+              }}
+              onDelete={async (val) => {
+                const table =
+                  editingDropdown === 'regions'
+                    ? 'regions'
+                    : editingDropdown === 'leadSources'
+                    ? 'lead_sources'
+                    : 'lead_statuses'
+
+                const { error } = await supabase.from(table).delete().eq('name', val)
+                if (error) {
+                  toast.error('Delete failed', { description: error.message })
+                } else {
+                  await fetchTable(table)
+                  toast.success('Deleted successfully')
+                }
+              }}
               onSave={() => setEditingDropdown(null)}
-              />
+            />
+
                </div>
             </div>
           </div>
