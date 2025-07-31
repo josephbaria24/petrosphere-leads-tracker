@@ -52,8 +52,8 @@ type Lead = {
 export default function LeadsListPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState<'contact_name' | 'created_at'>('created_at')
-  const [sortAsc, setSortAsc] = useState(false)
+  const [sortBy,] = useState<'contact_name' | 'created_at'>('created_at')
+  const [sortAsc,] = useState(false)
   const [editingCell, setEditingCell] = useState<{ row: string; col: keyof Lead } | null>(null)
   const [editValue, setEditValue] = useState('')
   const [originalLeads, setOriginalLeads] = useState<Lead[]>([])
@@ -234,6 +234,10 @@ export default function LeadsListPage() {
     {
       accessorKey: 'service_product',
       header: 'Service',
+    },
+    {
+      accessorKey: 'mode_of_service',
+      header: 'Mode of Service',
     },
     {
       accessorKey: 'service_price',

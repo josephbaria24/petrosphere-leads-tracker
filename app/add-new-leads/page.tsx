@@ -29,6 +29,18 @@ export default function AddNewLeadPage() {
   const [editingDropdown, setEditingDropdown] = useState<string | null>(null)
   const [isRegionOpen, setIsRegionOpen] = useState(false)
 
+
+
+  const [serviceDetails, setServiceDetails] = useState<
+  {
+      name: string
+      mode: string
+      price: number
+    }[]
+  >([])
+
+
+
   const [form, setForm] = useState({
     contact_name: '',
     email: '',
@@ -38,6 +50,7 @@ export default function AddNewLeadPage() {
     address: '',
     region: '',
     service_product: '',
+    mode_of_service: '',
     service_price: 0,
     lead_source: '',
     notes: '',
@@ -54,11 +67,18 @@ export default function AddNewLeadPage() {
 
   const handleSubmit = async () => {
     const fullCompany = `${form.company} - ${form.address}`.trim()
-  
+    const selectedNames = serviceDetails.map((s) => s.name).join(', ')
+const totalPrice = serviceDetails.reduce((sum, s) => sum + s.price, 0)
+const allModes = serviceDetails.map((s) => s.mode).filter(Boolean).join(', ')
+
+    
     const { error } = await supabase.from('crm_leads').insert([
       {
         ...form,
         company: fullCompany,
+        service_product: selectedNames,
+        service_price: totalPrice,
+        mode_of_service: allModes,
       },
     ])
   
@@ -80,6 +100,7 @@ export default function AddNewLeadPage() {
         address: '',
         region: '',
         service_product: '',
+        mode_of_service: '',
         service_price: 0,
         lead_source: '',
         notes: '',
@@ -302,40 +323,99 @@ export default function AddNewLeadPage() {
           
              {/* Service dropdown */}
              <div>
-            <Label htmlFor="service_product">Service/Product</Label>
-            <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto border p-2 rounded-md">
-            {Object.keys(servicePrices).map((service) => (
-                <label key={service} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedServices.includes(service)}
-                    onChange={(e) => {
-                      const updated = e.target.checked
-                        ? [...selectedServices, service]
-                        : selectedServices.filter((s) => s !== service)
-                    
-                      const totalPrice = updated.reduce(
-                        (sum, s) => sum + (servicePrices[s] || 0),
-                        0
+          <Label htmlFor="service_product">Service/Product</Label>
+          <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto border p-2 rounded-md">
+            {Object.keys(servicePrices).map((service) => {
+              const selected = serviceDetails.find((s) => s.name === service)
+
+              return (
+                <div
+                  key={service}
+                  className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center border-b pb-2"
+                >
+                  {/* Checkbox + name */}
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={!!selected}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setServiceDetails((prev) => [
+                            ...prev,
+                            { name: service, mode: '', price: 0 },
+                          ])
+                        } else {
+                          setServiceDetails((prev) =>
+                            prev.filter((s) => s.name !== service)
+                          )
+                        }
+                      }}
+                    />
+                    <span>{service}</span>
+                  </label>
+
+                  {/* Mode of Service Dropdown */}
+                  <Select
+                    value={selected?.mode || ''}
+                    onValueChange={(value) => {
+                      setServiceDetails((prev) =>
+                        prev.map((s) =>
+                          s.name === service ? { ...s, mode: value } : s
+                        )
                       )
-                    
-                      setSelectedServices(updated)
-                      handleChange('service_product', updated.join(', '))
-                      handleChange('service_price', totalPrice) // 👈 store total
                     }}
-                    
-                  />
-                  <span>{service} - ₱{servicePrices[service] || 'N/A'}</span>
-                  
-                </label>
-              ))}
-            </div>
-            {selectedServices.length > 0 && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    <strong>Total Price:</strong> ₱{form.service_price}
-                  </p>
-                )}
+                    disabled={!selected}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Mode of Service" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Face to Face">Face to Face</SelectItem>
+                      <SelectItem value="E-learning">E-learning</SelectItem>
+                      <SelectItem value="Online">Online</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                {/* Price Input */}
+                <Input
+                  type="number"
+                  placeholder="₱0.00"
+                  value={selected?.price || ''}
+                  onChange={(e) => {
+                    setServiceDetails((prev) =>
+                      prev.map((s) =>
+                        s.name === service
+                          ? { ...s, price: Number(e.target.value) }
+                          : s
+                      )
+                    )
+                  }}
+                  disabled={!selected}
+                />
+              </div>
+            )
+          })}
+        </div>
+
+            {/* Summary Output */}
+            {serviceDetails.length > 0 && (
+              <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                <strong>Selected:</strong>
+                <ul className="list-disc list-inside">
+                  {serviceDetails.map((s) => (
+                    <li key={s.name}>
+                      {s.name} – {s.mode} – ₱{s.price.toFixed(2)}
+                    </li>
+                  ))}
+                </ul>
+                <p>
+                  <strong>Total Price:</strong> ₱
+                  {serviceDetails.reduce((sum, s) => sum + s.price, 0).toFixed(2)}
+                </p>
+              </div>
+            )}
           </div>
+
 
           {/* Submit */}
           <Button onClick={handleSubmit} className='cursor-pointer'>Submit Lead</Button>
