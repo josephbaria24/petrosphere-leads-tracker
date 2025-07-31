@@ -16,6 +16,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
+import { Button } from '@/components/ui/button'
+import { InsightPanel } from './InsightPanel'
 
 export default function Page() {
 
@@ -47,7 +49,9 @@ export default function Page() {
   const [availableYears, setAvailableYears] = useState<number[]>([])
   const [selectedMonth, setSelectedMonth] = useState<string>('all')  // default is "all"
   const [selectedInterval, setSelectedInterval] = useState<string>('monthly')
-
+  const [insights, setInsights] = useState<string | null>(null)
+  const [isLoadingInsights, setIsLoadingInsights] = useState(false)
+  
 
   const [leadSourceTotals, setLeadSourceTotals] = useState<Record<string, number>>({})
 
@@ -167,6 +171,33 @@ export default function Page() {
     setLeadSourceTotals(totals)
     setLeadSourceDisplayMap(displayMap) // <-- you need this for the chart legend
   }
+  
+
+  const analyzeLeadChartTrends = async () => {
+    setIsLoadingInsights(true)
+    setInsights(null)
+  
+    try {
+      const res = await fetch('/api/analyze-chart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          areaChart: leadAreaChartData,
+          statCards: stats,
+          serviceChart: serviceChartData,
+        }),
+      })
+  
+      const { analysis } = await res.json()
+      setInsights(analysis)
+    } catch (err) {
+      console.error('AI analysis failed:', err)
+      setInsights('Could not analyze trends at the moment.')
+    } finally {
+      setIsLoadingInsights(false)
+    }
+  }
+  
   
 
 
@@ -308,7 +339,7 @@ useEffect(() => {
             change="+12.5%"
             trend="up"
             subtext="All leads recorded"
-            className="bg-cyan-100 dark:bg-cyan-900" // Light and dark variant
+            className="bg-cyan-300 dark:bg-cyan-900" // Light and dark variant
           />
           <StatCard
             label="In progress"
@@ -316,7 +347,7 @@ useEffect(() => {
             change="+3.5%"
             trend="up"
             subtext="Total In-progress"
-            className="bg-blue-100 dark:bg-blue-800"
+            className="bg-blue-300 dark:bg-blue-800"
           />
           <StatCard
             label="Win"
@@ -324,7 +355,7 @@ useEffect(() => {
             change="+8.0%"
             trend="up"
             subtext="Leads marked as closed won"
-            className="bg-green-100 dark:bg-green-800"
+            className="bg-green-300 dark:bg-green-800"
           />
           <StatCard
             label="Lost"
@@ -332,7 +363,7 @@ useEffect(() => {
             change="+8.0%"
             trend="up"
             subtext="Leads marked as closed lost"
-            className="bg-red-100 dark:bg-red-800"
+            className="bg-red-300 dark:bg-red-800"
           />
           <StatCard
             label="Leads This Month"
@@ -340,7 +371,7 @@ useEffect(() => {
             change="+15.0%"
             trend="up"
             subtext="New leads added this month"
-            className="bg-amber-100 dark:bg-amber-700"
+            className="bg-amber-300 dark:bg-amber-700"
           />
           
         </div>
@@ -403,7 +434,16 @@ useEffect(() => {
 
     <CardContent>
     <LeadSourceAreaChart data={leadAreaChartData} />
-    <div className="mt-4 text-sm">
+    <div className="mt-4 flex flex-col space-y-4">
+  <Button className="bg-black text-white dark:bg-white dark:text-black" onClick={analyzeLeadChartTrends} disabled={isLoadingInsights}>
+    {isLoadingInsights ? 'Analyzing...' : 'Analyze Trends'}
+  </Button>
+
+  {insights && <InsightPanel content={insights} />}
+</div>
+
+
+    {/* <div className="mt-4 text-sm">
   <h4 className="font-semibold mb-2">Total Leads per Source (Year {selectedYear})</h4>
   <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-2">
     {Object.entries(leadSourceTotals).map(([source, count]) => (
@@ -413,7 +453,7 @@ useEffect(() => {
       </li>
     ))}
   </ul>
-</div>
+</div> */}
 
     </CardContent>
   </Card>

@@ -9,6 +9,8 @@ import {
   ColumnDef,
   SortingState,
 } from '@tanstack/react-table'
+import { Skeleton } from '@/components/ui/skeleton'
+
 import { supabase } from '@/lib/supabase'
 import {
   Card,
@@ -78,7 +80,10 @@ export default function LeadsListPage() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
+
+  
   const toggleRowSelection = (id: string) => {
     console.log('Toggling row:', id) // Debug log
     setSelectedRowIds(prev => {
@@ -143,6 +148,56 @@ export default function LeadsListPage() {
     setEditingCell(null)
     setOriginalLeads([])
   }
+
+
+  useEffect(() => {
+    const fetchLeads = async () => {
+      setIsLoading(true) // Start loading
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+  
+      const query = supabase
+        .from('crm_leads')
+        .select('*', { count: 'exact' })
+        .order(sortBy, { ascending: sortAsc })
+        .range(from, to)
+  
+      const { data, count, error } = await query
+  
+      if (error) {
+        console.error('Error fetching leads:', error)
+      } else {
+        const filtered = data.filter((lead) =>
+          lead.contact_name?.toLowerCase().includes(search.toLowerCase()) ||
+          lead.address?.toLowerCase().includes(search.toLowerCase()) ||
+          lead.region?.toLowerCase().includes(search.toLowerCase()) ||
+          lead.lead_source?.toLowerCase().includes(search.toLowerCase()) ||
+          lead.company?.toLowerCase().includes(search.toLowerCase()) ||
+          lead.service_product?.toLowerCase().includes(search.toLowerCase()) ||
+          lead.email?.toLowerCase().includes(search.toLowerCase())
+        )
+  
+        setLeads(filtered)
+        setTotalCount(count || 0)
+        const validIds = new Set(filtered.map(lead => lead.id))
+        setSelectedRowIds(prev => {
+          const updated = new Set<string>()
+          prev.forEach(id => {
+            if (validIds.has(id)) updated.add(id)
+          })
+          return updated
+        })
+      }
+  
+      setIsLoading(false) // Done loading
+    }
+  
+    fetchLeads()
+  }, [search, sortBy, sortAsc, page])
+
+  
+
+
 
   const [sorting, setSorting] = useState<SortingState>([])
 
@@ -436,7 +491,17 @@ export default function LeadsListPage() {
                 </thead>
                 <tbody>
                   
-                {table.getRowModel().rows.map(row => (
+                {isLoading ? (
+    [...Array(10)].map((_, rowIdx) => (
+      <tr key={`skeleton-${rowIdx}`} className="animate-pulse">
+        {columns.current.map((col, colIdx) => (
+          <td key={`skeleton-cell-${rowIdx}-${colIdx}`} className="px-2 py-4 border-b">
+            <Skeleton className="h-4 w-full" />
+          </td>
+        ))}
+      </tr>
+    ))
+  ) : (table.getRowModel().rows.map(row => (
                   
                   <tr
                       key={row.id}
@@ -506,8 +571,7 @@ export default function LeadsListPage() {
                         );
                       })}
                     </tr>
-                  ))}
-
+                  )))}
                 </tbody>
               </table>
             </div>
