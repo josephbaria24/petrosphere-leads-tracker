@@ -39,6 +39,7 @@ export default function AddNewLeadPage() {
     }[]
   >([])
 
+  const [serviceSearch, setServiceSearch] = useState('')
 
 
   const [form, setForm] = useState({
@@ -323,9 +324,26 @@ const allModes = serviceDetails.map((s) => s.mode).filter(Boolean).join(', ')
           
              {/* Service dropdown */}
              <div>
-          <Label htmlFor="service_product">Service/Product</Label>
-          <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto border p-2 rounded-md">
-            {Object.keys(servicePrices).map((service) => {
+             <Label htmlFor="service_product">Service/Product</Label>
+
+{/* Search Bar */}
+<div className="mb-2">
+  <Input
+    type="text"
+    placeholder="Search services..."
+    value={serviceSearch}
+    onChange={(e) => setServiceSearch(e.target.value)}
+  />
+</div>
+
+{/* Filtered Services List */}
+<div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto border p-2 rounded-md">
+
+          {Object.keys(servicePrices)
+            .filter(service =>
+              service.toLowerCase().includes(serviceSearch.toLowerCase())
+            )
+            .map((service) => {
               const selected = serviceDetails.find((s) => s.name === service)
 
               return (
