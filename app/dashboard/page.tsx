@@ -295,14 +295,6 @@ useEffect(() => {
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
 
-  const getCount = async (filter?: any) => {
-    const query = supabase
-      .from("crm_leads")
-      .select("id", { count: "exact", head: true })
-
-    return filter ? query.match(filter).then(res => res.count ?? 0) : query.then(res => res.count ?? 0)
-  }
-
   const [
     totalLeads,
     totalLeadsPrev,
