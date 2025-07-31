@@ -53,7 +53,13 @@ import type { Payload } from 'recharts/types/component/DefaultLegendContent'
       <div className="h-[350px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+          <CartesianGrid
+            horizontal={true}
+            vertical={false}
+            stroke="#ccc"           // Solid gray line
+            strokeOpacity={0.1}     // Optional: lighter gray
+          />
+
             <XAxis dataKey="date" />
             <YAxis allowDecimals={false} />
             <Tooltip />

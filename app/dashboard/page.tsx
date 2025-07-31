@@ -25,6 +25,7 @@ export default function Page() {
   const [stats, setStats] = useState({
     totalLeads: 0,
     closedLeads: 0,
+    closedLost: 0,
     leadsThisMonth: 0,
     totalInProgress: 0
   })
@@ -243,6 +244,11 @@ useEffect(() => {
         .from('crm_leads')
         .select('id', { count: 'exact', head: true })
   
+      const { count: closedLost } = await supabase
+        .from('crm_leads')
+        .select('id', { count: 'exact', head: true })
+        .ilike('status', 'closed lost') // case-insensitive match
+
       const { count: closedCount } = await supabase
         .from('crm_leads')
         .select('id', { count: 'exact', head: true })
@@ -259,10 +265,11 @@ useEffect(() => {
       const { count: monthCount } = await supabase
         .from('crm_leads')
         .select('id', { count: 'exact', head: true })
-        .gte('created_at', startOfMonth.toISOString())
+        .gte('first_contact', startOfMonth.toISOString())
   
       setStats({
         totalLeads: totalCount ?? 0,
+        closedLost: closedLost ?? 0,
         closedLeads: closedCount ?? 0,
         leadsThisMonth: monthCount ?? 0,
         totalInProgress: inProgress ?? 0,
@@ -321,7 +328,7 @@ useEffect(() => {
           />
           <StatCard
             label="Lost"
-            value={stats.closedLeads.toString()}
+            value={stats.closedLost.toString()}
             change="+8.0%"
             trend="up"
             subtext="Leads marked as closed lost"

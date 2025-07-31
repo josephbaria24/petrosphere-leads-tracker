@@ -19,9 +19,7 @@ import { DatePicker } from '@/components/date-picker'
 
 export default function AddNewLeadPage() {
 
-  const [selectedServices, setSelectedServices] = useState<string[]>([])
-
-
+ 
   const [regions, setRegions] = useState<string[]>([])
   const [leadSources, setLeadSources] = useState<string[]>([])
   const [leadStatuses, setLeadStatuses] = useState<string[]>([])
@@ -66,11 +64,40 @@ export default function AddNewLeadPage() {
   }
   
 
+  const validateForm = () => {
+    const requiredFields = [
+      'contact_name', 'email', 'phone', 'mobile', 'company', 'address',
+      'region', 'lead_source', 'status', 'captured_by', 'first_contact', 'last_contact'
+    ]
+  
+    for (const field of requiredFields) {
+      if (!form[field as keyof typeof form]) {
+        toast.error('Missing Required Field', {
+          description: `Please fill out or select: ${field.replace(/_/g, ' ')}`,
+        })
+        return false
+      }
+    }
+  
+    const hasIncompleteServices = serviceDetails.some(s => !s.mode || !s.price)
+    if (serviceDetails.length === 0 || hasIncompleteServices) {
+      toast.error('Incomplete Service Info', {
+        description: 'Please select at least one service with mode and price.',
+      })
+      return false
+    }
+  
+    return true
+  }
+  
+
   const handleSubmit = async () => {
+    if (!validateForm()) return;
+    
     const fullCompany = `${form.company} - ${form.address}`.trim()
     const selectedNames = serviceDetails.map((s) => s.name).join(', ')
-const totalPrice = serviceDetails.reduce((sum, s) => sum + s.price, 0)
-const allModes = serviceDetails.map((s) => s.mode).filter(Boolean).join(', ')
+    const totalPrice = serviceDetails.reduce((sum, s) => sum + s.price, 0)
+    const allModes = serviceDetails.map((s) => s.mode).filter(Boolean).join(', ')
 
     
     const { error } = await supabase.from('crm_leads').insert([

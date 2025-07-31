@@ -28,6 +28,18 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import EditLeadModal from '@/components/EditLeadModal'
 
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
+
 
 type Lead = {
   id: string
@@ -65,7 +77,8 @@ export default function LeadsListPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
-  
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
   const toggleRowSelection = (id: string) => {
     console.log('Toggling row:', id) // Debug log
     setSelectedRowIds(prev => {
@@ -313,7 +326,7 @@ export default function LeadsListPage() {
             return newMode
           })
         }}
-        className="px-4 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+        className="px-4 py-1 text-sm hover:bg-yellow-600 cursor-pointer"
       >
         {editMode ? 'Exit Edit Mode' : 'Edit'}
       </Button>
@@ -340,21 +353,37 @@ export default function LeadsListPage() {
       Clear
     </button>
 
-    <button
-      onClick={() => {
-        const confirmed = window.confirm('Are you sure you want to delete selected leads?')
-        if (confirmed) {
-          const doubleConfirm = window.confirm('This action is irreversible. Confirm again?')
-          if (doubleConfirm) {
-            handleDeleteSelected()
-          }
-        }
-      }}
+    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+  <AlertDialogTrigger asChild>
+    <Button
       className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
       disabled={selectedRowIds.size === 0}
     >
       Delete Selected
-    </button>
+    </Button>
+  </AlertDialogTrigger>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+      <AlertDialogDescription>
+        This action cannot be undone. This will permanently delete {selectedRowIds.size} lead(s) from your database.
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <AlertDialogAction
+        className="bg-red-600 hover:bg-red-700 text-white"
+        onClick={() => {
+          handleDeleteSelected()
+          setShowDeleteDialog(false)
+        }}
+      >
+        Confirm Delete
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+
   </div>
 )}
 
@@ -364,16 +393,18 @@ export default function LeadsListPage() {
 
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">All CRM Leads</CardTitle>
-        </CardHeader>
+      <CardHeader className="bg-white dark:bg-transparent">
+        <CardTitle className="text-xl text-black dark:text-white">List of Leads</CardTitle>
+      </CardHeader>
+
 
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             
             <div style={{ maxHeight: '500px' }} className="overflow-y-auto">
               <table className="min-w-[1400px] border-separate border-spacing-0">
-                <thead className="sticky top-0 bg-white z-10">
+                <thead className="sticky top-0 bg-white dark:bg-zinc-800 z-10">
+
                   
                   {table.getHeaderGroups().map(headerGroup => (
                     <tr key={headerGroup.id}>
@@ -409,7 +440,7 @@ export default function LeadsListPage() {
                   
                   <tr
                       key={row.id}
-                      className={`cursor-pointer hover:bg-gray-100 ${
+                      className={`cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 ${
                         editMode && selectedRowIds.has(row.original.id) ? 'bg-red-200' : ''
                       }`}
                       
@@ -489,20 +520,20 @@ export default function LeadsListPage() {
     {Math.min(page * pageSize, totalCount)} of {totalCount.toLocaleString()} leads
   </span>
   <div className="flex gap-2">
-    <button
+    <Button
       onClick={() => setPage(prev => Math.max(prev - 1, 1))}
       disabled={page === 1}
       className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
     >
       Previous
-    </button>
-    <button
+    </Button>
+    <Button
       onClick={() => setPage(prev => (page * pageSize < totalCount ? prev + 1 : prev))}
       disabled={page * pageSize >= totalCount}
       className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
     >
       Next
-    </button>
+    </Button>
   </div>
 </div>
 
