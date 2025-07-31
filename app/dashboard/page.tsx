@@ -321,10 +321,11 @@ useEffect(() => {
       .select("id", { count: "exact", head: true })
       .lt("first_contact", startOfMonth.toISOString()),
 
-    supabase
+      supabase
       .from("crm_leads")
       .select("id", { count: "exact", head: true })
-      .ilike("status", "closed won"),
+      .ilike("status", "closed won")
+      .gte("first_contact", startOfMonth.toISOString()),
 
     supabase
       .from("crm_leads")
@@ -332,10 +333,11 @@ useEffect(() => {
       .ilike("status", "closed won")
       .lt("first_contact", startOfMonth.toISOString()),
 
-    supabase
+      supabase
       .from("crm_leads")
       .select("id", { count: "exact", head: true })
-      .ilike("status", "closed lost"),
+      .ilike("status", "closed lost")
+      .gte("first_contact", startOfMonth.toISOString()),
 
     supabase
       .from("crm_leads")
