@@ -16,8 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
-import { Button } from '@/components/ui/button'
-import { InsightPanel } from './InsightPanel'
+
 
 export default function Page() {
 
@@ -26,11 +25,17 @@ export default function Page() {
 
   const [stats, setStats] = useState({
     totalLeads: 0,
+    totalLeadsPrev: 0,
     closedLeads: 0,
+    closedLeadsPrev: 0,
     closedLost: 0,
+    closedLostPrev: 0,
     leadsThisMonth: 0,
-    totalInProgress: 0
+    leadsLastMonth: 0,
+    totalInProgress: 0,
+    inProgressPrev: 0,
   })
+  
 
   const [serviceChartData, setServiceChartData] = useState<{ service_product: string; count: number }[]>([])
 
@@ -173,30 +178,30 @@ export default function Page() {
   }
   
 
-  const analyzeLeadChartTrends = async () => {
-    setIsLoadingInsights(true)
-    setInsights(null)
+  // const analyzeLeadChartTrends = async () => {
+  //   setIsLoadingInsights(true)
+  //   setInsights(null)
   
-    try {
-      const res = await fetch('/api/analyze-chart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          areaChart: leadAreaChartData,
-          statCards: stats,
-          serviceChart: serviceChartData,
-        }),
-      })
+  //   try {
+  //     const res = await fetch('/api/analyze-chart', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({
+  //         areaChart: leadAreaChartData,
+  //         statCards: stats,
+  //         serviceChart: serviceChartData,
+  //       }),
+  //     })
   
-      const { analysis } = await res.json()
-      setInsights(analysis)
-    } catch (err) {
-      console.error('AI analysis failed:', err)
-      setInsights('Could not analyze trends at the moment.')
-    } finally {
-      setIsLoadingInsights(false)
-    }
-  }
+  //     const { analysis } = await res.json()
+  //     setInsights(analysis)
+  //   } catch (err) {
+  //     console.error('AI analysis failed:', err)
+  //     setInsights('Could not analyze trends at the moment.')
+  //   } finally {
+  //     setIsLoadingInsights(false)
+  //   }
+  // }
   
   
 
@@ -267,45 +272,113 @@ useEffect(() => {
     init()
   }, [])
 
+
+
+  function getTrend(current: number, previous: number): { trend: 'up' | 'down'; change: string } {
+    if (previous === 0) return { trend: 'up', change: '+100%' }
+  
+    const diff = current - previous
+    const percent = (diff / previous) * 100
+  
+    return {
+      trend: diff >= 0 ? 'up' : 'down',
+      change: `${diff >= 0 ? '+' : ''}${percent.toFixed(1)}%`
+    }
+  }
   
   
   useEffect(() => {
-    const fetchStats = async () => {
-      const { count: totalCount } = await supabase
-        .from('crm_leads')
-        .select('id', { count: 'exact', head: true })
-  
-      const { count: closedLost } = await supabase
-        .from('crm_leads')
-        .select('id', { count: 'exact', head: true })
-        .ilike('status', 'closed lost') // case-insensitive match
 
-      const { count: closedCount } = await supabase
-        .from('crm_leads')
-        .select('id', { count: 'exact', head: true })
-        .ilike('status', 'closed won') // case-insensitive match
-  
-      const { count: inProgress } = await supabase
-        .from('crm_leads')
-        .select('id', { count: 'exact', head: true })
-        .ilike('status', 'in progress') // also case-insensitive
-  
-      const startOfMonth = new Date()
-      startOfMonth.setDate(1)
-  
-      const { count: monthCount } = await supabase
-        .from('crm_leads')
-        .select('id', { count: 'exact', head: true })
-        .gte('first_contact', startOfMonth.toISOString())
-  
-      setStats({
-        totalLeads: totalCount ?? 0,
-        closedLost: closedLost ?? 0,
-        closedLeads: closedCount ?? 0,
-        leadsThisMonth: monthCount ?? 0,
-        totalInProgress: inProgress ?? 0,
-      })
-    }
+    const fetchStats = async () => {
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+
+  const getCount = async (filter?: any) => {
+    const query = supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+
+    return filter ? query.match(filter).then(res => res.count ?? 0) : query.then(res => res.count ?? 0)
+  }
+
+  const [
+    totalLeads,
+    totalLeadsPrev,
+    closedLeads,
+    closedLeadsPrev,
+    closedLost,
+    closedLostPrev,
+    totalInProgress,
+    inProgressPrev,
+    leadsThisMonth,
+    leadsLastMonth
+  ] = await Promise.all([
+    supabase.from("crm_leads").select("id", { count: "exact", head: true }),
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .lt("first_contact", startOfMonth.toISOString()),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "closed won"),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "closed won")
+      .lt("first_contact", startOfMonth.toISOString()),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "closed lost"),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "closed lost")
+      .lt("first_contact", startOfMonth.toISOString()),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "in progress"),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "in progress")
+      .lt("first_contact", startOfMonth.toISOString()),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .gte("first_contact", startOfMonth.toISOString()),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .gte("first_contact", startOfLastMonth.toISOString())
+      .lte("first_contact", endOfLastMonth.toISOString()),
+  ]).then(results => results.map(r => r.count ?? 0))
+
+  setStats({
+    totalLeads,
+    totalLeadsPrev,
+    closedLeads,
+    closedLeadsPrev,
+    closedLost,
+    closedLostPrev,
+    totalInProgress,
+    inProgressPrev,
+    leadsThisMonth,
+    leadsLastMonth,
+  })
+}
   
     fetchStats()
   }, [])
@@ -333,46 +406,45 @@ useEffect(() => {
 
       {/* CRM Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard
-            label="Total Leads"
-            value={stats.totalLeads.toString()}
-            change="+12.5%"
-            trend="up"
-            subtext="All leads recorded"
-            className="bg-cyan-300 dark:bg-cyan-900" // Light and dark variant
-          />
-          <StatCard
-            label="In progress"
-            value={`${stats.totalInProgress}`}
-            change="+3.5%"
-            trend="up"
-            subtext="Total In-progress"
-            className="bg-blue-300 dark:bg-blue-800"
-          />
-          <StatCard
-            label="Win"
-            value={stats.closedLeads.toString()}
-            change="+8.0%"
-            trend="up"
-            subtext="Leads marked as closed won"
-            className="bg-green-300 dark:bg-green-800"
-          />
-          <StatCard
-            label="Lost"
-            value={stats.closedLost.toString()}
-            change="+8.0%"
-            trend="up"
-            subtext="Leads marked as closed lost"
-            className="bg-red-300 dark:bg-red-800"
-          />
-          <StatCard
-            label="Leads This Month"
-            value={stats.leadsThisMonth.toString()}
-            change="+15.0%"
-            trend="up"
-            subtext="New leads added this month"
-            className="bg-amber-300 dark:bg-amber-700"
-          />
+      <StatCard
+  label="Total Leads"
+  value={stats.totalLeads.toString()}
+  {...getTrend(stats.totalLeads, stats.totalLeadsPrev)}
+  subtext="All leads recorded"
+  className="bg-cyan-300 dark:bg-cyan-900"
+/>
+
+<StatCard
+  label="In Progress"
+  value={stats.totalInProgress.toString()}
+  {...getTrend(stats.totalInProgress, stats.inProgressPrev)}
+  subtext="Currently active leads"
+  className="bg-blue-300 dark:bg-blue-800"
+/>
+
+<StatCard
+  label="Win"
+  value={stats.closedLeads.toString()}
+  {...getTrend(stats.closedLeads, stats.closedLeadsPrev)}
+  subtext="Closed as won"
+  className="bg-green-300 dark:bg-green-800"
+/>
+
+<StatCard
+  label="Lost"
+  value={stats.closedLost.toString()}
+  {...getTrend(stats.closedLost, stats.closedLostPrev)}
+  subtext="Closed as lost"
+  className="bg-red-300 dark:bg-red-800"
+/>
+
+<StatCard
+  label="Leads This Month"
+  value={stats.leadsThisMonth.toString()}
+  {...getTrend(stats.leadsThisMonth, stats.leadsLastMonth)}
+  subtext="New leads added this month"
+  className="bg-amber-300 dark:bg-amber-700"
+/>
           
         </div>
 
