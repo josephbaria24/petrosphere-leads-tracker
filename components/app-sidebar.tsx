@@ -6,7 +6,6 @@ import {
   ChartBar,
   Droplet,
   LayoutDashboard,
-  PlusCircleIcon
 } from "lucide-react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { NavMain } from "@/components/nav-main"
@@ -84,11 +83,11 @@ const data = {
       url: "/dashboard",
       icon: LayoutDashboard,
     },
-    {
-      title: "Create",
-      url: "/employees",
-      icon: PlusCircleIcon,
-    },
+    // {
+    //   title: "Create",
+    //   url: "/employees",
+    //   icon: PlusCircleIcon,
+    // },
     {
       title: "Manage Lead",
       url: "#",
@@ -97,20 +96,20 @@ const data = {
       items: [
         {
           title: "Leads List",
-          url: "/leads-list",
+          url: "/lead-table",
         },
         {
           title: "Add New Lead",
           url: "/add-new-leads",
         },
-        {
-          title: "Lead Insights",
-          url: "#",
-        },
-        {
-          title: "Lead Activity Log",
-          url: "#",
-        },
+        // {
+        //   title: "Lead Insights",
+        //   url: "#",
+        // },
+        // {
+        //   title: "Lead Activity Log",
+        //   url: "#",
+        // },
       ],
     },
     
@@ -119,14 +118,14 @@ const data = {
       url: "#",
       icon: Settings2,
       items: [
-        {
-          title: "User Management",
-          url: "#",
-        },
-        {
-          title: "CRM Settings",
-          url: "#",
-        },
+        // {
+        //   title: "User Management",
+        //   url: "#",
+        // },
+        // {
+        //   title: "CRM Settings",
+        //   url: "#",
+        // },
       ],
     },
   ],

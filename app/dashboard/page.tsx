@@ -434,13 +434,18 @@ useEffect(() => {
 
     <CardContent>
     <LeadSourceAreaChart data={leadAreaChartData} />
-    <div className="mt-4 flex flex-col space-y-4">
+
+
+
+{/* AI agent */}
+
+    {/* <div className="mt-4 flex flex-col space-y-4">
   <Button className="bg-black text-white dark:bg-white dark:text-black" onClick={analyzeLeadChartTrends} disabled={isLoadingInsights}>
     {isLoadingInsights ? 'Analyzing...' : 'Analyze Trends'}
   </Button>
 
   {insights && <InsightPanel content={insights} />}
-</div>
+</div> */}
 
 
     {/* <div className="mt-4 text-sm">

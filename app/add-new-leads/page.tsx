@@ -154,16 +154,7 @@ export default function AddNewLeadPage() {
     else if (table === 'lead_sources') setLeadSources(names)
     else if (table === 'lead_statuses') setLeadStatuses(names)
   }
-  
 
-  const fetchRegions = async () => {
-    const { data, error } = await supabase.from('regions').select('name')
-    if (error) {
-      toast.error('Failed to fetch regions', { description: error.message })
-    } else {
-      setRegions(data.map(r => r.name))
-    }
-  }
 
 
   useEffect(() => {
