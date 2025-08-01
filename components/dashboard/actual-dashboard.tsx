@@ -1,3 +1,4 @@
+//actual-dashboard.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -16,6 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
+import { ChartPieCapturedBy } from '../charts/radar-grid'
 
 export function ActualDashboardPage() {
 
@@ -53,12 +55,65 @@ export function ActualDashboardPage() {
   const [availableYears, setAvailableYears] = useState<number[]>([])
   const [selectedMonth, setSelectedMonth] = useState<string>('all')  // default is "all"
   const [selectedInterval, setSelectedInterval] = useState<string>('monthly')
- // const [insights, setInsights] = useState<string | null>(null)
- // const [isLoadingInsights, setIsLoadingInsights] = useState(false)
   
 
   const [leadSourceTotals, setLeadSourceTotals] = useState<Record<string, number>>({})
+  const [capturedByData, setCapturedByData] = useState<{ name: string; value: number }[]>([])
+  const [totalCapturedByCount, setTotalCapturedByCount] = useState(0)
 
+  const fetchCapturedByStats = async () => {
+    const limit = 1000
+    let offset = 0
+    let allData: { captured_by: string | null }[] = []
+    let done = false
+  
+    while (!done) {
+      const { data, error } = await supabase
+        .from('crm_leads')
+        .select('captured_by')
+        .range(offset, offset + limit - 1)
+  
+      if (error) {
+        console.error('Error fetching captured_by:', error)
+        return
+      }
+  
+      if (data.length < limit) {
+        done = true
+      }
+  
+      allData = allData.concat(data)
+      offset += limit
+    }
+  
+    // Count captured_by
+    const counts: Record<string, number> = {}
+    const nameMap: Record<string, string> = {}
+  
+    allData.forEach(({ captured_by }) => {
+      if (!captured_by || captured_by.trim() === '') return
+      const trimmed = captured_by.trim()
+      counts[trimmed] = (counts[trimmed] || 0) + 1
+      nameMap[trimmed] = trimmed
+    })
+  
+    const result = Object.entries(counts).map(([key, value]) => ({
+      name: nameMap[key],
+      value,
+    }))
+  
+    console.table(result)
+    setCapturedByData(result)
+    setTotalCapturedByCount(result.reduce((sum, item) => sum + item.value, 0))
+  }
+  
+  
+
+  
+  useEffect(() => {
+    fetchCapturedByStats()
+  }, [])
+  
 
 
   const normalizeKey = (key: string) =>
@@ -84,15 +139,30 @@ export function ActualDashboardPage() {
       }
     }
   
-    const { data, error } = await supabase
-      .from('crm_leads')
-      .select('lead_source, first_contact')
-      .gte('first_contact', startDate.toISOString())
-      .lt('first_contact', endDate.toISOString())
+    const limit = 1000
+    let offset = 0
+    let allData: { lead_source: string | null; first_contact: string | null }[] = []
+    let done = false
   
-    if (error) {
-      console.error('Error fetching leads:', error)
-      return
+    while (!done) {
+      const { data, error } = await supabase
+        .from('crm_leads')
+        .select('lead_source, first_contact')
+        .gte('first_contact', startDate.toISOString())
+        .lt('first_contact', endDate.toISOString())
+        .range(offset, offset + limit - 1)
+  
+      if (error) {
+        console.error('Error fetching leads:', error)
+        return
+      }
+  
+      if (!data || data.length < limit) {
+        done = true
+      }
+  
+      allData = allData.concat(data)
+      offset += limit
     }
   
     const grouped: Record<string, Record<string, number>> = {}
@@ -100,7 +170,7 @@ export function ActualDashboardPage() {
     const uniqueSources = new Set<string>()
     const displayMap: Record<string, string> = {}
   
-    data?.forEach(({ lead_source, first_contact }) => {
+    allData.forEach(({ lead_source, first_contact }) => {
       if (!first_contact) return
   
       const date = new Date(first_contact)
@@ -132,7 +202,7 @@ export function ActualDashboardPage() {
       const originalSource = (lead_source || 'Unknown').trim()
       const normalized = normalizeKey(originalSource)
       uniqueSources.add(normalized)
-      displayMap[normalized] = originalSource  // keep reference for display
+      displayMap[normalized] = originalSource
   
       if (!grouped[xLabel]) grouped[xLabel] = {}
       grouped[xLabel][normalized] = (grouped[xLabel][normalized] || 0) + 1
@@ -173,69 +243,62 @@ export function ActualDashboardPage() {
   
     setLeadAreaChartData(formatted)
     setLeadSourceTotals(totals)
-    setLeadSourceDisplayMap(displayMap) // <-- you need this for the chart legend
+    setLeadSourceDisplayMap(displayMap)
   }
   
+  
 
-  // const analyzeLeadChartTrends = async () => {
-  //   setIsLoadingInsights(true)
-  //   setInsights(null)
-  
-  //   try {
-  //     const res = await fetch('/api/analyze-chart', {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify({
-  //         areaChart: leadAreaChartData,
-  //         statCards: stats,
-  //         serviceChart: serviceChartData,
-  //       }),
-  //     })
-  
-  //     const { analysis } = await res.json()
-  //     setInsights(analysis)
-  //   } catch (err) {
-  //     console.error('AI analysis failed:', err)
-  //     setInsights('Could not analyze trends at the moment.')
-  //   } finally {
-  //     setIsLoadingInsights(false)
-  //   }
-  // }
-  
+ 
   
 
 
 
   // Fetch top services/products for the selected year
 
-const fetchTopServicesByYear = async (year: number) => {
-  const startOfYear = new Date(year, 0, 1);
-  const endOfYear = new Date(year + 1, 0, 1);
-
-  const { data, error } = await supabase
-    .from('crm_leads')
-    .select('service_product, first_contact')
-    .gte('first_contact', startOfYear.toISOString())
-    .lt('first_contact', endOfYear.toISOString());
-
-  if (error) {
-    console.error('Error fetching service_product:', error);
-    return;
+  const fetchTopServicesByYear = async (year: number) => {
+    const startOfYear = new Date(year, 0, 1)
+    const endOfYear = new Date(year + 1, 0, 1)
+  
+    const limit = 1000
+    let offset = 0
+    let allData: { service_product: string | null; first_contact: string | null }[] = []
+    let done = false
+  
+    while (!done) {
+      const { data, error } = await supabase
+        .from('crm_leads')
+        .select('service_product, first_contact')
+        .gte('first_contact', startOfYear.toISOString())
+        .lt('first_contact', endOfYear.toISOString())
+        .range(offset, offset + limit - 1)
+  
+      if (error) {
+        console.error('Error fetching service_product:', error)
+        return
+      }
+  
+      allData = allData.concat(data)
+      if (data.length < limit) {
+        done = true
+      } else {
+        offset += limit
+      }
+    }
+  
+    const counts: Record<string, number> = {}
+  
+    allData.forEach((item) => {
+      const product = item.service_product?.trim().toUpperCase() || 'UNKNOWN'
+      counts[product] = (counts[product] || 0) + 1
+    })
+  
+    const chartData = Object.entries(counts)
+      .map(([service_product, count]) => ({ service_product, count }))
+      .sort((a, b) => b.count - a.count)
+  
+    setServiceChartData(chartData)
   }
-
-  const counts: Record<string, number> = {};
-
-  data?.forEach((item) => {
-    const product = item.service_product?.trim().toUpperCase() || 'UNKNOWN';
-    counts[product] = (counts[product] || 0) + 1;
-  });
-
-  const chartData = Object.entries(counts)
-    .map(([service_product, count]) => ({ service_product, count }))
-    .sort((a, b) => b.count - a.count);
-
-  setServiceChartData(chartData);
-};
+  
 
 useEffect(() => {
   fetchLeadsBySource(selectedYear, selectedMonth, selectedInterval)
@@ -305,7 +368,7 @@ useEffect(() => {
     totalInProgress,
     inProgressPrev,
     leadsThisMonth,
-    leadsLastMonth
+    leadsLastMonth,
   ] = await Promise.all([
     supabase.from("crm_leads").select("id", { count: "exact", head: true }),
     supabase
@@ -401,47 +464,55 @@ useEffect(() => {
       {/* CRM Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       <StatCard
-  label="Total Leads"
-  value={stats.totalLeads.toString()}
-  {...getTrend(stats.totalLeads, stats.totalLeadsPrev)}
-  subtext="All leads recorded"
-  className="bg-cyan-300 dark:bg-cyan-900"
-/>
+            label="Total Leads"
+            value={stats.totalLeads.toString()}
+            {...getTrend(stats.totalLeads, stats.totalLeadsPrev)}
+            subtext="All leads recorded"
+            className="bg-black dark:bg-white text-white dark:text-black"
+            />
 
-<StatCard
-  label="In Progress"
-  value={stats.totalInProgress.toString()}
-  {...getTrend(stats.totalInProgress, stats.inProgressPrev)}
-  subtext="Currently active leads"
-  className="bg-blue-300 dark:bg-blue-800"
-/>
+            <StatCard
+            label="In Progress"
+            value={stats.totalInProgress.toString()}
+            {...getTrend(stats.totalInProgress, stats.inProgressPrev)}
+            subtext="Currently active leads"
+            className="bg-blue-600 dark:bg-blue-800 text-white dark:text-white"
+            />
 
-<StatCard
-  label="Win"
-  value={stats.closedLeads.toString()}
-  {...getTrend(stats.closedLeads, stats.closedLeadsPrev)}
-  subtext="Closed as won"
-  className="bg-green-300 dark:bg-green-800"
-/>
+            <StatCard
+            label="Win"
+            value={stats.closedLeads.toString()}
+            {...getTrend(stats.closedLeads, stats.closedLeadsPrev)}
+            subtext="Closed as won"
+            className="bg-green-600 dark:bg-green-800 text-white dark:text-white"
+            />
 
-<StatCard
-  label="Lost"
-  value={stats.closedLost.toString()}
-  {...getTrend(stats.closedLost, stats.closedLostPrev)}
-  subtext="Closed as lost"
-  className="bg-red-300 dark:bg-red-800"
-/>
+            <StatCard
+            label="Lost"
+            value={stats.closedLost.toString()}
+            {...getTrend(stats.closedLost, stats.closedLostPrev)}
+            subtext="Closed as lost"
+            className="bg-red-600 dark:bg-red-800 text-white dark:text-white"
+            />
 
-<StatCard
-  label="Leads This Month"
-  value={stats.leadsThisMonth.toString()}
-  {...getTrend(stats.leadsThisMonth, stats.leadsLastMonth)}
-  subtext="New leads added this month"
-  className="bg-amber-300 dark:bg-amber-700"
-/>
-          
+            <StatCard
+            label="Leads This Month"
+            value={stats.leadsThisMonth.toString()}
+            {...getTrend(stats.leadsThisMonth, stats.leadsLastMonth)}
+            subtext="New leads added this month"
+            className="bg-black dark:bg-white text-white dark:text-black"
+            />
         </div>
 
+        {/* Chart 3: Captured By Personnel */}
+
+
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 pt-3">
+            {/* ... your StatCards here */}
+            <ChartPieCapturedBy data={capturedByData} />
+
+        </div>
 
   {/* Chart 1 */}
   <div className="py-4">
@@ -503,32 +574,12 @@ useEffect(() => {
 
 
 
-{/* AI agent */}
 
-    {/* <div className="mt-4 flex flex-col space-y-4">
-  <Button className="bg-black text-white dark:bg-white dark:text-black" onClick={analyzeLeadChartTrends} disabled={isLoadingInsights}>
-    {isLoadingInsights ? 'Analyzing...' : 'Analyze Trends'}
-  </Button>
-
-  {insights && <InsightPanel content={insights} />}
-</div> */}
-
-
-    {/* <div className="mt-4 text-sm">
-  <h4 className="font-semibold mb-2">Total Leads per Source (Year {selectedYear})</h4>
-  <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-2">
-    {Object.entries(leadSourceTotals).map(([source, count]) => (
-      <li key={source} className="flex justify-between">
-        <span className="capitalize">{source}</span>
-        <span className="font-medium">{count}</span>
-      </li>
-    ))}
-  </ul>
-</div> */}
 
     </CardContent>
   </Card>
   </div>
+
 
   {/* Chart 2: Top 3 Services */}
 <Card className="flex-1">

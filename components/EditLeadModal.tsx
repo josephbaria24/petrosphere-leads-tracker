@@ -57,7 +57,7 @@ const leadSources = [
 ]
 
 const capturedByOptions = [
-  'Randy Moscoso', 'Michelle Saclet', 'Sergs Carlo Dosong', 'Krezel Guarda', 'Carmela Joice Padilla', 'Other'
+  'Ross','Randy', 'Michelle', 'Harthwell','Sergs', 'Krezel', 'Carmela','Other'
 ]
 
 

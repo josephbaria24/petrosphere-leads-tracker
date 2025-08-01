@@ -1,0 +1,48 @@
+ // const analyzeLeadChartTrends = async () => {
+  //   setIsLoadingInsights(true)
+  //   setInsights(null)
+  
+  //   try {
+  //     const res = await fetch('/api/analyze-chart', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({
+  //         areaChart: leadAreaChartData,
+  //         statCards: stats,
+  //         serviceChart: serviceChartData,
+  //       }),
+  //     })
+  
+  //     const { analysis } = await res.json()
+  //     setInsights(analysis)
+  //   } catch (err) {
+  //     console.error('AI analysis failed:', err)
+  //     setInsights('Could not analyze trends at the moment.')
+  //   } finally {
+  //     setIsLoadingInsights(false)
+  //   }
+  // }
+  
+
+{/* AI agent */}
+
+    {/* <div className="mt-4 flex flex-col space-y-4">
+  <Button className="bg-black text-white dark:bg-white dark:text-black" onClick={analyzeLeadChartTrends} disabled={isLoadingInsights}>
+    {isLoadingInsights ? 'Analyzing...' : 'Analyze Trends'}
+  </Button>
+
+  {insights && <InsightPanel content={insights} />}
+</div> */}
+
+
+    {/* <div className="mt-4 text-sm">
+  <h4 className="font-semibold mb-2">Total Leads per Source (Year {selectedYear})</h4>
+  <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-2">
+    {Object.entries(leadSourceTotals).map(([source, count]) => (
+      <li key={source} className="flex justify-between">
+        <span className="capitalize">{source}</span>
+        <span className="font-medium">{count}</span>
+      </li>
+    ))}
+  </ul>
+</div> */}

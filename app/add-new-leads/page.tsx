@@ -104,11 +104,12 @@ export default function AddNewLeadPage() {
     const selectedNames = serviceDetails.map((s) => s.name).join(', ')
     const totalPrice = serviceDetails.reduce((sum, s) => sum + s.price, 0)
     const allModes = serviceDetails.map((s) => s.mode).filter(Boolean).join(', ')
-
+    const firstName = form.captured_by?.split(' ')[0] || form.captured_by;
     
     const { error } = await supabase.from('crm_leads').insert([
       {
         ...form,
+        captured_by: firstName,
         company: fullCompany,
         service_product: selectedNames,
         service_price: totalPrice,
@@ -353,7 +354,7 @@ export default function AddNewLeadPage() {
                     <SelectValue placeholder="Select user or type below" />
                 </SelectTrigger>
                 <SelectContent>
-                    {['Daniel Ross Amar','Randy Moscoso', 'Michelle Saclet', 'Sergs Carlo Dosong', 'Krezel Guarda', 'Carmela Joice Padilla','Other'].map(person => (
+                    {['Ross','Randy', 'Michelle', 'Harthwell','Sergs', 'Krezel', 'Carmela','Other'].map(person => (
                     <SelectItem key={person} value={person}>
                         {person}
                     </SelectItem>
