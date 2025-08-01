@@ -41,6 +41,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
+import { useSession } from '@supabase/auth-helpers-react'
 
 
 type Lead = {
@@ -342,6 +343,9 @@ export default function LeadsListPage() {
     columnResizeMode: 'onChange',
   })
 
+  
+  const session = useSession()
+  const currentUserName = session?.user?.user_metadata?.full_name || 'Unknown'
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -625,6 +629,7 @@ export default function LeadsListPage() {
           console.error(error)
         }
       }}
+      currentUserName={currentUserName} 
     />)}
 
     </div>

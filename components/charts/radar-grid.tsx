@@ -48,7 +48,7 @@ export function ChartPieCapturedBy({ data }: ChartPieCapturedByProps) {
   }
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col bg-background">
       <CardHeader className="items-center pb-0">
         <CardTitle>Lead Captures by Personnel</CardTitle>
         <CardDescription>Total Distribution</CardDescription>

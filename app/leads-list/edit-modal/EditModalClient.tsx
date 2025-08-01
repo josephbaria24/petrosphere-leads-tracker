@@ -44,13 +44,14 @@ export default function EditModalClient() {
 
   if (loading) return <div className="p-8">Loading...</div>
   if (!lead) return <div className="p-8 text-red-500">Lead not found</div>
-
+  const currentUserName = 'Test User'
   return (
     <EditLeadModal
       isOpen={true}
       onClose={handleClose}
       onSave={handleSave}
       lead={lead}
+      currentUserName={currentUserName}
     />
   )
 }

@@ -54,7 +54,6 @@ import {
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@supabase/auth-helpers-react'
-import { SidebarInset } from "@/components/ui/sidebar"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Separator } from "@radix-ui/react-separator"
 
@@ -100,7 +99,29 @@ export default function DataTablePage() {
 
   const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null)
   const [editModalOpen, setEditModalOpen] = React.useState(false)
- 
+  const [currentUserName, setCurrentUserName] = useState<string>('Unknown');
+
+
+  useEffect(() => {
+    const fetchCurrentUserProfile = async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+      if (!userId) return;
+  
+      const { data: profile } = await supabase
+        .from('public_profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+  
+      if (profile?.full_name) {
+        setCurrentUserName(profile.full_name);
+      }
+    };
+  
+    fetchCurrentUserProfile();
+  }, []);
+
   React.useEffect(() => {
     const fetchAllLeads = async () => {
       const  allLeads: Lead[] = []
@@ -365,6 +386,7 @@ export default function DataTablePage() {
           isOpen={editModalOpen}
           onClose={() => setEditModalOpen(false)}
           lead={selectedLead}
+          currentUserName={currentUserName} // ✅ Pass the user
           onSave={async (updated: Partial<Lead>) => {
             const { error } = await supabase
               .from("crm_leads")

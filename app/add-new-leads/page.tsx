@@ -99,13 +99,32 @@ export default function AddNewLeadPage() {
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-    
-    const fullCompany = `${form.company} - ${form.address}`.trim()
-    const selectedNames = serviceDetails.map((s) => s.name).join(', ')
-    const totalPrice = serviceDetails.reduce((sum, s) => sum + s.price, 0)
-    const allModes = serviceDetails.map((s) => s.mode).filter(Boolean).join(', ')
+  
+    const fullCompany = `${form.company} - ${form.address}`.trim();
+    const selectedNames = serviceDetails.map((s) => s.name).join(', ');
+    const totalPrice = serviceDetails.reduce((sum, s) => sum + s.price, 0);
+    const allModes = serviceDetails.map((s) => s.mode).filter(Boolean).join(', ');
     const firstName = form.captured_by?.split(' ')[0] || form.captured_by;
-    
+  
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+  
+    let fullName = 'Unknown';
+  
+    if (user && !userError) {
+      const { data: profile, error: profileError } = await supabase
+        .from('public_profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+  
+      if (profile && !profileError) {
+        fullName = profile.full_name;
+      }
+    }
+  
     const { error } = await supabase.from('crm_leads').insert([
       {
         ...form,
@@ -115,17 +134,18 @@ export default function AddNewLeadPage() {
         service_price: totalPrice,
         mode_of_service: allModes,
       },
-    ])
+    ]);
   
     if (error) {
       toast.error('Submission Failed', {
         description: error.message || 'Could not save lead. Please try again.',
-      })
+      });
     } else {
       toast.success('Lead Submitted', {
         description: 'The new lead has been successfully added.',
-      })
+      });
   
+      // Reset form
       setForm({
         contact_name: '',
         email: '',
@@ -143,9 +163,17 @@ export default function AddNewLeadPage() {
         captured_by: '',
         first_contact: null,
         last_contact: null,
-      })
+      });
+  
+      // Insert activity log
+      await supabase.from('activity_logs').insert({
+        user_name: fullName,
+        action: 'added',
+        entity_type: 'lead',
+      });
     }
-  }
+  };
+  
 
 
 

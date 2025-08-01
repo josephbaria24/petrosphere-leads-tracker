@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { DatePicker } from '@/components/date-picker'
+import { supabase } from '@/lib/supabase'
 
 
 export type Lead = {
@@ -35,6 +36,7 @@ interface EditModalProps {
   onClose: () => void
   onSave: (updated: Partial<Lead>) => void
   lead: Lead
+  currentUserName: string
 }
 
 const leadStages = [
@@ -62,7 +64,7 @@ const capturedByOptions = [
 
 
 
-const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead }) => {
+const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead,currentUserName  }) => {
   const [edited, setEdited] = useState<Partial<Lead>>({})
 
   useEffect(() => {
@@ -170,7 +172,23 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
         </div>
 
         <div className="flex justify-end pt-2">
-          <Button onClick={() => onSave(edited)}>Save Changes</Button>
+        <Button
+  onClick={async () => {
+    await onSave(edited)
+
+    // ✅ Log the activity to activity_logs
+    await supabase.from('activity_logs').insert({
+      user_name: currentUserName,
+      action: 'edited',
+      entity_type: 'lead',
+    })
+    
+    onClose()
+  }}
+>
+  Save Changes
+</Button>
+
         </div>
       </DialogContent>
     </Dialog>

@@ -18,7 +18,20 @@ import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
 import { ChartPieCapturedBy } from '../charts/radar-grid'
+import { ActivityLogCard } from "@/components/dashboard/activity-log-card"
+import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Badge } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import Link from 'next/link'
+import { Button } from '../ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 
+type ActivityLog = {
+    user_name: string
+    action: 'added' | 'edited' | 'deleted'
+    entity_type: string
+    timestamp: string
+  }
+  
 export function ActualDashboardPage() {
 
 
@@ -60,6 +73,31 @@ export function ActualDashboardPage() {
   const [leadSourceTotals, setLeadSourceTotals] = useState<Record<string, number>>({})
   const [capturedByData, setCapturedByData] = useState<{ name: string; value: number }[]>([])
   const [totalCapturedByCount, setTotalCapturedByCount] = useState(0)
+  const [newestLeads, setNewestLeads] = useState<{ captured_by: string; contact_name: string; status: string }[]>([])
+
+
+
+
+  useEffect(() => {
+    const fetchNewestLeads = async () => {
+      const { data, error } = await supabase
+        .from('crm_leads')
+        .select('captured_by, contact_name, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5)
+  
+      if (error) {
+        console.error('Error fetching newest leads:', error)
+      } else {
+        setNewestLeads(data || [])
+      }
+    }
+  
+    fetchNewestLeads()
+  }, [])
+
+
+
 
   const fetchCapturedByStats = async () => {
     const limit = 1000
@@ -248,7 +286,28 @@ export function ActualDashboardPage() {
   
   
 
- 
+
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
+
+
+  useEffect(() => {
+    const fetchActivityLogs = async () => {
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .select('user_name, action, entity_type, timestamp')
+        .order('timestamp', { ascending: false })
+        .limit(10)
+  
+      if (error) {
+        console.error('Error fetching activity logs:', error)
+      } else {
+        setActivityLogs(data as ActivityLog[])
+      }
+    }
+  
+    fetchActivityLogs()
+  }, [])
+  
   
 
 
@@ -508,63 +567,197 @@ useEffect(() => {
 
 
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 pt-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 pt-3">
             {/* ... your StatCards here */}
-            <ChartPieCapturedBy data={capturedByData} />
+            <ChartPieCapturedBy data={capturedByData}/>
+
+      
+
+            <Card className="flex-1 bg-background">
+  <CardHeader>
+    <CardTitle className="text-3xl">Newest Leads</CardTitle>
+    <CardDescription>Most recently captured entries</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="grid grid-cols-3 text-xs font-medium text-muted-foreground mb-2 px-1">
+      <div>Captured By</div>
+      <div>Contact Name</div>
+      <div className="text-right">Status</div>
+    </div>
+
+    <div className="space-y-2">
+      {newestLeads.map((lead, idx) => {
+        
+        const rowStyle =
+        idx === 0
+          ? "text-3xl font-semibold"
+          : idx === 1
+          ? "text-xl font-medium"
+          : "text-m text-muted-foreground"
+
+        const statusKey = lead.status?.toLowerCase() || "unknown"
+
+        const statusStyles: Record<
+          string,
+          { label: string; className: string; icon: React.ReactNode }
+        > = {
+          "lead in": {
+            label: "Lead In",
+            className: "bg-muted text-white",
+            icon: <UserPlus className="w-3.5 h-3.5 mr-1.5" />,
+          },
+          "contact made": {
+            label: "Contact Made",
+            className: "bg-blue-600 text-white",
+            icon: <MessageCircle className="w-3.5 h-3.5 mr-1.5" />,
+          },
+          "needs defined": {
+            label: "Needs Defined",
+            className: "bg-yellow-500 text-white",
+            icon: <FileText className="w-3.5 h-3.5 mr-1.5" />,
+          },
+          "proposal sent": {
+            label: "Proposal Sent",
+            className: "bg-purple-600 text-white",
+            icon: <FileText className="w-3.5 h-3.5 mr-1.5" />,
+          },
+          "negotiation started": {
+            label: "Negotiation Started",
+            className: "bg-orange-500 text-white",
+            icon: <Handshake className="w-3.5 h-3.5 mr-1.5" />,
+          },
+          "closed won": {
+            label: "Closed Win",
+            className: "bg-green-600 text-white",
+            icon: <BadgeCheck className="w-3.5 h-3.5 mr-1.5" />,
+          },
+          "closed win": {
+            label: "Closed Win",
+            className: "bg-green-600 text-white",
+            icon: <BadgeCheck className="w-3.5 h-3.5 mr-1.5" />,
+          },
+          "closed lost": {
+            label: "Closed Lost",
+            className: "bg-red-600 text-white",
+            icon: <XCircle className="w-3.5 h-3.5 mr-1.5" />,
+          },
+          "in progress": {
+            label: "In Progress",
+            className: "bg-zinc-800 text-white border border-zinc-700",
+            icon: <Loader className="w-3.5 h-3.5 mr-1.5 animate-spin" />,
+          },
+          done: {
+            label: "Done",
+            className: "bg-black text-green-400 border border-green-700",
+            icon: <CheckCircle className="w-3.5 h-3.5 mr-1.5 text-green-500" />,
+          },
+        }
+
+        const status = statusStyles[statusKey] || {
+          label: lead.status || "Unknown",
+          className: "bg-gray-200 text-gray-700",
+          icon: null,
+        }
+
+        return (
+          
+          <div
+            key={idx}
+            className={`grid grid-cols-3 items-center px-1 ${rowStyle}`}
+          >
+            
+            <div className="truncate">{lead.captured_by}</div>
+            <div className="truncate">{lead.contact_name}</div>
+            
+            <div className="flex justify-end">
+            <span
+                className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full font-medium ${
+                  status.className || "bg-gray-400 text-white"
+                }`}
+              >
+                {status.icon}
+                {status.label}
+              </span>
+
+            </div>
+          </div>
+        )
+      })}
+      
+    </div>
+  </CardContent>
+  <div className="pt-7 text-center">
+          <Link href="/lead-table" passHref>
+            <Button variant="link" className="text-sm text-muted-foreground hover:text-primary px-0 cursor-pointer">
+              View Details →
+            </Button>
+          </Link>
+        </div>
+</Card>
+
+
 
         </div>
-
   {/* Chart 1 */}
   <div className="py-4">
     
   
-  <Card className="flex-1">
+  <Card className="flex-1 bg-background">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <div>
         <CardTitle className="text-lg">Lead Captures Over Time</CardTitle>
         <CardDescription></CardDescription>
       </div>
 
-
       <div className="flex space-x-2">
-        {/* Conditional month dropdown */}
-        {selectedInterval === 'monthly' && (
-          <select
-            className="border px-2 py-1 rounded-md text-sm"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-          >
-            <option value="all">All Months</option>
-            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map(month => (
-              <option key={month} value={month}>{month}</option>
-            ))}
-          </select>
+  {/* Month Dropdown */}
+  {selectedInterval === "monthly" && (
+    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+      <SelectTrigger className="w-[140px] text-sm">
+        <SelectValue placeholder="Month" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Months</SelectItem>
+        {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map(
+          (month) => (
+            <SelectItem key={month} value={month}>
+              {month}
+            </SelectItem>
+          )
         )}
+      </SelectContent>
+    </Select>
+  )}
 
-        {/* Year dropdown */}          
-        {selectedInterval !== 'annually' && (
-          <select
-            className="border px-2 py-1 rounded-md text-sm"
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-          >
-            {availableYears.map((year) => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-        )}
-        {/* Interval dropdown */}
-        <select
-          className="border px-2 py-1 rounded-md text-sm"
-          value={selectedInterval}
-          onChange={(e) => setSelectedInterval(e.target.value)}
-        >
-          <option value="monthly">Monthly</option>
-          <option value="quarterly">Quarterly</option>
-          <option value="weekly">Weekly</option>
-          <option value="annually">Annually</option>
-        </select>
-      </div>
+  {/* Year Dropdown */}
+  {selectedInterval !== "annually" && (
+    <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
+      <SelectTrigger className="w-[100px] text-sm">
+        <SelectValue placeholder="Year" />
+      </SelectTrigger>
+      <SelectContent>
+        {availableYears.map((year) => (
+          <SelectItem key={year} value={year.toString()}>
+            {year}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )}
+
+  {/* Interval Dropdown */}
+  <Select value={selectedInterval} onValueChange={setSelectedInterval}>
+    <SelectTrigger className="w-[120px] text-sm">
+      <SelectValue placeholder="Interval" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="monthly">Monthly</SelectItem>
+      <SelectItem value="quarterly">Quarterly</SelectItem>
+      <SelectItem value="weekly">Weekly</SelectItem>
+      <SelectItem value="annually">Annually</SelectItem>
+    </SelectContent>
+  </Select>
+</div>
 
 
     </CardHeader>
@@ -582,7 +775,7 @@ useEffect(() => {
 
 
   {/* Chart 2: Top 3 Services */}
-<Card className="flex-1">
+<Card className="flex-1 bg-background">
   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
     <div>
       <CardTitle className="text-lg">Services / Products</CardTitle>
@@ -591,7 +784,9 @@ useEffect(() => {
   </CardHeader>
   <CardContent>
     <ServiceBarChart data={serviceChartData} />
+    
   </CardContent>
+     
 </Card>
 
     </SidebarInset>
