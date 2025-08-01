@@ -12,6 +12,17 @@ import {
   useReactTable,
   flexRender,
 } from "@tanstack/react-table"
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog"
 
 import { ChevronDown } from "lucide-react"
 import EditLeadModal from "@/components/EditLeadModal"
@@ -40,6 +51,12 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select"
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useSession } from '@supabase/auth-helpers-react'
+import { SidebarInset } from "@/components/ui/sidebar"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
+import { Separator } from "@radix-ui/react-separator"
 
 type Lead = {
   id: string
@@ -63,11 +80,19 @@ type Lead = {
 }
 
 export default function DataTablePage() {
+  const router = useRouter()
+  const session = useSession()
+
+  // 🔐 Redirect if not logged in
+  const [isReady, setIsReady] = useState(false)
+
+   
+  // Define the Lead type based on your database schema
   const [data, setData] = React.useState<Lead[]>([])
   const [globalFilter, setGlobalFilter] = React.useState("")
   const [pageSize, setPageSize] = React.useState(10)
   const [sorting, setSorting] = React.useState<SortingState>([
-    { id: "created_at", desc: false },
+    { id: "created_at", desc: true },
   ])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
@@ -75,7 +100,7 @@ export default function DataTablePage() {
 
   const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null)
   const [editModalOpen, setEditModalOpen] = React.useState(false)
-
+ 
   React.useEffect(() => {
     const fetchAllLeads = async () => {
       const  allLeads: Lead[] = []
@@ -87,6 +112,7 @@ export default function DataTablePage() {
         const { data, error } = await supabase
           .from("crm_leads")
           .select("*")
+          .order("created_at", { ascending: false }) // 🟢 newest first
           .range(from, from + limit - 1)
 
         if (error) {
@@ -130,13 +156,48 @@ export default function DataTablePage() {
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
   })
+  const selectedIds = table.getFilteredSelectedRowModel().rows.map(row => row.original.id)
+
 
   React.useEffect(() => {
     table.setPageSize(pageSize)
   }, [pageSize, table])
 
+
+
+   // 🔐 Redirect if not logged in
+   useEffect(() => {
+    if (session === null) {
+      router.replace('/login')
+    } else if (session) {
+      setIsReady(true)
+    }
+  }, [session, router])
+
+  if (!isReady) {
+    return <div className="p-10 text-center">Loading...</div> // Optional spinner
+  }
   return (
     <div className="w-full">
+      {/* Topbar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4 pl-10">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/dashboard">Manage Lead</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Leads List</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+      </div>
+      <Separator className="my-4" />
+
+      {/* Main content */}
       <div className="flex items-center py-4">
         <Input
           placeholder="Search leads..."
@@ -191,7 +252,11 @@ export default function DataTablePage() {
                       key={row.id}
                       data-state={row.getIsSelected() && "selected"}
                       className="cursor-pointer hover:bg-muted"
-                      onClick={() => {
+                      onClick={(e) => {
+                        // 🛑 Prevent triggering modal when clicking checkbox
+                        const isCheckbox = (e.target as HTMLElement).closest('button, input[type="checkbox"]')
+                        if (isCheckbox) return
+
                         setSelectedLead(row.original)
                         setEditModalOpen(true)
                       }}
@@ -256,6 +321,44 @@ export default function DataTablePage() {
             Next
           </Button>
         </div>
+        {selectedIds.length > 0 && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm">
+                Delete Selected
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete {selectedIds.length} lead(s). This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    const { error } = await supabase
+                      .from("crm_leads")
+                      .delete()
+                      .in("id", selectedIds)
+
+                    if (!error) {
+                      setData(prev => prev.filter(lead => !selectedIds.includes(lead.id)))
+                      setRowSelection({})
+                    } else {
+                      console.error("Failed to delete:", error)
+                    }
+                  }}
+                >
+                  Confirm Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
       </div>
       {selectedLead && (
         <EditLeadModal
@@ -283,3 +386,4 @@ export default function DataTablePage() {
     </div>
   )
 }
+

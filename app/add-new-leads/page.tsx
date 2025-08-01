@@ -7,19 +7,25 @@ import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import EditListModal from '@/components/shared/EditListModal'
-
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import { useSession } from '@supabase/auth-helpers-react'
 import { DatePicker } from '@/components/date-picker'
+import { Separator } from '@/components/ui/separator'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 
 
 
 
 
 export default function AddNewLeadPage() {
+  
+  const router = useRouter()
+  const session = useSession()
 
- 
+  const [isReady, setIsReady] = useState(false)
   const [regions, setRegions] = useState<string[]>([])
   const [leadSources, setLeadSources] = useState<string[]>([])
   const [leadStatuses, setLeadStatuses] = useState<string[]>([])
@@ -183,10 +189,38 @@ export default function AddNewLeadPage() {
   }, [])
   
 
-  
+   // 🔐 Redirect if not logged in
+   useEffect(() => {
+    if (session === null) {
+      router.replace('/login')
+    } else if (session) {
+      setIsReady(true)
+    }
+  }, [session, router])
+
+  if (!isReady) {
+    return <div className="p-10 text-center">Loading...</div> // Optional spinner
+  }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto">
+      {/* Topbar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4 pl-10">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/dashboard">Manage Lead</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Add New Lead</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+      </div>
+      <Separator className="my-4" />
       <Card>
         <CardHeader>
           <CardTitle>Add New Lead</CardTitle>
@@ -319,7 +353,7 @@ export default function AddNewLeadPage() {
                     <SelectValue placeholder="Select user or type below" />
                 </SelectTrigger>
                 <SelectContent>
-                    {['Randy Moscoso', 'Michelle Saclet', 'Sergs Carlo Dosong', 'Krezel Guarda', 'Carmela Joice Padilla','Other'].map(person => (
+                    {['Daniel Ross Amar','Randy Moscoso', 'Michelle Saclet', 'Sergs Carlo Dosong', 'Krezel Guarda', 'Carmela Joice Padilla','Other'].map(person => (
                     <SelectItem key={person} value={person}>
                         {person}
                     </SelectItem>
@@ -344,17 +378,17 @@ export default function AddNewLeadPage() {
              <div>
              <Label htmlFor="service_product">Service/Product</Label>
 
-{/* Search Bar */}
-<div className="mb-2">
-  <Input
-    type="text"
-    placeholder="Search services..."
-    value={serviceSearch}
-    onChange={(e) => setServiceSearch(e.target.value)}
-  />
-</div>
+            {/* Search Bar */}
+            <div className="mb-2">
+              <Input
+                type="text"
+                placeholder="Search services..."
+                value={serviceSearch}
+                onChange={(e) => setServiceSearch(e.target.value)}
+              />
+            </div>
 
-{/* Filtered Services List */}
+            {/* Filtered Services List */}
 <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto border p-2 rounded-md">
 
           {Object.keys(servicePrices)
