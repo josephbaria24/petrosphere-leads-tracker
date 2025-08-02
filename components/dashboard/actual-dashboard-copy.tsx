@@ -70,9 +70,9 @@ export function ActualDashboardPage() {
   const [selectedInterval, setSelectedInterval] = useState<string>('monthly')
   
 
-  const [leadSourceTotals, setLeadSourceTotals] = useState<Record<string, number>>({})
+  const [, setLeadSourceTotals] = useState<Record<string, number>>({})
   const [capturedByData, setCapturedByData] = useState<{ name: string; value: number }[]>([])
-  const [totalCapturedByCount, setTotalCapturedByCount] = useState(0)
+  const [, setTotalCapturedByCount] = useState(0)
   const [newestLeads, setNewestLeads] = useState<{ captured_by: string; contact_name: string; status: string }[]>([])
 
 

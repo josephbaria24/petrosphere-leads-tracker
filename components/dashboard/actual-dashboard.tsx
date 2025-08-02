@@ -18,21 +18,10 @@ import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
 import { ChartPieCapturedBy } from '../charts/radar-grid'
-import { ActivityLogCard } from "@/components/dashboard/activity-log-card"
-import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Badge } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { HeatmapChart, HeatmapDatum } from "@/components/charts/heatmap-chart"
-
-
-type ActivityLog = {
-    user_name: string
-    action: 'added' | 'edited' | 'deleted'
-    entity_type: string
-    timestamp: string
-  }
 
 
 
@@ -62,7 +51,9 @@ export function ActualDashboardPage() {
 
 
   
+  const [rangeIndex, setRangeIndex] = useState(0)
 
+  
   const [stats, setStats] = useState({
     totalLeads: 0,
     totalLeadsPrev: 0,
@@ -77,17 +68,16 @@ export function ActualDashboardPage() {
   })
   
 
+  type BarData = {
+    service_product: string
+    count: number
+  }
+  const [serviceChartData, setServiceChartData] = useState<BarData[]>([])
+
   type AreaData = {
     date: string
-    [key: string]: string | number
+    [leadSource: string]: string | number
   }
-  
-  const [serviceChartData, setServiceChartData] = useState<AreaData[]>([])
-
-  // type AreaData = {
-  //   date: string
-  //   [leadSource: string]: string | number
-  // }
   
   const [leadAreaChartData, setLeadAreaChartData] = useState<AreaData[]>([])
   const [, setLeadSourceDisplayMap] = useState<Record<string, string>>({})
@@ -101,9 +91,9 @@ export function ActualDashboardPage() {
   const [selectedInterval, setSelectedInterval] = useState<string>('monthly')
   
 
-  const [leadSourceTotals, setLeadSourceTotals] = useState<Record<string, number>>({})
+  const [, setLeadSourceTotals] = useState<Record<string, number>>({})
   const [capturedByData, setCapturedByData] = useState<{ name: string; value: number }[]>([])
-  const [totalCapturedByCount, setTotalCapturedByCount] = useState(0)
+  const [, setTotalCapturedByCount] = useState(0)
   const [newestLeads, setNewestLeads] = useState<{ captured_by: string; contact_name: string; status: string }[]>([])
 
 
@@ -130,10 +120,42 @@ export function ActualDashboardPage() {
 
 
 
-  const fetchCapturedByStats = async (year: number, month: string, interval: string) => {
+  const fetchCapturedByStats = async (year: number, month: string, interval: string, rangeIndex: number) => {
     let startDate = new Date(year, 0, 1);
     let endDate = new Date(year + 1, 0, 1);
   
+    const label = timeLabels[rangeIndex]
+    switch (interval) {
+      case 'weekly': {
+        const janFirst = new Date(year, 0, 1)
+        startDate = new Date(janFirst)
+        startDate.setDate(janFirst.getDate() + rangeIndex * 7)
+        endDate = new Date(startDate)
+        endDate.setDate(startDate.getDate() + 7)
+        break
+      }
+      case 'quarterly': {
+        const startMonth = rangeIndex * 3
+        startDate = new Date(year, startMonth, 1)
+        endDate = new Date(year, startMonth + 3, 1)
+        break
+      }
+      case 'annually': {
+        const labelYear = parseInt(label)
+        if (!label || isNaN(labelYear)) return
+        startDate = new Date(labelYear, 0, 1)
+        endDate = new Date(labelYear + 1, 0, 1)
+        break
+      }
+      default: {
+        if (month !== 'all') {
+          const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
+          startDate = new Date(year, monthIndex, 1)
+          endDate = new Date(year, monthIndex + 1, 1)
+        }
+      }
+    }
+
     if (month !== 'all') {
       const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
       startDate = new Date(year, monthIndex, 1);
@@ -162,7 +184,6 @@ export function ActualDashboardPage() {
       if (!data || data.length === 0) break;
   
       allData = allData.concat(data);
-  
       if (data.length < pageSize) {
         finished = true;
       } else {
@@ -172,8 +193,21 @@ export function ActualDashboardPage() {
     }
   
     const counts: Record<string, number> = {};
-    allData.forEach(({ captured_by }) => {
-      if (!captured_by) return;
+  
+    allData.forEach(({ captured_by, first_contact }) => {
+      if (!captured_by || !first_contact) return;
+  
+      // Optional: add grouping logic by interval if needed for future enhancements
+      switch (interval) {
+        case 'weekly':
+        case 'quarterly':
+        case 'monthly':
+        case 'annually':
+        default:
+          // Default case just aggregates total per personnel
+          break;
+      }
+  
       const name = captured_by.trim();
       counts[name] = (counts[name] || 0) + 1;
     });
@@ -185,11 +219,12 @@ export function ActualDashboardPage() {
   
   
   
+  
 
   
   useEffect(() => {
-    fetchCapturedByStats(selectedYear, selectedMonth, selectedInterval);
-  }, [selectedYear, selectedMonth, selectedInterval]);
+    fetchCapturedByStats(selectedYear, selectedMonth, selectedInterval, rangeIndex)
+  }, [selectedYear, selectedMonth, selectedInterval, rangeIndex])
   
 
 
@@ -323,54 +358,56 @@ export function ActualDashboardPage() {
     setLeadSourceDisplayMap(displayMap)
   }
   
-  const heatmapData: HeatmapDatum[] = serviceChartData.map(row => ({
-    id: row.date,
-    data: Object.entries(row)
-      .filter(([key]) => key !== 'date')
-      .map(([x, y]) => ({ x, y: Number(y) }))
-  }))
 
-
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
-
-
-  useEffect(() => {
-    const fetchActivityLogs = async () => {
-      const { data, error } = await supabase
-        .from('activity_logs')
-        .select('user_name, action, entity_type, timestamp')
-        .order('timestamp', { ascending: false })
-        .limit(10)
-  
-      if (error) {
-        console.error('Error fetching activity logs:', error)
-      } else {
-        setActivityLogs(data as ActivityLog[])
-      }
-    }
-  
-    fetchActivityLogs()
-  }, [])
-  
-  
-
-
+  const timeLabels = generateTimeLabels(selectedInterval, selectedMonth, selectedYear, availableYears)
 
   // Fetch top services/products for the selected year
-  const fetchTopServices = async (year: number, month: string, interval: string) => {
-    let startDate = new Date(year, 0, 1);
-    let endDate = new Date(year + 1, 0, 1);
+  const fetchTopServices = async (year: number, month: string, interval: string, rangeIndex: number) => {
+    let startDate = new Date(year, 0, 1)
+    let endDate = new Date(year + 1, 0, 1)
   
+    const label = timeLabels[rangeIndex]
+  switch (interval) {
+    case 'weekly': {
+      const janFirst = new Date(year, 0, 1)
+      startDate = new Date(janFirst)
+      startDate.setDate(janFirst.getDate() + rangeIndex * 7)
+      endDate = new Date(startDate)
+      endDate.setDate(startDate.getDate() + 7)
+      break
+    }
+    case 'quarterly': {
+      const startMonth = rangeIndex * 3
+      startDate = new Date(year, startMonth, 1)
+      endDate = new Date(year, startMonth + 3, 1)
+      break
+    }
+    case 'annually': {
+      const labelYear = parseInt(label)
+      if (!label || isNaN(labelYear)) return
+      startDate = new Date(labelYear, 0, 1)
+      endDate = new Date(labelYear + 1, 0, 1)
+      break
+    }
+    default: {
+      if (month !== 'all') {
+        const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
+        startDate = new Date(year, monthIndex, 1)
+        endDate = new Date(year, monthIndex + 1, 1)
+      }
+    }
+  }
+
     if (month !== 'all') {
-      const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
-      startDate = new Date(year, monthIndex, 1);
-      endDate = new Date(year, monthIndex + 1, 1);
+      const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
+      startDate = new Date(year, monthIndex, 1)
+      endDate = new Date(year, monthIndex + 1, 1)
     }
   
-    const limit = 1000;
-    let offset = 0;
-    let allData: { service_product: string | null; first_contact: string | null }[] = [];
-    let done = false;
+    const limit = 1000
+    let offset = 0
+    let allData: { service_product: string | null; first_contact: string | null }[] = []
+    let done = false
   
     while (!done) {
       const { data, error } = await supabase
@@ -378,85 +415,39 @@ export function ActualDashboardPage() {
         .select('service_product, first_contact')
         .gte('first_contact', startDate.toISOString())
         .lt('first_contact', endDate.toISOString())
-        .range(offset, offset + limit - 1);
+        .range(offset, offset + limit - 1)
   
       if (error) {
-        console.error('Error fetching service_product:', error);
-        return;
+        console.error('Error fetching service_product:', error)
+        return
       }
   
-      allData = allData.concat(data || []);
-      if (!data || data.length < limit) done = true;
-      else offset += limit;
+      allData = allData.concat(data)
+      if (data.length < limit) {
+        done = true
+      } else {
+        offset += limit
+      }
     }
   
-    // 🧠 Group by interval (month, quarter, etc.)
-    const grouped: Record<string, Record<string, number>> = {};
+    const counts: Record<string, number> = {}
   
-    allData.forEach(({ service_product, first_contact }) => {
-      if (!service_product || !first_contact) return;
-  
-      const date = new Date(first_contact);
-      let label = '';
-  
-      switch (interval) {
-        case 'quarterly': {
-          const quarter = Math.floor(date.getMonth() / 3) + 1;
-          label = `Q${quarter}`;
-          break;
-        }
-        case 'weekly': {
-          const firstJan = new Date(date.getFullYear(), 0, 1);
-          const dayOfYear = Math.floor((date.getTime() - firstJan.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-          const week = Math.ceil((dayOfYear + firstJan.getDay()) / 7);
-          label = `W${week}`;
-          break;
-        }
-        case 'annually':
-          label = `${date.getFullYear()}`;
-          break;
-        default: // monthly
-          label = month === 'all'
-            ? date.toLocaleString('default', { month: 'short' })
-            : String(date.getDate()).padStart(2, '0');
-          break;
-      }
-  
-      const name = service_product.trim().toUpperCase();
-      if (!grouped[label]) grouped[label] = {};
-      grouped[label][name] = (grouped[label][name] || 0) + 1;
-    });
-  
-    // 🧠 Normalize data into AreaData[]
-    const allServices = Array.from(
-      new Set(
-        allData
-          .map(d => d.service_product?.trim().toUpperCase())
-          .filter((s): s is string => !!s) // 🔒 Ensures s is a non-null string
-      )
-    )
-    
-  
-    const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-    const labels = interval === 'monthly' && month === 'all'
-      ? monthLabels
-      : Object.keys(grouped).sort()
-  
-    const formatted: AreaData[] = labels.map((label) => {
-      const row: AreaData = { date: label }
-      allServices.forEach(service => {
-        row[service] = (grouped[label]?.[service] ?? 0)
-      })
-      return row
+    allData.forEach((item) => {
+      const product = item.service_product?.trim().toUpperCase() || 'UNKNOWN'
+      counts[product] = (counts[product] || 0) + 1
     })
-    
-    
-    setServiceChartData(formatted)
-    
-  };
   
+    const chartData = Object.entries(counts)
+      .map(([service_product, count]) => ({ service_product, count }))
+      .sort((a, b) => b.count - a.count)
   
+    setServiceChartData(chartData)
+  }
+  
+
+  useEffect(() => {
+    fetchTopServices(selectedYear, selectedMonth, selectedInterval, rangeIndex)
+  }, [selectedYear, selectedMonth, selectedInterval, rangeIndex])
   
   
 
@@ -468,9 +459,6 @@ useEffect(() => {
 
 
 
-useEffect(() => {
-  fetchTopServices(selectedYear, selectedMonth, selectedInterval);
-}, [selectedYear, selectedMonth, selectedInterval]);
 
 
   useEffect(() => {
@@ -491,6 +479,7 @@ useEffect(() => {
   
       const sorted = Array.from(years).sort((a, b) => b - a)
       setAvailableYears(sorted)
+      setRangeIndex(0)
     }
   
     init()
@@ -526,16 +515,37 @@ useEffect(() => {
     
       const prevStart = new Date(startDate)
       const prevEnd = new Date(startDate)
-      if (month !== 'all') {
-        // Previous month range
-        prevStart.setMonth(prevStart.getMonth() - 1)
-        prevEnd.setMonth(prevEnd.getMonth() - 1)
-        prevEnd.setMonth(prevEnd.getMonth() + 1)
-      } else {
-        // Previous year
-        prevStart.setFullYear(prevStart.getFullYear() - 1)
-        prevEnd.setFullYear(prevEnd.getFullYear() - 1)
-        prevEnd.setFullYear(prevEnd.getFullYear() + 1)
+
+      const selectedLabel = timeLabels[rangeIndex];
+
+      switch (interval) {
+        case 'weekly': {
+          const janFirst = new Date(year, 0, 1);
+          const start = new Date(janFirst);
+          start.setDate(janFirst.getDate() + rangeIndex * 7);
+          startDate = start;
+          endDate = new Date(start);
+          endDate.setDate(start.getDate() + 7);
+          break;
+        }
+        case 'quarterly': {
+          const startMonth = rangeIndex * 3;
+          startDate = new Date(year, startMonth, 1);
+          endDate = new Date(year, startMonth + 3, 1);
+          break;
+        }
+        case 'annually': {
+          const label = timeLabels[rangeIndex];
+          const labelYear = parseInt(label);
+          if (!label || isNaN(labelYear)) {
+            console.warn('Invalid labelYear in annually range:', label);
+            return; // Abort the fetch if data isn't ready
+          }
+          startDate = new Date(labelYear, 0, 1);
+          endDate = new Date(labelYear + 1, 0, 1);
+          break;
+        }
+        
       }
     
       const [
@@ -628,7 +638,7 @@ useEffect(() => {
     
   
     fetchStats(selectedYear, selectedMonth, selectedInterval)
-}, [selectedYear, selectedMonth, selectedInterval])
+}, [selectedYear, selectedMonth, selectedInterval, rangeIndex])
   
   return (
     <SidebarInset>
@@ -700,6 +710,31 @@ useEffect(() => {
           </SelectContent>
         </Select>
       </div>
+
+      {['weekly', 'quarterly', 'annually'].includes(selectedInterval) && (
+  <div className="pt-4">
+    <label className="text-sm mb-1 block">Select Period</label>
+    <Select value={rangeIndex.toString()} onValueChange={(val) => setRangeIndex(parseInt(val))}>
+      <SelectTrigger className="w-[200px] text-sm">
+        <SelectValue placeholder="Select Range" />
+      </SelectTrigger>
+      <SelectContent>
+        {timeLabels.map((label, idx) => (
+          <SelectItem key={label} value={idx.toString()}>
+            {label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+    <div className="text-xs text-muted-foreground pt-1">
+      Showing data for: <strong>{timeLabels[rangeIndex]}</strong>
+    </div>
+  </div>
+)}
+
+      <Separator className="my-4" />
+
+      {/* CRM Stats Header */}
 
       {/* CRM Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -902,22 +937,23 @@ useEffect(() => {
   </div>
 
 
-  {/* Chart 2: Top 3 Services
-<Card className="flex-1 bg-background">
+  {/* {/* Chart 2: Top 3 Services */}
+  <Card className="flex-1 bg-background">
   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
     <div>
-      <CardTitle className="text-lg">Services / Products</CardTitle>
+    <CardTitle className="text-lg">
+        Services / Products ({selectedMonth === 'all' ? selectedYear : `${selectedMonth} ${selectedYear}`})
+      </CardTitle>
       <CardDescription>Most requested services by leads</CardDescription>
     </div>
   </CardHeader>
   <CardContent>
-  <LeadSourceAreaChart data={serviceChartData} />
+    <ServiceBarChart data={serviceChartData} />
     
   </CardContent>
      
-</Card> */}
-
-<Card className="flex-1 bg-background mt-4">
+</Card>
+{/* <Card className="flex-1 bg-background mt-4">
   <CardHeader>
     <CardTitle className="text-lg">Service Heatmap</CardTitle>
     <CardDescription>Distribution across time</CardDescription>
@@ -925,7 +961,7 @@ useEffect(() => {
   <CardContent className='bg-background' >
     <HeatmapChart data={heatmapData} />
   </CardContent>
-</Card>
+</Card> */}
 
     </SidebarInset>
   )
