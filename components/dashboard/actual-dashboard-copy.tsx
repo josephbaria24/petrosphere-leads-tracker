@@ -24,8 +24,6 @@ import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { HeatmapChart, HeatmapDatum } from "@/components/charts/heatmap-chart"
-
 
 type ActivityLog = {
     user_name: string
@@ -33,30 +31,6 @@ type ActivityLog = {
     entity_type: string
     timestamp: string
   }
-
-
-
-
-  function generateTimeLabels(interval: string, month: string, year: number, availableYears: number[]): string[] {
-    switch (interval) {
-      case 'weekly':
-        return Array.from({ length: 52 }, (_, i) => `W${i + 1}`)
-      case 'quarterly':
-        return ['Q1', 'Q2', 'Q3', 'Q4']
-      case 'annually':
-        return availableYears.map(String)
-      default: {
-        if (month === 'all') {
-          return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        } else {
-          const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
-          const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
-          return Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0'))
-        }
-      }
-    }
-  }
-  
   
 export function ActualDashboardPage() {
 
@@ -77,17 +51,12 @@ export function ActualDashboardPage() {
   })
   
 
+  const [serviceChartData, setServiceChartData] = useState<{ service_product: string; count: number }[]>([])
+
   type AreaData = {
     date: string
-    [key: string]: string | number
+    [leadSource: string]: string | number
   }
-  
-  const [serviceChartData, setServiceChartData] = useState<AreaData[]>([])
-
-  // type AreaData = {
-  //   date: string
-  //   [leadSource: string]: string | number
-  // }
   
   const [leadAreaChartData, setLeadAreaChartData] = useState<AreaData[]>([])
   const [, setLeadSourceDisplayMap] = useState<Record<string, string>>({})
@@ -130,66 +99,58 @@ export function ActualDashboardPage() {
 
 
 
-  const fetchCapturedByStats = async (year: number, month: string, interval: string) => {
-    let startDate = new Date(year, 0, 1);
-    let endDate = new Date(year + 1, 0, 1);
+  const fetchCapturedByStats = async () => {
+    const limit = 1000
+    let offset = 0
+    let allData: { captured_by: string | null }[] = []
+    let done = false
   
-    if (month !== 'all') {
-      const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
-      startDate = new Date(year, monthIndex, 1);
-      endDate = new Date(year, monthIndex + 1, 1);
-    }
-  
-    const pageSize = 1000;
-    let from = 0;
-    let to = pageSize - 1;
-    let allData: { captured_by: string; first_contact: string }[] = [];
-    let finished = false;
-  
-    while (!finished) {
+    while (!done) {
       const { data, error } = await supabase
         .from('crm_leads')
-        .select('captured_by, first_contact')
-        .gte('first_contact', startDate.toISOString())
-        .lt('first_contact', endDate.toISOString())
-        .range(from, to);
+        .select('captured_by')
+        .range(offset, offset + limit - 1)
   
       if (error) {
-        console.error('Error fetching captured_by:', error);
-        return;
+        console.error('Error fetching captured_by:', error)
+        return
       }
   
-      if (!data || data.length === 0) break;
-  
-      allData = allData.concat(data);
-  
-      if (data.length < pageSize) {
-        finished = true;
-      } else {
-        from += pageSize;
-        to += pageSize;
+      if (data.length < limit) {
+        done = true
       }
+  
+      allData = allData.concat(data)
+      offset += limit
     }
   
-    const counts: Record<string, number> = {};
+    // Count captured_by
+    const counts: Record<string, number> = {}
+    const nameMap: Record<string, string> = {}
+  
     allData.forEach(({ captured_by }) => {
-      if (!captured_by) return;
-      const name = captured_by.trim();
-      counts[name] = (counts[name] || 0) + 1;
-    });
+      if (!captured_by || captured_by.trim() === '') return
+      const trimmed = captured_by.trim()
+      counts[trimmed] = (counts[trimmed] || 0) + 1
+      nameMap[trimmed] = trimmed
+    })
   
-    const result = Object.entries(counts).map(([name, value]) => ({ name, value }));
-    setCapturedByData(result);
-    setTotalCapturedByCount(result.reduce((sum, item) => sum + item.value, 0));
-  };
+    const result = Object.entries(counts).map(([key, value]) => ({
+      name: nameMap[key],
+      value,
+    }))
   
+    console.table(result)
+    setCapturedByData(result)
+    setTotalCapturedByCount(result.reduce((sum, item) => sum + item.value, 0))
+  }
   
   
 
   
   useEffect(() => {
-    fetchCapturedByStats(selectedYear, selectedMonth, selectedInterval);
-  }, [selectedYear, selectedMonth, selectedInterval]);
+    fetchCapturedByStats()
+  }, [])
   
 
 
@@ -323,12 +284,7 @@ export function ActualDashboardPage() {
     setLeadSourceDisplayMap(displayMap)
   }
   
-  const heatmapData: HeatmapDatum[] = serviceChartData.map(row => ({
-    id: row.date,
-    data: Object.entries(row)
-      .filter(([key]) => key !== 'date')
-      .map(([x, y]) => ({ x, y: Number(y) }))
-  }))
+  
 
 
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
@@ -357,107 +313,50 @@ export function ActualDashboardPage() {
 
 
   // Fetch top services/products for the selected year
-  const fetchTopServices = async (year: number, month: string, interval: string) => {
-    let startDate = new Date(year, 0, 1);
-    let endDate = new Date(year + 1, 0, 1);
+
+  const fetchTopServicesByYear = async (year: number) => {
+    const startOfYear = new Date(year, 0, 1)
+    const endOfYear = new Date(year + 1, 0, 1)
   
-    if (month !== 'all') {
-      const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
-      startDate = new Date(year, monthIndex, 1);
-      endDate = new Date(year, monthIndex + 1, 1);
-    }
-  
-    const limit = 1000;
-    let offset = 0;
-    let allData: { service_product: string | null; first_contact: string | null }[] = [];
-    let done = false;
+    const limit = 1000
+    let offset = 0
+    let allData: { service_product: string | null; first_contact: string | null }[] = []
+    let done = false
   
     while (!done) {
       const { data, error } = await supabase
         .from('crm_leads')
         .select('service_product, first_contact')
-        .gte('first_contact', startDate.toISOString())
-        .lt('first_contact', endDate.toISOString())
-        .range(offset, offset + limit - 1);
+        .gte('first_contact', startOfYear.toISOString())
+        .lt('first_contact', endOfYear.toISOString())
+        .range(offset, offset + limit - 1)
   
       if (error) {
-        console.error('Error fetching service_product:', error);
-        return;
+        console.error('Error fetching service_product:', error)
+        return
       }
   
-      allData = allData.concat(data || []);
-      if (!data || data.length < limit) done = true;
-      else offset += limit;
+      allData = allData.concat(data)
+      if (data.length < limit) {
+        done = true
+      } else {
+        offset += limit
+      }
     }
   
-    // 🧠 Group by interval (month, quarter, etc.)
-    const grouped: Record<string, Record<string, number>> = {};
+    const counts: Record<string, number> = {}
   
-    allData.forEach(({ service_product, first_contact }) => {
-      if (!service_product || !first_contact) return;
-  
-      const date = new Date(first_contact);
-      let label = '';
-  
-      switch (interval) {
-        case 'quarterly': {
-          const quarter = Math.floor(date.getMonth() / 3) + 1;
-          label = `Q${quarter}`;
-          break;
-        }
-        case 'weekly': {
-          const firstJan = new Date(date.getFullYear(), 0, 1);
-          const dayOfYear = Math.floor((date.getTime() - firstJan.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-          const week = Math.ceil((dayOfYear + firstJan.getDay()) / 7);
-          label = `W${week}`;
-          break;
-        }
-        case 'annually':
-          label = `${date.getFullYear()}`;
-          break;
-        default: // monthly
-          label = month === 'all'
-            ? date.toLocaleString('default', { month: 'short' })
-            : String(date.getDate()).padStart(2, '0');
-          break;
-      }
-  
-      const name = service_product.trim().toUpperCase();
-      if (!grouped[label]) grouped[label] = {};
-      grouped[label][name] = (grouped[label][name] || 0) + 1;
-    });
-  
-    // 🧠 Normalize data into AreaData[]
-    const allServices = Array.from(
-      new Set(
-        allData
-          .map(d => d.service_product?.trim().toUpperCase())
-          .filter((s): s is string => !!s) // 🔒 Ensures s is a non-null string
-      )
-    )
-    
-  
-    const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-    const labels = interval === 'monthly' && month === 'all'
-      ? monthLabels
-      : Object.keys(grouped).sort()
-  
-    const formatted: AreaData[] = labels.map((label) => {
-      const row: AreaData = { date: label }
-      allServices.forEach(service => {
-        row[service] = (grouped[label]?.[service] ?? 0)
-      })
-      return row
+    allData.forEach((item) => {
+      const product = item.service_product?.trim().toUpperCase() || 'UNKNOWN'
+      counts[product] = (counts[product] || 0) + 1
     })
-    
-    
-    setServiceChartData(formatted)
-    
-  };
   
+    const chartData = Object.entries(counts)
+      .map(([service_product, count]) => ({ service_product, count }))
+      .sort((a, b) => b.count - a.count)
   
-  
+    setServiceChartData(chartData)
+  }
   
 
 useEffect(() => {
@@ -468,10 +367,9 @@ useEffect(() => {
 
 
 
-useEffect(() => {
-  fetchTopServices(selectedYear, selectedMonth, selectedInterval);
-}, [selectedYear, selectedMonth, selectedInterval]);
-
+  useEffect(() => {
+    fetchTopServicesByYear(selectedYear);  // <-- replace old fetchTopServices call
+  }, [selectedYear]);
 
   useEffect(() => {
     const init = async () => {
@@ -513,122 +411,93 @@ useEffect(() => {
   
   useEffect(() => {
 
-    const fetchStats = async (year: number, month: string, interval: string) => {
-      // Calculate the dynamic date range
-      let startDate = new Date(year, 0, 1)
-      let endDate = new Date(year + 1, 0, 1)
-    
-      if (month !== 'all') {
-        const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
-        startDate = new Date(year, monthIndex, 1)
-        endDate = new Date(year, monthIndex + 1, 1)
-      }
-    
-      const prevStart = new Date(startDate)
-      const prevEnd = new Date(startDate)
-      if (month !== 'all') {
-        // Previous month range
-        prevStart.setMonth(prevStart.getMonth() - 1)
-        prevEnd.setMonth(prevEnd.getMonth() - 1)
-        prevEnd.setMonth(prevEnd.getMonth() + 1)
-      } else {
-        // Previous year
-        prevStart.setFullYear(prevStart.getFullYear() - 1)
-        prevEnd.setFullYear(prevEnd.getFullYear() - 1)
-        prevEnd.setFullYear(prevEnd.getFullYear() + 1)
-      }
-    
-      const [
-        totalLeads,
-        totalLeadsPrev,
-        closedLeads,
-        closedLeadsPrev,
-        closedLost,
-        closedLostPrev,
-        totalInProgress,
-        inProgressPrev,
-        leadsThisMonth,
-        leadsLastMonth,
-      ] = await Promise.all([
-        supabase.from("crm_leads").select("id", { count: "exact", head: true }),
-    
-        supabase
-          .from("crm_leads")
-          .select("id", { count: "exact", head: true })
-          .lt("first_contact", startDate.toISOString()),
-    
-        supabase
-          .from("crm_leads")
-          .select("id", { count: "exact", head: true })
-          .ilike("status", "closed won")
-          .gte("first_contact", startDate.toISOString())
-          .lt("first_contact", endDate.toISOString()),
-    
-        supabase
-          .from("crm_leads")
-          .select("id", { count: "exact", head: true })
-          .ilike("status", "closed won")
-          .gte("first_contact", prevStart.toISOString())
-          .lt("first_contact", prevEnd.toISOString()),
-    
-        supabase
-          .from("crm_leads")
-          .select("id", { count: "exact", head: true })
-          .ilike("status", "closed lost")
-          .gte("first_contact", startDate.toISOString())
-          .lt("first_contact", endDate.toISOString()),
-    
-        supabase
-          .from("crm_leads")
-          .select("id", { count: "exact", head: true })
-          .ilike("status", "closed lost")
-          .gte("first_contact", prevStart.toISOString())
-          .lt("first_contact", prevEnd.toISOString()),
-    
-        supabase
-          .from("crm_leads")
-          .select("id", { count: "exact", head: true })
-          .ilike("status", "in progress")
-          .gte("first_contact", startDate.toISOString())
-          .lt("first_contact", endDate.toISOString()),
-    
-        supabase
-          .from("crm_leads")
-          .select("id", { count: "exact", head: true })
-          .ilike("status", "in progress")
-          .gte("first_contact", prevStart.toISOString())
-          .lt("first_contact", prevEnd.toISOString()),
-    
-        supabase
-          .from("crm_leads")
-          .select("id", { count: "exact", head: true })
-          .gte("first_contact", startDate.toISOString())
-          .lt("first_contact", endDate.toISOString()),
-    
-        supabase
-          .from("crm_leads")
-          .select("id", { count: "exact", head: true })
-          .gte("first_contact", prevStart.toISOString())
-          .lt("first_contact", prevEnd.toISOString()),
-      ]).then(results => results.map(r => r.count ?? 0))
-    
-      setStats({
-        totalLeads,
-        totalLeadsPrev,
-        closedLeads,
-        closedLeadsPrev,
-        closedLost,
-        closedLostPrev,
-        totalInProgress,
-        inProgressPrev,
-        leadsThisMonth,
-        leadsLastMonth,
-      })
-    }
-    
+    const fetchStats = async () => {
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+
+  const [
+    totalLeads,
+    totalLeadsPrev,
+    closedLeads,
+    closedLeadsPrev,
+    closedLost,
+    closedLostPrev,
+    totalInProgress,
+    inProgressPrev,
+    leadsThisMonth,
+    leadsLastMonth,
+  ] = await Promise.all([
+    supabase.from("crm_leads").select("id", { count: "exact", head: true }),
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .lt("first_contact", startOfMonth.toISOString()),
+
+      supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "closed won")
+      .gte("first_contact", startOfMonth.toISOString()),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "closed won")
+      .lt("first_contact", startOfMonth.toISOString()),
+
+      supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "closed lost")
+      .gte("first_contact", startOfMonth.toISOString()),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "closed lost")
+      .lt("first_contact", startOfMonth.toISOString()),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "in progress"),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "in progress")
+      .lt("first_contact", startOfMonth.toISOString()),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .gte("first_contact", startOfMonth.toISOString()),
+
+    supabase
+      .from("crm_leads")
+      .select("id", { count: "exact", head: true })
+      .gte("first_contact", startOfLastMonth.toISOString())
+      .lte("first_contact", endOfLastMonth.toISOString()),
+  ]).then(results => results.map(r => r.count ?? 0))
+
+  setStats({
+    totalLeads,
+    totalLeadsPrev,
+    closedLeads,
+    closedLeadsPrev,
+    closedLost,
+    closedLostPrev,
+    totalInProgress,
+    inProgressPrev,
+    leadsThisMonth,
+    leadsLastMonth,
+  })
+}
   
-    fetchStats(selectedYear, selectedMonth, selectedInterval)
-}, [selectedYear, selectedMonth, selectedInterval])
+    fetchStats()
+  }, [])
   
   return (
     <SidebarInset>
@@ -650,65 +519,16 @@ useEffect(() => {
       </div>
 
       <Separator className="my-4" />
-      
-      <div className="flex space-x-3 space-y-3">
-        {/* Month Dropdown */}
-        {selectedInterval === "monthly" && (
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[140px] text-sm">
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Months</SelectItem>
-              {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map(
-                (month) => (
-                  <SelectItem key={month} value={month}>
-                    {month}
-                  </SelectItem>
-                )
-              )}
-            </SelectContent>
-          </Select>
-        )}
-
-        {/* Year Dropdown */}
-        {selectedInterval !== "annually" && (
-          <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
-            <SelectTrigger className="w-[100px] text-sm">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {/* Interval Dropdown */}
-        <Select value={selectedInterval} onValueChange={setSelectedInterval}>
-          <SelectTrigger className="w-[120px] text-sm">
-            <SelectValue placeholder="Interval" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="monthly">Monthly</SelectItem>
-            <SelectItem value="quarterly">Quarterly</SelectItem>
-            <SelectItem value="weekly">Weekly</SelectItem>
-            <SelectItem value="annually">Annually</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
       {/* CRM Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       <StatCard
             label="Total Leads"
             value={stats.totalLeads.toString()}
+            {...getTrend(stats.totalLeads, stats.totalLeadsPrev)}
             subtext="All leads recorded"
             className="bg-black dark:bg-white text-white dark:text-black"
-          />
+            />
 
             <StatCard
             label="In Progress"
@@ -751,7 +571,7 @@ useEffect(() => {
             {/* ... your StatCards here */}
             <ChartPieCapturedBy data={capturedByData}/>
 
-
+      
 
             <Card className="flex-1 bg-background">
   <CardHeader>
@@ -889,7 +709,55 @@ useEffect(() => {
         <CardDescription></CardDescription>
       </div>
 
-      
+      <div className="flex space-x-2">
+  {/* Month Dropdown */}
+  {selectedInterval === "monthly" && (
+    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+      <SelectTrigger className="w-[140px] text-sm">
+        <SelectValue placeholder="Month" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Months</SelectItem>
+        {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map(
+          (month) => (
+            <SelectItem key={month} value={month}>
+              {month}
+            </SelectItem>
+          )
+        )}
+      </SelectContent>
+    </Select>
+  )}
+
+  {/* Year Dropdown */}
+  {selectedInterval !== "annually" && (
+    <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
+      <SelectTrigger className="w-[100px] text-sm">
+        <SelectValue placeholder="Year" />
+      </SelectTrigger>
+      <SelectContent>
+        {availableYears.map((year) => (
+          <SelectItem key={year} value={year.toString()}>
+            {year}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )}
+
+  {/* Interval Dropdown */}
+  <Select value={selectedInterval} onValueChange={setSelectedInterval}>
+    <SelectTrigger className="w-[120px] text-sm">
+      <SelectValue placeholder="Interval" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="monthly">Monthly</SelectItem>
+      <SelectItem value="quarterly">Quarterly</SelectItem>
+      <SelectItem value="weekly">Weekly</SelectItem>
+      <SelectItem value="annually">Annually</SelectItem>
+    </SelectContent>
+  </Select>
+</div>
 
 
     </CardHeader>
@@ -897,12 +765,16 @@ useEffect(() => {
     <CardContent>
     <LeadSourceAreaChart data={leadAreaChartData} />
 
+
+
+
+
     </CardContent>
   </Card>
   </div>
 
 
-  {/* Chart 2: Top 3 Services
+  {/* Chart 2: Top 3 Services */}
 <Card className="flex-1 bg-background">
   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
     <div>
@@ -911,20 +783,10 @@ useEffect(() => {
     </div>
   </CardHeader>
   <CardContent>
-  <LeadSourceAreaChart data={serviceChartData} />
+    <ServiceBarChart data={serviceChartData} />
     
   </CardContent>
      
-</Card> */}
-
-<Card className="flex-1 bg-background mt-4">
-  <CardHeader>
-    <CardTitle className="text-lg">Service Heatmap</CardTitle>
-    <CardDescription>Distribution across time</CardDescription>
-  </CardHeader>
-  <CardContent className='bg-background' >
-    <HeatmapChart data={heatmapData} />
-  </CardContent>
 </Card>
 
     </SidebarInset>

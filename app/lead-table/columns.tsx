@@ -79,7 +79,7 @@ export const columns: ColumnDef<Lead>[] = [
       > = {
         "lead in": {
           label: "Lead In",
-          className: "bg-muted text-white",
+          className: "bg-gray-500 text-white",
           icon: <UserPlus className="w-3.5 h-3.5 mr-1.5" />,
         },
         "contact made": {

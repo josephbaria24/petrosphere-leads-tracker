@@ -15,9 +15,10 @@ import { useSession } from '@supabase/auth-helpers-react'
 import { DatePicker } from '@/components/date-picker'
 import { Separator } from '@/components/ui/separator'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
-
-
-
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
+import { Check, ChevronDown } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 
 export default function AddNewLeadPage() {
@@ -96,7 +97,7 @@ export default function AddNewLeadPage() {
     return true
   }
   
-
+  const [isLeadSourceOpen, setIsLeadSourceOpen] = useState(false)
   const handleSubmit = async () => {
     if (!validateForm()) return;
   
@@ -105,7 +106,7 @@ export default function AddNewLeadPage() {
     const totalPrice = serviceDetails.reduce((sum, s) => sum + s.price, 0);
     const allModes = serviceDetails.map((s) => s.mode).filter(Boolean).join(', ');
     const firstName = form.captured_by?.split(' ')[0] || form.captured_by;
-  
+    
     const {
       data: { user },
       error: userError,
@@ -325,19 +326,46 @@ export default function AddNewLeadPage() {
             </div>
            
             {/* Lead Source dropdown */}
-            <div>
+            <div className="w-full">
               <Label htmlFor="lead_source">Lead Source</Label>
-              <Select onValueChange={(val) => handleChange('lead_source', val)}>
-                <SelectTrigger className='cursor-pointer' id="lead_source">
-                  <SelectValue placeholder="Select source" />
-                </SelectTrigger>
-                <SelectContent>
-                  {leadSources.map(source => (
-                    <SelectItem key={source} value={source}>{source}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={isLeadSourceOpen} onOpenChange={setIsLeadSourceOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    id="lead_source"
+                    role="combobox"
+                    aria-expanded={isLeadSourceOpen}
+                    className="w-full p-2 border rounded-md text-left flex items-center justify-between"
+                  >
+                    <span>{form.lead_source || "Select source"}</span>
+                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search lead source..." />
+                    <CommandEmpty>No source found.</CommandEmpty>
+                    <CommandGroup className="max-h-[200px] overflow-y-auto">
+                      {[...new Set(leadSources)].map((source) => (
+                        <CommandItem
+                          key={source}
+                          value={source}
+                          onSelect={() => {
+                            handleChange('lead_source', source)
+                            setIsLeadSourceOpen(false)
+                          }}
+                        >
+                          <Check
+                            className={cn("mr-2 h-4 w-4", form.lead_source === source ? "opacity-100" : "opacity-0")}
+                          />
+                          {source}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
+
 
             {/* first and last contact */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -40,7 +40,7 @@ export function ChartPieCapturedBy({ data }: ChartPieCapturedByProps) {
       data.map((item, index) => [
         item.name,
         {
-          label: item.name,
+          label: `${item.name}-${item.value}`, // Append count to label
           color: `var(--chart-${(index % 5) + 1})`,
         },
       ])
