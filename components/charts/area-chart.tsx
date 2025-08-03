@@ -12,22 +12,35 @@ import {
 import { LegendProps } from 'recharts'
 import type { Payload } from 'recharts/types/component/DefaultLegendContent'
 
+
+const shortLabelMap: Record<string, string> = {
+  email: 'Email',
+  inbound___facebook: 'I-FB',
+  inbound___tawkto: 'I-Tawk.to',
+  inbound___webinar: 'I-Webinar',
+  outbound___google_search__data_mining_: 'O-Google',
+  phone_call: 'Call',
+  phone_text: 'Text',
+  site_visit: 'Visit',
+  unknown: 'Unknown',
+  viber: 'Viber'
+}
+
 type AreaData = {
   date: string
   [leadSource: string]: string | number
 }
 
 const CustomLegend = ({ payload }: LegendProps) => (
-  <ul className="flex flex-wrap gap-4 mt-2 text-sm">
+  <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2 text-xs">
     {(payload as Payload[]).map((entry, index) => (
       <li key={`item-${index}`} className="flex items-center gap-1">
         <span
           className="inline-block w-3 h-3 rounded-full"
           style={{ backgroundColor: entry.color }}
         />
-        <span>
-          {(entry.value as string).charAt(0).toUpperCase() +
-            (entry.value as string).slice(1)}
+        <span className="truncate max-w-[80px]" title={entry.value}>
+          {shortLabelMap[entry.value as string] || entry.value}
         </span>
       </li>
     ))}
@@ -53,7 +66,9 @@ const CustomTooltip = ({
               className="w-2.5 h-2.5 rounded-full inline-block"
               style={{ backgroundColor: entry.color }}
             />
-            <span className="capitalize">{entry.name}</span>
+            <span className="capitalize">
+              {shortLabelMap[entry.name as string] || entry.name}
+            </span>
           </div>
           <span className="font-mono">{entry.value}</span>
         </div>
@@ -97,14 +112,14 @@ export function LeadSourceAreaChart({ data }: { data: AreaData[] }) {
 
           {leadSources.map((key, index) => (
             <Area
-              key={key}
-              type="monotone"
-              dataKey={key}
-              stackId="1"
-              stroke={colors[index % colors.length]}
-              fill={`url(#gradient-${key})`}
-              name={key.charAt(0).toUpperCase() + key.slice(1)}
-            />
+            key={key}
+            type="monotone"
+            dataKey={key}
+            stackId="1"
+            stroke={colors[index % colors.length]}
+            fill={`url(#gradient-${key})`}
+            name={shortLabelMap[key] || key.charAt(0).toUpperCase() + key.slice(1)}
+          />
           ))}
         </AreaChart>
       </ResponsiveContainer>

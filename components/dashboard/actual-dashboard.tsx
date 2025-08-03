@@ -17,11 +17,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
-import { ChartPieCapturedBy } from '../charts/radar-grid'
-import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle } from 'lucide-react'
+import { ChartPieCapturedBy } from '../charts/pie-chart'
+import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Printer } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import html2pdf from 'html2pdf.js'
+import { useRouter } from 'next/navigation'
 
 
 
@@ -49,6 +51,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
   
 export function ActualDashboardPage() {
 
+
+  const router = useRouter()
 
   
   const [rangeIndex, setRangeIndex] = useState(0)
@@ -231,6 +235,7 @@ export function ActualDashboardPage() {
   const normalizeKey = (key: string) =>
     key.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')  // safe for Recharts
   
+
   const fetchLeadsBySource = async (year: number, month: string, interval: string) => {
     let startDate: Date;
     let endDate: Date;
@@ -453,7 +458,7 @@ export function ActualDashboardPage() {
 
 useEffect(() => {
   fetchLeadsBySource(selectedYear, selectedMonth, selectedInterval)
-}, [selectedYear, selectedMonth, selectedInterval])
+}, [selectedYear, selectedMonth, selectedInterval, fetchLeadsBySource])
 
 
 
@@ -506,6 +511,8 @@ useEffect(() => {
       // Calculate the dynamic date range
       let startDate = new Date(year, 0, 1)
       let endDate = new Date(year + 1, 0, 1)
+
+      
     
       if (month !== 'all') {
         const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
@@ -634,13 +641,172 @@ useEffect(() => {
         leadsThisMonth,
         leadsLastMonth,
       })
+
+
+      
+
+     // Fetch all "Lead In" and "In Progress" entries without row limit
+const pageSize = 1000
+let from = 0
+let to = pageSize - 1
+let allLeadInData: { contact_name: string | null; captured_by: string | null; first_contact: string | null }[] = []
+let done = false
+// Fetch all Closed Won and Closed Lost leads (with no limit)
+
+while (!done) {
+  const { data, error } = await supabase
+    .from('crm_leads')
+    .select('contact_name, captured_by, first_contact')
+    .in('status', ['Lead In', 'In Progress'])
+    .gte('first_contact', startDate.toISOString())
+    .lt('first_contact', endDate.toISOString())
+    .range(from, to)
+
+  if (error) {
+    console.error('Error fetching Lead In data:', error)
+    break
+  }
+
+  if (!data || data.length === 0) {
+    break
+  }
+
+  allLeadInData = allLeadInData.concat(data)
+
+  if (data.length < pageSize) {
+    done = true
+  } else {
+    from += pageSize
+    to += pageSize
+  }
+}
+
+// Sort by newest first_contact date
+const sortedLeads = allLeadInData
+  .filter(l => l.first_contact)
+  .sort((a, b) => new Date(b.first_contact!).getTime() - new Date(a.first_contact!).getTime())
+
+// Store in state
+setLeadInLeads(
+  sortedLeads.map(l => ({
+    name: l.contact_name || 'Unnamed',
+    captured_by: l.captured_by || '',
+    created_at: l.first_contact || '',
+  }))
+)
+
+
+
+let allClosedWonData: typeof allLeadInData = []
+let allClosedLostData: typeof allLeadInData = []
+
+from = 0
+to = pageSize - 1
+done = false
+
+while (!done) {
+  const { data, error } = await supabase
+    .from('crm_leads')
+    .select('contact_name, captured_by, first_contact')
+    .ilike('status', 'closed won')
+    .gte('first_contact', startDate.toISOString())
+    .lt('first_contact', endDate.toISOString())
+    .range(from, to)
+
+  if (error) break
+  if (!data || data.length === 0) break
+
+  allClosedWonData = allClosedWonData.concat(data)
+  if (data.length < pageSize) done = true
+  else {
+    from += pageSize
+    to += pageSize
+  }
+}
+
+from = 0
+to = pageSize - 1
+done = false
+
+while (!done) {
+  const { data, error } = await supabase
+    .from('crm_leads')
+    .select('contact_name, captured_by, first_contact')
+    .ilike('status', 'closed lost')
+    .gte('first_contact', startDate.toISOString())
+    .lt('first_contact', endDate.toISOString())
+    .range(from, to)
+
+  if (error) break
+  if (!data || data.length === 0) break
+
+  allClosedLostData = allClosedLostData.concat(data)
+  if (data.length < pageSize) done = true
+  else {
+    from += pageSize
+    to += pageSize
+  }
+}
+
+setClosedWonLeads(
+  allClosedWonData
+    .filter(l => l.first_contact)
+    .sort((a, b) => new Date(b.first_contact!).getTime() - new Date(a.first_contact!).getTime())
+    .map(l => ({
+      name: l.contact_name || 'Unnamed',
+      captured_by: l.captured_by || '',
+      created_at: l.first_contact || '',
+    }))
+)
+
+setClosedLostLeads(
+  allClosedLostData
+    .filter(l => l.first_contact)
+    .sort((a, b) => new Date(b.first_contact!).getTime() - new Date(a.first_contact!).getTime())
+    .map(l => ({
+      name: l.contact_name || 'Unnamed',
+      captured_by: l.captured_by || '',
+      created_at: l.first_contact || '',
+    }))
+)
+
     }
     
   
     fetchStats(selectedYear, selectedMonth, selectedInterval)
 }, [selectedYear, selectedMonth, selectedInterval, rangeIndex])
   
+
+
+
+
+
+
+
+
+
+const handleOpenPrintView = () => {
+  const reportData = {
+    stats,
+    areaChartData: leadAreaChartData,
+    capturedByData,
+    serviceData: serviceChartData,
+  }
+  localStorage.setItem('report-data', JSON.stringify(reportData))
+  router.push('/dashboard/print-report')  // ✅ now safe to call
+}
+
+
+
+
+const [leadInLeads, setLeadInLeads] = useState<{ name: string; captured_by: string; created_at: string }[]>([])
+const [closedWonLeads, setClosedWonLeads] = useState<{ name: string; captured_by: string; created_at: string }[]>([]);
+const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_by: string; created_at: string }[]>([]);
+
+
+
   return (
+    <div>
     <SidebarInset>
       {/* Topbar */}
       <div className="flex items-center justify-between">
@@ -656,11 +822,15 @@ useEffect(() => {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+         
         </div>
       </div>
+           
 
       <Separator className="my-4" />
       
+
+      <div className='flex justify-between'>
       <div className="flex space-x-3 space-y-3">
         {/* Month Dropdown */}
         {selectedInterval === "monthly" && (
@@ -709,68 +879,76 @@ useEffect(() => {
             <SelectItem value="annually">Annually</SelectItem>
           </SelectContent>
         </Select>
+        
       </div>
 
+     
+    <Button onClick={handleOpenPrintView} className="bg-background cursor-pointer flex items-center gap-2 dark:text-white">
+      <Printer className="w-4 h-4" />
+      Print Report
+    </Button>
+      </div>
       {['weekly', 'quarterly', 'annually'].includes(selectedInterval) && (
-  <div className="pt-4">
-    <label className="text-sm mb-1 block">Select Period</label>
-    <Select value={rangeIndex.toString()} onValueChange={(val) => setRangeIndex(parseInt(val))}>
-      <SelectTrigger className="w-[200px] text-sm">
-        <SelectValue placeholder="Select Range" />
-      </SelectTrigger>
-      <SelectContent>
-        {timeLabels.map((label, idx) => (
-          <SelectItem key={label} value={idx.toString()}>
-            {label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-    <div className="text-xs text-muted-foreground pt-1">
-      Showing data for: <strong>{timeLabels[rangeIndex]}</strong>
-    </div>
-  </div>
-)}
+        <div className="pt-4 justify-start">
+          <label className="text-sm mb-1 block">Select Period</label>
+          <Select value={rangeIndex.toString()} onValueChange={(val) => setRangeIndex(parseInt(val))}>
+            <SelectTrigger className="w-[200px] text-sm">
+              <SelectValue placeholder="Select Range" />
+            </SelectTrigger>
+            <SelectContent>
+              {timeLabels.map((label, idx) => (
+                <SelectItem key={label} value={idx.toString()}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="text-xs text-muted-foreground pt-1">
+            Showing data for: <strong>{timeLabels[rangeIndex]}</strong>
+          </div>
+        </div>
+      )}
 
-      <Separator className="my-4" />
-
+<div id="print-section">
       {/* CRM Stats Header */}
 
       {/* CRM Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div  className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-html2canvas-ignore>
       <StatCard
             label="Total Leads"
             value={stats.totalLeads.toString()}
             subtext="All leads recorded"
             className="bg-black dark:bg-white text-white dark:text-black"
           />
-
-            <StatCard
-            label="In Progress"
-            value={stats.totalInProgress.toString()}
-            {...getTrend(stats.totalInProgress, stats.inProgressPrev)}
-            subtext="Currently active leads"
-            className="bg-blue-600 dark:bg-blue-800 text-white dark:text-white"
+          <StatCard
+              label="In Progress"
+              value={stats.totalInProgress.toString()}
+              {...getTrend(stats.totalInProgress, stats.inProgressPrev)}
+              subtext="Currently active leads"
+              className="bg-blue-600 dark:bg-blue-800 text-white dark:text-white"
+              details={leadInLeads.length > 0 ? leadInLeads : []}
             />
 
             <StatCard
-            label="Win"
-            value={stats.closedLeads.toString()}
-            {...getTrend(stats.closedLeads, stats.closedLeadsPrev)}
-            subtext="Closed as won"
-            className="bg-green-600 dark:bg-green-800 text-white dark:text-white"
+              label="Win"
+              value={stats.closedLeads.toString()}
+              {...getTrend(stats.closedLeads, stats.closedLeadsPrev)}
+              subtext="Closed as won"
+              className="bg-green-600 dark:bg-green-800 text-white dark:text-white"
+              details={closedWonLeads}
             />
 
             <StatCard
-            label="Lost"
-            value={stats.closedLost.toString()}
-            {...getTrend(stats.closedLost, stats.closedLostPrev)}
-            subtext="Closed as lost"
-            className="bg-red-600 dark:bg-red-800 text-white dark:text-white"
+              label="Lost"
+              value={stats.closedLost.toString()}
+              {...getTrend(stats.closedLost, stats.closedLostPrev)}
+              subtext="Closed as lost"
+              className="bg-red-600 dark:bg-red-800 text-white dark:text-white"
+              details={closedLostLeads}
             />
 
             <StatCard
-            label="Leads This Month"
+            label="Leads of Selected Month"
             value={stats.leadsThisMonth.toString()}
             {...getTrend(stats.leadsThisMonth, stats.leadsLastMonth)}
             subtext="New leads added this month"
@@ -782,25 +960,25 @@ useEffect(() => {
 
 
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 pt-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 pt-3" >
             {/* ... your StatCards here */}
             <ChartPieCapturedBy data={capturedByData}/>
 
 
-
+        <div data-html2canvas-ignore> 
             <Card className="flex-1 bg-background">
-  <CardHeader>
-    <CardTitle className="text-3xl">Newest Leads</CardTitle>
-    <CardDescription>Most recently captured entries</CardDescription>
-  </CardHeader>
-  <CardContent>
-    <div className="grid grid-cols-3 text-xs font-medium text-muted-foreground mb-2 px-1">
-      <div>Captured By</div>
-      <div>Contact Name</div>
-      <div className="text-right">Status</div>
-    </div>
+              <CardHeader>
+                <CardTitle className="text-3xl">Newest Leads</CardTitle>
+                <CardDescription>Most recently captured entries</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 text-xs font-medium text-muted-foreground mb-2 px-1">
+                  <div>Captured By</div>
+                  <div>Contact Name</div>
+                  <div className="text-right">Status</div>
+                </div>
 
-    <div className="space-y-2">
+    <div  className="space-y-2" >
       {newestLeads.map((lead, idx) => {
         
         const rowStyle =
@@ -818,7 +996,7 @@ useEffect(() => {
         > = {
           "lead in": {
             label: "Lead In",
-            className: "bg-muted text-white",
+            className: "bg-gray-600 text-white",
             icon: <UserPlus className="w-3.5 h-3.5 mr-1.5" />,
           },
           "contact made": {
@@ -900,19 +1078,21 @@ useEffect(() => {
       })}
       
     </div>
-  </CardContent>
-  <div className="pt-7 text-center">
-          <Link href="/lead-table" passHref>
-            <Button variant="link" className="text-sm text-muted-foreground hover:text-primary px-0 cursor-pointer">
-              View Details →
-            </Button>
-          </Link>
-        </div>
-</Card>
+      </CardContent>
+      <div className="pt-7 text-center">
+              <Link href="/lead-table" passHref>
+                <Button variant="link" className="text-sm text-muted-foreground hover:text-primary px-0 cursor-pointer">
+                  View Details →
+                </Button>
+              </Link>
+            </div>
+    </Card>
+    </div>
 
 
 
         </div>
+
   {/* Chart 1 */}
   <div className="py-4">
     
@@ -929,7 +1109,7 @@ useEffect(() => {
 
     </CardHeader>
 
-    <CardContent>
+    <CardContent style={{ minHeight: '400px' }}>
     <LeadSourceAreaChart data={leadAreaChartData} />
 
     </CardContent>
@@ -953,6 +1133,7 @@ useEffect(() => {
   </CardContent>
      
 </Card>
+</div>
 {/* <Card className="flex-1 bg-background mt-4">
   <CardHeader>
     <CardTitle className="text-lg">Service Heatmap</CardTitle>
@@ -964,5 +1145,6 @@ useEffect(() => {
 </Card> */}
 
     </SidebarInset>
+  </div>
   )
 }

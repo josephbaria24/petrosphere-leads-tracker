@@ -333,6 +333,7 @@ export default function AddNewLeadPage() {
                   <button
                     id="lead_source"
                     role="combobox"
+                    aria-controls="dropdown-id"
                     aria-expanded={isLeadSourceOpen}
                     className="w-full p-2 border rounded-md text-left flex items-center justify-between"
                   >

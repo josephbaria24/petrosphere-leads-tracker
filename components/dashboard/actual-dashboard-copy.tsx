@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
-import { ChartPieCapturedBy } from '../charts/radar-grid'
+import { ChartPieCapturedBy } from '../charts/pie-chart'
 import { ActivityLogCard } from "@/components/dashboard/activity-log-card"
 import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Badge } from 'lucide-react'
 import { cn } from '@/lib/utils'
