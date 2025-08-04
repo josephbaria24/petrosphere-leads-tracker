@@ -20,6 +20,8 @@ const shortLabelMap: Record<string, string> = {
   inbound___webinar: 'I-Webinar',
   outbound___google_search__data_mining_: 'O-Google',
   phone_call: 'Call',
+  Outbound___phone_call: 'O-Phone Call',
+  Inbound___phone_call: 'I-Phone Call',
   phone_text: 'Text',
   site_visit: 'Visit',
   unknown: 'Unknown',

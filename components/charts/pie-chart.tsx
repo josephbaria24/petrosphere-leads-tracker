@@ -88,8 +88,8 @@ export function ChartPieCapturedBy({ data }: ChartPieCapturedByProps) {
                   data={chartData}
                   dataKey="value"
                   nameKey="name"
-                  innerRadius={60}
-                  outerRadius={80}
+                  innerRadius={50}
+                  outerRadius={78}
                   paddingAngle={2}
                   stroke="none"
                   activeIndex={activeIndex}
@@ -99,8 +99,8 @@ export function ChartPieCapturedBy({ data }: ChartPieCapturedByProps) {
                       <Sector {...props} outerRadius={outerRadius + 10} />
                       <Sector
                         {...props}
-                        outerRadius={outerRadius + 25}
-                        innerRadius={outerRadius + 12}
+                        outerRadius={outerRadius + 0}
+                        innerRadius={outerRadius + 10}
                       />
                     </g>
                   )}
