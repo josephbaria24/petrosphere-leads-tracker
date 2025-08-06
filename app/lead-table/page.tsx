@@ -27,7 +27,7 @@ import {
 import { ChevronDown } from "lucide-react"
 import EditLeadModal from "@/components/EditLeadModal"
 import { supabase } from "@/lib/supabase"
-import { columns } from "./columns"
+import { getColumns } from "./columns"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -84,6 +84,7 @@ export default function DataTablePage() {
 
   // 🔐 Redirect if not logged in
   const [isReady, setIsReady] = useState(false)
+  const [capturedByFilter, setCapturedByFilter] = useState<string[]>([])
 
    
   // Define the Lead type based on your database schema
@@ -157,9 +158,23 @@ export default function DataTablePage() {
     fetchAllLeads()
   }, [])
 
+  const allCapturedByValues = React.useMemo(() => {
+    const unique = new Set<string>()
+    data.forEach((row) => unique.add(row.captured_by || "(Blanks)"))
+    return Array.from(unique).sort()
+  }, [data])
+  
+  const filteredData = React.useMemo(() => {
+    if (capturedByFilter.length === 0) return data
+    return data.filter((row) =>
+      capturedByFilter.includes(row.captured_by || "(Blanks)")
+    )
+  }, [data, capturedByFilter])
+  
+
   const table = useReactTable({
-    data,
-    columns: columns,
+    data: filteredData,
+    columns: getColumns({ capturedByFilter, setCapturedByFilter }),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -198,6 +213,9 @@ export default function DataTablePage() {
   if (!isReady) {
     return <div className="p-10 text-center">Loading...</div> // Optional spinner
   }
+
+  
+
   return (
     <div className="w-full">
       {/* Topbar */}
@@ -226,6 +244,12 @@ export default function DataTablePage() {
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-sm"
         />
+
+       
+
+   
+
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto">
@@ -240,14 +264,34 @@ export default function DataTablePage() {
                   key={column.id}
                   className="capitalize"
                   checked={column.getIsVisible()}
-                  onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                  onSelect={(e) => {
+                    e.preventDefault(); // 🛑 Prevent dropdown from closing
+                    column.toggleVisibility(!column.getIsVisible());
+                  }}
                 >
                   {column.id}
                 </DropdownMenuCheckboxItem>
               ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        <div className="px-2 flex items-center gap-2">
+          <span className="text-sm">Rows per page:</span>
+          <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+            <SelectTrigger className="w-[80px] h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {[10, 20, 30, 50, 100].map((size) => (
+                <SelectItem key={size} value={String(size)}>
+                  {size}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
       </div>
+
 
       <div className="overflow-hidden rounded-md border">
         <Table>
@@ -292,7 +336,7 @@ export default function DataTablePage() {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={getColumns.length}
                   className="h-24 text-center"
                 >
                   No results.
@@ -310,20 +354,7 @@ export default function DataTablePage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-sm">Rows per page:</span>
-
-          <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
-            <SelectTrigger className="w-[80px] h-8 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[10, 20, 30, 50, 100].map((size) => (
-                <SelectItem key={size} value={String(size)}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          
 
           <Button
             variant="outline"

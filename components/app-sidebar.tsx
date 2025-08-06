@@ -6,6 +6,8 @@ import {
   ChartBar,
   Droplet,
   LayoutDashboard,
+  Video,
+  Users2Icon,
 } from "lucide-react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { NavMain } from "@/components/nav-main"
@@ -91,7 +93,7 @@ const data = {
     {
       title: "Manage Lead",
       url: "#",
-      icon: ChartBar,
+      icon: Users2Icon,
       isActive: true,
       items: [
         {
@@ -101,6 +103,30 @@ const data = {
         {
           title: "Add New Lead",
           url: "/add-new-leads",
+        },
+        // {
+        //   title: "Lead Insights",
+        //   url: "#",
+        // },
+        // {
+        //   title: "Lead Activity Log",
+        //   url: "#",
+        // },
+      ],
+    },
+    {
+      title: "Webinar Tracker",
+      url: "#",
+      icon: Video,
+      isActive: true,
+      items: [
+        {
+          title: "Manage Webinars",
+          url: "webinar-list",
+        },
+        {
+          title: "Create Webinar Report",
+          url: "#",
         },
         // {
         //   title: "Lead Insights",
