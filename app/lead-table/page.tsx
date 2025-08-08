@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   ColumnFiltersState,
   SortingState,
@@ -81,6 +82,8 @@ type Lead = {
 export default function DataTablePage() {
   const router = useRouter()
   const session = useSession()
+  const [loading, setLoading] = useState(true)
+
 
   // 🔐 Redirect if not logged in
   const [isReady, setIsReady] = useState(false)
@@ -125,6 +128,7 @@ export default function DataTablePage() {
 
   React.useEffect(() => {
     const fetchAllLeads = async () => {
+      setLoading(true) // ⬅ st
       const  allLeads: Lead[] = []
       let from = 0
       const limit = 1000
@@ -153,17 +157,12 @@ export default function DataTablePage() {
       }
 
       setData(allLeads)
+      setLoading(false) // ⬅ 
     }
 
     fetchAllLeads()
   }, [])
 
-  const allCapturedByValues = React.useMemo(() => {
-    const unique = new Set<string>()
-    data.forEach((row) => unique.add(row.captured_by || "(Blanks)"))
-    return Array.from(unique).sort()
-  }, [data])
-  
   const filteredData = React.useMemo(() => {
     if (capturedByFilter.length === 0) return data
     return data.filter((row) =>
@@ -311,7 +310,17 @@ export default function DataTablePage() {
 
 
           <TableBody>
-            {table.getRowModel().rows.length ? (
+          {loading ? (
+    Array.from({ length: 10 }).map((_, i) => (
+      <TableRow key={`skeleton-${i}`}>
+        {table.getAllColumns().map((col, idx) => (
+          <TableCell key={idx}>
+            <Skeleton className="h-4 w-full" />
+          </TableCell>
+        ))}
+      </TableRow>
+    ))
+  ) :table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                       key={row.id}

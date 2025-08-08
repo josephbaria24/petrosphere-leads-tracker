@@ -26,6 +26,7 @@ import html2pdf from 'html2pdf.js'
 import { useRouter } from 'next/navigation'
 import CRMBarChart from '../charts/bar-chart-2'
 import ClosedWonTrendsChart from '../charts/line-chart'
+import RegionHeatmap from '../region-map'
 
 
 
@@ -671,20 +672,22 @@ useEffect(() => {
           .gte("first_contact", prevStart.toISOString())
           .lt("first_contact", prevEnd.toISOString()),
     
+        // Current In Progress (includes "Lead In")
         supabase
-          .from("crm_leads")
-          .select("id", { count: "exact", head: true })
-          .ilike("status", "in progress")
-          .gte("first_contact", startDate.toISOString())
-          .lt("first_contact", endDate.toISOString()),
-    
+        .from("crm_leads")
+        .select("id", { count: "exact", head: true })
+        .or('status.ilike.%in progress%,status.ilike.%lead in%')
+        .gte("first_contact", startDate.toISOString())
+        .lt("first_contact", endDate.toISOString()),
+
+        // Previous In Progress (includes "Lead In")
         supabase
-          .from("crm_leads")
-          .select("id", { count: "exact", head: true })
-          .ilike("status", "in progress")
-          .gte("first_contact", prevStart.toISOString())
-          .lt("first_contact", prevEnd.toISOString()),
-    
+        .from("crm_leads")
+        .select("id", { count: "exact", head: true })
+        .or('status.ilike.%in progress%,status.ilike.%lead in%')
+        .gte("first_contact", prevStart.toISOString())
+        .lt("first_contact", prevEnd.toISOString()),
+
         supabase
           .from("crm_leads")
           .select("id", { count: "exact", head: true })
@@ -860,6 +863,13 @@ const handleOpenPrintView = () => {
     areaChartData: leadAreaChartData,
     capturedByData,
     serviceData: serviceChartData,
+    closedWonTrendData,
+    crmFilters: {
+      selectedYear,
+      selectedMonth,
+      selectedInterval,
+      rangeIndex,
+    }
   }
   localStorage.setItem('report-data', JSON.stringify(reportData))
   router.push('/dashboard/print-report')  // ✅ now safe to call
@@ -1056,8 +1066,7 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
       )}
 
 <div id="print-section">
-      {/* CRM Stats Header */}
-
+      
       {/* CRM Stats Grid */}
       <div  className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-html2canvas-ignore>
       <StatCard
@@ -1311,6 +1320,8 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
   </CardContent>
 </Card>
 </div>
+
+
     </SidebarInset>
   </div>
   )

@@ -8,6 +8,10 @@ import {
   LayoutDashboard,
   Video,
   Users2Icon,
+  FacebookIcon,
+  ActivityIcon,
+  Facebook,
+  MapPinnedIcon,
 } from "lucide-react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { NavMain } from "@/components/nav-main"
@@ -138,7 +142,46 @@ const data = {
         // },
       ],
     },
+    {
+      title: "Social Media Engagement",
+      url: "#",
+      icon: Facebook,
+      isActive: true,
+      items: [
+        {
+          title: "Manage Engagement",
+          url: "#",
+        },
+        {
+          title: "Create Engagement Report",
+          url: "#",
+        },
+        // {
+        //   title: "Lead Insights",
+        //   url: "#",
+        // },
+        // {
+        //   title: "Lead Activity Log",
+        //   url: "#",
+        // },
+      ],
+    },
     
+    {
+      title: "Regional Leads Map",
+      url: "/regional-map",
+      icon: MapPinnedIcon,
+      items: [
+        // {
+        //   title: "User Management",
+        //   url: "#",
+        // },
+        // {
+        //   title: "CRM Settings",
+        //   url: "#",
+        // },
+      ],
+    },
     {
       title: "Settings",
       url: "#",

@@ -54,6 +54,7 @@ import { Separator } from "@radix-ui/react-separator"
 
 import type { Webinar } from "./columns"
 import EditWebinarModal from "@/components/EditWebinarModal"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function WebinarTablePage() {
   const [selectedYear, setSelectedYear] = useState<string>("2025") // default year
@@ -74,7 +75,7 @@ export default function WebinarTablePage() {
   const [selectedWebinar, setSelectedWebinar] = useState<Webinar | null>(null)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [currentUserName, setCurrentUserName] = useState<string>('Unknown')
-
+  const [loading, setLoading] = useState(true)
   useEffect(() => {
     const fetchCurrentUserProfile = async () => {
       const { data: authData } = await supabase.auth.getUser()
@@ -97,6 +98,7 @@ export default function WebinarTablePage() {
 
   useEffect(() => {
     const fetchWebinars = async () => {
+      setLoading(true)
       const { data, error } = await supabase
         .from("webinar_tracker")
         .select("*")
@@ -133,6 +135,7 @@ export default function WebinarTablePage() {
       })
   
       setData(paddedData)
+      setLoading(false)
     }
   
     fetchWebinars()
@@ -253,7 +256,18 @@ export default function WebinarTablePage() {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length ? (
+          {loading ? (
+            // Show 12 skeleton rows (1 per month)
+            Array.from({ length: 12 }).map((_, i) => (
+              <TableRow key={`skeleton-${i}`}>
+                {columns.map((_, idx) => (
+                  <TableCell key={idx}>
+                    <Skeleton className="h-4 w-full" />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
