@@ -20,47 +20,9 @@ export default function LeadsMapPage() {
 
       {/* Information Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Total Leads</CardTitle>
-            <CardDescription>Across all regions</CardDescription>
-          </CardHeader>
-          <CardContent className="text-2xl font-bold text-primary">
-            {/* Dynamic total leads could be passed here */}
-            254
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Top Region</CardTitle>
-            <CardDescription>Highest number of leads</CardDescription>
-          </CardHeader>
-          <CardContent className="text-xl font-semibold">
-            CALABARZON (56)
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Average Leads per Region</CardTitle>
-            <CardDescription>Performance distribution</CardDescription>
-          </CardHeader>
-          <CardContent className="text-xl font-semibold">
-            14.1
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Regions with Zero Leads</CardTitle>
-            <CardDescription>Needs outreach</CardDescription>
-          </CardHeader>
-          <CardContent className="text-xl font-semibold text-red-500">
-            2
-          </CardContent>
-        </Card>
+        
       </div>
+
 
       {/* Map Section */}
       <Card className="overflow-hidden">
@@ -71,7 +33,7 @@ export default function LeadsMapPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="h-[650px]">
-        <div style={{ height: "400px", width: "90%", borderRadius: "6px", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: "100%", borderRadius: "6px", overflow: "hidden" }}>
           <RegionHeatmap />
         </div>
         </CardContent>
