@@ -15,7 +15,10 @@ import type { Payload } from 'recharts/types/component/DefaultLegendContent'
 
 const shortLabelMap: Record<string, string> = {
   email: 'Email',
+  inbound___email: 'I-Email',
+  outbound___email: 'O-Email',
   inbound___facebook: 'I-FB',
+  outbound___facebook: 'O-FB',
   inbound___tawkto: 'I-Tawk.to',
   inbound___webinar: 'I-Webinar',
   outbound___google_search__data_mining_: 'O-Google',
@@ -24,6 +27,7 @@ const shortLabelMap: Record<string, string> = {
   Inbound___phone_call: 'I-Phone Call',
   phone_text: 'Text',
   site_visit: 'Visit',
+  outbound___site___client_visit: 'O-Visit',
   unknown: 'Unknown',
   viber: 'Viber'
 }

@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { Check, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
+import EditLeadModal from '@/components/EditLeadModal'
 
 
 export default function AddNewLeadPage() {
@@ -34,6 +35,35 @@ export default function AddNewLeadPage() {
   const [editingDropdown, setEditingDropdown] = useState<string | null>(null)
   const [isRegionOpen, setIsRegionOpen] = useState(false)
 
+
+  const [duplicateLead, setDuplicateLead] = useState<any>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const checkDuplicateLead = async (name: string, email: string) => {
+    if (!name || !email) return
+  
+    const { data, error } = await supabase
+      .from("crm_leads")
+      .select("*")
+      .ilike("contact_name", name.trim())
+      .ilike("email", email.trim())
+      .limit(1)
+  
+    if (error) {
+      toast.error("Error checking duplicates", { description: error.message })
+      return
+    }
+  
+    if (data && data.length > 0) {
+      setDuplicateLead(data[0])
+      toast.warning("Lead already exists", {
+        description: `This lead exists in the database.`,
+      })
+      setIsEditModalOpen(true)
+    } else {
+      setDuplicateLead(null)
+    }
+  }
+  
 
 
   const [serviceDetails, setServiceDetails] = useState<
@@ -256,14 +286,46 @@ export default function AddNewLeadPage() {
           <CardTitle>Add New Lead</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Duplicate lead edit modal */}
+{duplicateLead && (
+  <EditLeadModal
+    isOpen={isEditModalOpen}
+    onClose={() => setIsEditModalOpen(false)}
+    onSave={async (updated) => {
+      const { error } = await supabase
+        .from("crm_leads")
+        .update(updated)
+        .eq("id", duplicateLead.id)
+
+      if (error) {
+        toast.error("Update failed", { description: error.message })
+      } else {
+        toast.success("Lead updated successfully")
+      }
+    }}
+    lead={duplicateLead}
+    currentUserName={form.captured_by || "Unknown"}
+  />
+)}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="contact_name">Contact Name</Label>
-              <Input id="contact_name" value={form.contact_name} onChange={(e) => handleChange('contact_name', e.target.value)} />
+              <Input
+                id="contact_name"
+                value={form.contact_name}
+                onChange={(e) => handleChange('contact_name', e.target.value)}
+                onBlur={() => checkDuplicateLead(form.contact_name, form.email)}
+              />
             </div>
             <div>
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={form.email} onChange={(e) => handleChange('email', e.target.value)} />
+              <Input
+                id="email"
+                type="email"
+                value={form.email}
+                onChange={(e) => handleChange('email', e.target.value)}
+                onBlur={() => checkDuplicateLead(form.contact_name, form.email)}
+              />
             </div>
             <div>
               <Label htmlFor="phone">Phone</Label>

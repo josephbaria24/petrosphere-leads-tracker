@@ -156,42 +156,50 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="space-y-4 max-w-4xl rounded-xl max-h-[90vh] overflow-y-auto">
-        <DialogTitle>Edit Lead</DialogTitle>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Object.entries(edited)
-            .filter(([key]) => key !== 'id')
-            .map(([key, value]) => (
-              <div key={key}>
-                <Label className="text-sm font-medium capitalize block mb-1">
-                  {key.replace(/_/g, ' ')}
-                </Label>
-                {renderField(key as keyof Lead, value)}
-              </div>
-            ))}
-        </div>
+  <DialogContent className="space-y-4 max-w-4xl rounded-xl max-h-[90vh] overflow-y-auto">
+    <DialogTitle>Edit Lead</DialogTitle>
 
-        <div className="flex justify-end pt-2">
-        <Button
-  onClick={async () => {
-    await onSave(edited)
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Put status dropdown first */}
+      <div>
+        <Label className="text-sm font-medium capitalize block mb-1">Status</Label>
+        {renderField('status', edited.status)}
+      </div>
 
-    // ✅ Log the activity to activity_logs
-    await supabase.from('activity_logs').insert({
-      user_name: currentUserName,
-      action: 'edited',
-      entity_type: 'lead',
-    })
-    
-    onClose()
-  }}
->
-  Save Changes
-</Button>
+      {/* Render the rest except status and id */}
+      {Object.entries(edited)
+        .filter(([key]) => key !== 'id' && key !== 'status')
+        .map(([key, value]) => (
+          <div key={key}>
+            <Label className="text-sm font-medium capitalize block mb-1">
+              {key.replace(/_/g, ' ')}
+            </Label>
+            {renderField(key as keyof Lead, value)}
+          </div>
+        ))}
+    </div>
 
-        </div>
-      </DialogContent>
-    </Dialog>
+    <div className="flex justify-end pt-2">
+      <Button
+        onClick={async () => {
+          await onSave(edited)
+
+          // ✅ Log the activity to activity_logs
+          await supabase.from('activity_logs').insert({
+            user_name: currentUserName,
+            action: 'edited',
+            entity_type: 'lead',
+          })
+
+          onClose()
+        }}
+      >
+        Save Changes
+      </Button>
+    </div>
+  </DialogContent>
+</Dialog>
+
   )
 }
 export default EditLeadModal

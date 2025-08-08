@@ -118,10 +118,15 @@ export function ActualDashboardPage() {
 
 
   const currentYear = new Date().getFullYear()
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const currentMonthName = monthNames[new Date().getMonth()]
+  
   const [selectedYear, setSelectedYear] = useState<number>(currentYear)
   const [availableYears, setAvailableYears] = useState<number[]>([])
-  const [selectedMonth, setSelectedMonth] = useState<string>('all')  // default is "all"
+  // Default now set to current month instead of "all"
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthName)
   const [selectedInterval, setSelectedInterval] = useState<string>('monthly')
+  
   
 
   const [, setLeadSourceTotals] = useState<Record<string, number>>({})
@@ -1088,13 +1093,24 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
               details={closedLostLeads}
             />
 
-            <StatCard
-            label="Leads of Selected Month"
+          <StatCard
+            label={
+              selectedMonth === "all"
+                ? selectedInterval === "annually"
+                  ? `Leads in ${selectedYear}`
+                  : `Leads in ${selectedYear}` // covers quarterly/weekly when month=all
+                : `Leads in ${selectedMonth} ${selectedYear}`
+            }
             value={stats.leadsThisMonth.toString()}
             {...getTrend(stats.leadsThisMonth, stats.leadsLastMonth)}
-            subtext="New leads added this month"
+            subtext={
+              selectedMonth === "all"
+                ? "Total leads in the selected year"
+                : `New leads added in ${selectedMonth} ${selectedYear}`
+            }
             className="bg-black dark:bg-white text-white dark:text-black"
-            />
+          />
+
         </div>
 
 
