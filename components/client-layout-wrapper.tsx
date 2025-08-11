@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Toaster } from "sonner"
+import Spline from '@splinetool/react-spline'
 
 export function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -46,6 +47,7 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
               <div className="absolute top-4 left-0 right-0 z-50 flex items-center justify-between px-5">
                 <SidebarTrigger />
                 <ModeToggle />
+
               </div>
               <main className="p-4 md:p-6">{children}</main>
             </div>

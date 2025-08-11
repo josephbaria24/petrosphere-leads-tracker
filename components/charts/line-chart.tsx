@@ -15,41 +15,46 @@ import { TooltipProps } from 'recharts'
 
 
 const CustomTooltip = ({
-    active,
-    payload,
-    label,
-  }: TooltipProps<number, string>) => {
-    if (!active || !payload || payload.length === 0) return null
-  
-    const items = payload.map((entry, index) => (
-      <div
-        key={index}
-        className="flex justify-between items-center text-xs text-white"
-      >
-        <div className="flex items-center space-x-1">
-          <span
-            className="w-2.5 h-2.5 rounded-full inline-block"
-            style={{ backgroundColor: entry.color }}
-          ></span>
-          <span>{entry.name}</span>
-        </div>
-        <span>{entry.value}</span>
+  active,
+  payload,
+  label,
+}: TooltipProps<number, string>) => {
+  if (!active || !payload || payload.length === 0) return null
+
+  const items = payload.map((entry, index) => (
+    <div
+      key={index}
+      className="flex justify-between items-center text-xs text-white"
+    >
+      <div className="flex items-center space-x-1">
+        <span
+          className="w-2.5 h-2.5 rounded-full inline-block"
+          style={{ backgroundColor: entry.color }}
+        ></span>
+        <span>{entry.name}</span>
       </div>
-    ))
-  
-    const total = payload.reduce((sum, entry) => sum + Number(entry.value || 0), 0)
-  
-    return (
-      <div className="bg-black bg-opacity-90 text-white text-xs rounded shadow-md p-3 min-w-[140px]">
-        <div className="text-sm font-semibold mb-2">{label}</div>
-        <div className="space-y-1">{items}</div>
-        <div className="border-t border-white/20 mt-2 pt-1 flex justify-between text-white font-semibold text-sm">
-          <span>Total</span>
-          <span>{total}</span>
-        </div>
+      {/* ✅ Format with commas */}
+      <span>{Number(entry.value).toLocaleString()}</span>
+    </div>
+  ))
+
+  // ✅ Only sum amounts (exclude "Won Opportunities")
+  const total = payload
+    .filter(entry => entry.name !== "Won Opportunities")
+    .reduce((sum, entry) => sum + Number(entry.value || 0), 0)
+
+  return (
+    <div className="bg-black bg-opacity-90 text-white text-xs rounded shadow-md p-3 min-w-[140px]">
+      <div className="text-sm font-semibold mb-2">{label}</div>
+      <div className="space-y-1">{items}</div>
+      <div className="border-t border-white/20 mt-2 pt-1 flex justify-between text-white font-semibold text-sm">
+        <span>Total</span>
+        {/* ✅ Format total with commas */}
+        <span>{total.toLocaleString()}</span>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
 
   interface CustomTickProps {

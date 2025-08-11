@@ -22,11 +22,11 @@ import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Load
 import Link from 'next/link'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import html2pdf from 'html2pdf.js'
 import { useRouter } from 'next/navigation'
 import CRMBarChart from '../charts/bar-chart-2'
 import ClosedWonTrendsChart from '../charts/line-chart'
-import RegionHeatmap from '../region-map'
+import RevenueOpportunitiesTrendsChart from '../charts/line-chart-2'
+import Spline from '@splinetool/react-spline'
 
 
 
@@ -64,8 +64,14 @@ export function ActualDashboardPage() {
     }
   
     if (selectedInterval === 'weekly') {
-      return `${timeLabels[rangeIndex]} of ${selectedYear}`
+      const janFirst = new Date(selectedYear, 0, 1)
+      const startOfWeek = new Date(janFirst)
+      startOfWeek.setDate(janFirst.getDate() + rangeIndex * 7)
+    
+      const monthName = startOfWeek.toLocaleString('default', { month: 'long' }) // e.g., "August"
+      return `${timeLabels[rangeIndex]} (${monthName}) ${selectedYear}`
     }
+    
   
     if (selectedMonth === 'all') {
       return `Year: ${selectedYear}`
@@ -647,14 +653,14 @@ useEffect(() => {
         supabase
           .from("crm_leads")
           .select("id", { count: "exact", head: true })
-          .ilike("status", "closed won")
+          .ilike("status", "closed win")
           .gte("first_contact", startDate.toISOString())
           .lt("first_contact", endDate.toISOString()),
     
         supabase
           .from("crm_leads")
           .select("id", { count: "exact", head: true })
-          .ilike("status", "closed won")
+          .ilike("status", "closed win")
           .gte("first_contact", prevStart.toISOString())
           .lt("first_contact", prevEnd.toISOString()),
     
@@ -889,13 +895,14 @@ const fetchClosedWonTrends = async () => {
 
   while (!done) {
     const { data, error } = await supabase
-      .from('crm_leads')
-      .select('first_contact, service_price')
-      .ilike('status', 'closed won')
-      .range(from, to)
+  .from('crm_leads')
+  .select('first_contact, service_price')
+  .or('status.neq.Lead In,status.neq.Closed Lost,status.neq.In Progress')
+  .range(from, to)
+
 
     if (error) {
-      console.error('Error fetching Closed Won leads:', error)
+      console.error('Error fetching leads:', error)
       return []
     }
 
@@ -915,17 +922,22 @@ const fetchClosedWonTrends = async () => {
 
   allData.forEach((lead) => {
     if (!lead.first_contact) return
-
+  
     const date = new Date(lead.first_contact)
-    const label = date.toLocaleString('default', { month: 'short', year: 'numeric' }) // e.g., "Feb 2024"
-
+    const label = date.toLocaleString('default', { month: 'short', year: 'numeric' })
+  
     if (!trends[label]) {
       trends[label] = { closed_amount: 0, won_opportunities: 0 }
     }
-
-    trends[label].closed_amount += Number(lead.service_price || 0)
+  
+    // Only add price if it exists
+    if (typeof lead.service_price === 'number') {
+      trends[label].closed_amount += lead.service_price
+    }
+  
     trends[label].won_opportunities += 1
   })
+  
 
   const sortedLabels = Object.keys(trends).sort(
     (a, b) => new Date(a).getTime() - new Date(b).getTime()
@@ -946,6 +958,87 @@ useEffect(() => {
   loadData()
 }, [])
 
+
+type RevenueOpportunitiesTrend = {
+  month: string;
+  expectedRevenue: number;
+  opportunitiesDue: number;
+};
+
+const [revenueOpportunitiesData, setRevenueOpportunitiesData] = useState<RevenueOpportunitiesTrend[]>([]);
+
+
+const fetchRevenueAndOpportunitiesTrends = async () => {
+  const pageSize = 1000;
+  let from = 0;
+  let to = pageSize - 1;
+  let allData: { first_contact: string; service_price: number | null }[] = [];
+  let done = false;
+
+  while (!done) {
+    const { data, error } = await supabase
+      .from('crm_leads')
+      .select('first_contact, service_price')
+      .not('status', 'in', '("Lead In","Closed Lost","In Progress")')
+      .range(from, to);
+      console.log("Supabase data:", data);
+console.log("Supabase error:", error);
+
+    if (error) {
+      console.error('Error fetching revenue/opportunity leads:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) break;
+
+    allData = allData.concat(data);
+
+    if (data.length < pageSize) {
+      done = true;
+    } else {
+      from += pageSize;
+      to += pageSize;
+    }
+  }
+
+  const trends: Record<string, { expected_revenue: number; opportunities_due: number }> = {};
+
+  allData.forEach((lead) => {
+    if (!lead.first_contact) return;
+
+    const date = new Date(lead.first_contact);
+    const label = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+
+    if (!trends[label]) {
+      trends[label] = { expected_revenue: 0, opportunities_due: 0 };
+    }
+
+    // Only add price if it exists
+    if (typeof lead.service_price === 'number') {
+      trends[label].expected_revenue += lead.service_price;
+    }
+
+    trends[label].opportunities_due += 1;
+  });
+
+  const sortedLabels = Object.keys(trends).sort(
+    (a, b) => new Date(a).getTime() - new Date(b).getTime()
+  );
+
+  return sortedLabels.map((label) => ({
+    month: label,
+    expectedRevenue: trends[label].expected_revenue,
+    opportunitiesDue: trends[label].opportunities_due,
+  }));
+};
+
+useEffect(() => {
+  const loadData = async () => {
+    const trends = await fetchRevenueAndOpportunitiesTrends();
+    setRevenueOpportunitiesData(trends);
+  };
+  loadData();
+}, []);
 
 const [leadInLeads, setLeadInLeads] = useState<{ name: string; captured_by: string; created_at: string }[]>([])
 const [closedWonLeads, setClosedWonLeads] = useState<{ name: string; captured_by: string; created_at: string }[]>([]);
@@ -1300,7 +1393,7 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
     <ClosedWonTrendsChart data={closedWonTrendData} />
   </div>
   <div className="flex-1">
-    <ClosedWonTrendsChart data={closedWonTrendData} />
+  <RevenueOpportunitiesTrendsChart data={revenueOpportunitiesData} />
   </div>
 </div>
 
@@ -1319,6 +1412,7 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
     <ServiceBarChart data={serviceChartData} />
   </CardContent>
 </Card>
+
 </div>
 
 
