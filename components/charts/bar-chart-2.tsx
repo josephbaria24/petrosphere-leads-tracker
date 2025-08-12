@@ -18,7 +18,7 @@ import {
 } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 
-type LeadStatus = 'Lead In' | 'Contact Made' | 'Needs Defined' | 'Proposal Sent' | 'Negotiation Started' | 'In Progress'
+type LeadStatus = 'Lead In' | 'Contact Made' | 'Needs Defined' | 'Proposal Sent' | 'Negotiation Started' | 'In Progress' | 'Closed Win' | 'Closed Lost' | 'For Follow up'
 
 type ChartData = {
     name: string
@@ -70,7 +70,10 @@ const statuses: LeadStatus[] = [
   'Needs Defined',
   'Proposal Sent',
   'Negotiation Started',
-  'In Progress', // Added for completeness, but not used in the chart
+  'In Progress', 
+  'Closed Win',
+  'Closed Lost', 
+  'For Follow up',
 ]
 
 const statusColorMap: Record<LeadStatus, string> = {
@@ -79,7 +82,10 @@ const statusColorMap: Record<LeadStatus, string> = {
   'Needs Defined': '#455a64',
   'Proposal Sent': '#f702d6',
   'Negotiation Started': '#f79205',
-    'In Progress': '#025cf7', // This color is not used in the chart
+  'In Progress': '#025cf7', // This color is not used in the chart
+  'Closed Win': '#4caf50',
+  'Closed Lost': '#f44336', // Added for completeness, but not used in the chart
+  'For Follow up': '#ff9800', // Added for completeness, but not used in the chart
 }
 
 

@@ -18,6 +18,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import { usePathname } from "next/navigation";
 
 export function NavMain({
   items,
@@ -30,6 +31,7 @@ export function NavMain({
     items?: {
       title: string
       url: string
+      isActive?: boolean
     }[]
   }[]
 }) {
@@ -57,11 +59,15 @@ export function NavMain({
                 <SidebarMenuSub>
                   {item.items?.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
-                      <SidebarMenuSubButton asChild>
-                          <Link href={subItem.url}>
-                            <span>{subItem.title}</span>
-                          </Link>
-                        </SidebarMenuSubButton>
+                      <SidebarMenuSubButton
+  asChild
+  className={subItem.isActive ? "bg-zinc-400 font-medium" : ""}
+>
+  <Link href={subItem.url}>
+    <span>{subItem.title}</span>
+  </Link>
+</SidebarMenuSubButton>
+
                     </SidebarMenuSubItem>
                   ))}
                 </SidebarMenuSub>
@@ -70,7 +76,11 @@ export function NavMain({
           </Collapsible>
         ) : (
           <SidebarMenuItem key={item.title}>
-            <SidebarMenuButton asChild tooltip={item.title}>
+            <SidebarMenuButton
+              asChild
+              tooltip={item.title}
+              className={item.isActive ? "bg-blue-500 text-white dark:bg-blue-600 font-semibold" : ""}
+            >
               <Link href={item.url} className="flex items-center gap-2 w-full">
                 {item.icon && <item.icon />}
                 <span>{item.title}</span>

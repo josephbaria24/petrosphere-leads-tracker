@@ -41,7 +41,7 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
       ) : (
         <SidebarProvider>
           <div className="flex h-screen w-full overflow-hidden">
-            <AppSidebar />
+            <AppSidebar/>
             <Toaster richColors position="top-right" />
             <div className="relative flex-1 overflow-y-auto">
               <div className="absolute top-4 left-0 right-0 z-50 flex items-center justify-between px-5">

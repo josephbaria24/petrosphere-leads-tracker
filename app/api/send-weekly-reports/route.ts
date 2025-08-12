@@ -159,7 +159,10 @@ export async function GET() {
 
     // Send Email
     await sendEmail({
-      to: ['jlb@petrosphere.com.ph', 'josephbaria89@gmail.com', 'rlm@petrosphere.com.ph', 'dra@petrosphere.com.ph', 'kbg@petrosphere.com.ph'],
+      to: ['jlb@petrosphere.com.ph', 'josephbaria89@gmail.com', 'rlm@petrosphere.com.ph', 'dra@petrosphere.com.ph', 'kbg@petrosphere.com.ph', 'sales@petrosphere.com.ph',
+      'ceo@petrosphere.com.ph',
+      'admin@petrosphere.com.ph',
+      'ops@petrosphere.com.ph '],
       subject: `Automated Weekly Sales & Marketing Report - ${format(today, 'MMM dd, yyyy')}`,
       text: 'Attached is your weekly leads summary report in PDF format.',
       attachments: [

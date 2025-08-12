@@ -3,13 +3,11 @@
 import * as React from "react"
 import {
   Settings2,
-  ChartBar,
   Droplet,
   LayoutDashboard,
   Video,
   Users2Icon,
   FacebookIcon,
-  ActivityIcon,
   Facebook,
   MapPinnedIcon,
 } from "lucide-react"
@@ -24,6 +22,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { usePathname } from "next/navigation";
 
 
 
@@ -36,7 +35,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const supabase = createClientComponentClient()
   const [userEmail, setUserEmail] = React.useState("Loading...")
   const [userName, setUserName] = React.useState("User")
-  
+  const pathname = usePathname();
   
   React.useEffect(() => {
     const getUser = async () => {
@@ -80,7 +79,7 @@ const data = {
     {
       name: "Petrosphere",
       logo: Droplet,
-      plan: "Customer Relationship Management",
+      plan: "Leads Tracker",
     },
   ],
   navMain: [
@@ -88,6 +87,7 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: LayoutDashboard,
+      isActive: pathname === "/dashboard",
     },
     // {
     //   title: "Create",
@@ -98,48 +98,36 @@ const data = {
       title: "Manage Lead",
       url: "#",
       icon: Users2Icon,
-      isActive: true,
+      isActive: pathname.startsWith("/lead"),
       items: [
         {
           title: "Leads List",
           url: "/lead-table",
+          isActive: pathname === "/lead-table",
         },
         {
           title: "Add New Lead",
           url: "/add-new-leads",
+          isActive: pathname === "/add-new-leads",
         },
-        // {
-        //   title: "Lead Insights",
-        //   url: "#",
-        // },
-        // {
-        //   title: "Lead Activity Log",
-        //   url: "#",
-        // },
       ],
     },
     {
       title: "Webinar Tracker",
       url: "#",
       icon: Video,
-      isActive: true,
+      isActive: pathname.startsWith("/webinar"),
       items: [
         {
           title: "Manage Webinars",
           url: "webinar-list",
+          isActive: pathname === "/webinar-list",
         },
         {
           title: "Create Webinar Report",
           url: "#",
+          isActive: pathname === "#",
         },
-        // {
-        //   title: "Lead Insights",
-        //   url: "#",
-        // },
-        // {
-        //   title: "Lead Activity Log",
-        //   url: "#",
-        // },
       ],
     },
     {
@@ -156,14 +144,6 @@ const data = {
           title: "Create Engagement Report",
           url: "#",
         },
-        // {
-        //   title: "Lead Insights",
-        //   url: "#",
-        // },
-        // {
-        //   title: "Lead Activity Log",
-        //   url: "#",
-        // },
       ],
     },
     
@@ -171,50 +151,10 @@ const data = {
       title: "Regional Leads Map",
       url: "/regional-map",
       icon: MapPinnedIcon,
-      items: [
-        // {
-        //   title: "User Management",
-        //   url: "#",
-        // },
-        // {
-        //   title: "CRM Settings",
-        //   url: "#",
-        // },
-      ],
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: Settings2,
-      items: [
-        // {
-        //   title: "User Management",
-        //   url: "#",
-        // },
-        // {
-        //   title: "CRM Settings",
-        //   url: "#",
-        // },
-      ],
+      isActive: pathname === "/regional-map",
     },
   ],
-  // projects: [
-  //   {
-  //     name: "Design Engineering",
-  //     url: "#",
-  //     icon: Frame,
-  //   },
-  //   {
-  //     name: "Sales & Marketing",
-  //     url: "#",
-  //     icon: PieChart,
-  //   },
-  //   {
-  //     name: "Travel",
-  //     url: "/",
-  //     icon: Map,
-  //   },
-  // ],
+
 }
 
   return (
