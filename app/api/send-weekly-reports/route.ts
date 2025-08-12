@@ -14,6 +14,22 @@ interface Lead {
   service_price: number | null;
   created_at: string;
 }
+interface SocialMedia {
+  id: number;
+  month: string;
+  year: string | null;
+  post_reach: number | null;
+  post_engagement: number | null;
+  new_page_likes: number | null;
+  new_page_followers: number | null;
+  reactions: number | null;
+  comments: number | null;
+  shares: number | null;
+  photo_views: number | null;
+  link_clicks: number | null;
+  created_at: string;
+}
+
 
 interface Webinar {
   id: number;
@@ -62,6 +78,16 @@ export async function GET() {
     if (!data || data.length === 0) {
       return NextResponse.json({ message: 'No new leads found for the month.' });
     }
+    // Fetch social media engagement for this month/year
+const { data: socialMedia, error: smError } = await supabase
+.from('social_media_tracker')
+.select<'*', SocialMedia>()
+.eq('month', reportMonth)
+.eq('year', reportYear)
+.maybeSingle();
+
+if (smError) throw smError;
+
 
     // Summaries
     const totalLeads = data.length;
@@ -294,11 +320,71 @@ if (!webinars || webinars.length === 0) {
     webinarPage.drawText('Confidential – For Internal Use Only', { x: 50, y: 35, size: 9, font, color: rgb(0.5, 0.5, 0.5) });
     webinarPage.drawText('Page 2', { x: 545, y: 35, size: 9, font, color: rgb(0.5, 0.5, 0.5) });
 
-    const pdfBytes = await pdfDoc.save();
 
+
+
+    // Page 3 - Social Media Engagement
+const smPage = pdfDoc.addPage([595.28, 841.89]);
+let sy = 800;
+
+smPage.drawText(`Social Media Engagement Summary for ${reportMonth} ${reportYear}`, {
+  x: 50,
+  y: sy,
+  size: 13,
+  font: fontBold,
+  color: rgb(0, 0, 0.6)
+});
+sy -= 8;
+smPage.drawLine({ start: { x: 50, y: sy }, end: { x: 545, y: sy }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
+sy -= 15;
+
+const drawSMTable = (rows: Array<[string, string | number]>) => {
+  const col1X = 60;
+  const col2X = 350;
+  rows.forEach(([label, value]) => {
+    smPage.drawText(label, { x: col1X, y: sy, size: 11, font });
+    smPage.drawText(String(value), { x: col2X, y: sy, size: 11, font });
+    sy -= tableLineHeight;
+  });
+  sy -= 8;
+};
+
+if (!socialMedia) {
+  smPage.drawText('No social media data recorded for this month.', { x: 60, y: sy, size: 11, font });
+  sy -= tableLineHeight;
+} else {
+  drawSMTable([
+    ['Post Reach', socialMedia.post_reach ?? 0],
+    ['Post Engagement', socialMedia.post_engagement ?? 0],
+    ['New Page Likes', socialMedia.new_page_likes ?? 0],
+    ['New Page Followers', socialMedia.new_page_followers ?? 0],
+    ['Reactions', socialMedia.reactions ?? 0],
+    ['Comments', socialMedia.comments ?? 0],
+    ['Shares', socialMedia.shares ?? 0],
+    ['Photo Views', socialMedia.photo_views ?? 0],
+    ['Link Clicks', socialMedia.link_clicks ?? 0]
+  ]);
+}
+
+smPage.drawLine({ start: { x: 50, y: 50 }, end: { x: 545, y: 50 }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
+smPage.drawText('Confidential – For Internal Use Only', { x: 50, y: 35, size: 9, font, color: rgb(0.5, 0.5, 0.5) });
+smPage.drawText('Page 3', { x: 545, y: 35, size: 9, font, color: rgb(0.5, 0.5, 0.5) });
+
+
+const pdfBytes = await pdfDoc.save();
     // Send Email
     await sendEmail({
-      to: ['jlb@petrosphere.com.ph'],
+      to: [
+        'jlb@petrosphere.com.ph',
+        'josephbaria89@gmail.com',
+        'rlm@petrosphere.com.ph',
+        'dra@petrosphere.com.ph',
+        'kbg@petrosphere.com.ph',
+        'sales@petrosphere.com.ph',
+        'ceo@petrosphere.com.ph',
+        'admin@petrosphere.com.ph',
+        'ops@petrosphere.com.ph'
+      ],
       subject: `Automated Monthly Sales & Marketing Report - ${format(today, 'MMM yyyy')}`,
       text: 'Attached is your monthly leads summary report in PDF format.',
       attachments: [
