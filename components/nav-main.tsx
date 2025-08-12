@@ -60,13 +60,13 @@ export function NavMain({
                   {item.items?.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
                       <SidebarMenuSubButton
-  asChild
-  className={subItem.isActive ? "bg-zinc-400 font-medium" : ""}
->
-  <Link href={subItem.url}>
-    <span>{subItem.title}</span>
-  </Link>
-</SidebarMenuSubButton>
+                        asChild
+                        className={subItem.isActive ? "bg-zinc-400 font-medium" : ""}
+                      >
+                        <Link href={subItem.url}>
+                          <span>{subItem.title}</span>
+                        </Link>
+                      </SidebarMenuSubButton>
 
                     </SidebarMenuSubItem>
                   ))}
