@@ -114,37 +114,15 @@ const data = {
     },
     {
       title: "Webinar Tracker",
-      url: "#",
+      url: "/webinar-list",
       icon: Video,
-      isActive: pathname.startsWith("/webinar"),
-      items: [
-        {
-          title: "Manage Webinars",
-          url: "webinar-list",
-          isActive: pathname === "/webinar-list",
-        },
-        {
-          title: "Create Webinar Report",
-          url: "#",
-          isActive: pathname === "#",
-        },
-      ],
+      isActive: pathname === "/webinar-list",
     },
     {
       title: "Social Media Engagement",
-      url: "#",
+      url: "social-media-list",
       icon: Facebook,
-      isActive: true,
-      items: [
-        {
-          title: "Manage Engagement",
-          url: "#",
-        },
-        {
-          title: "Create Engagement Report",
-          url: "#",
-        },
-      ],
+      isActive: pathname === "/social-media-list",
     },
     
     {
