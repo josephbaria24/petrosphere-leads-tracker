@@ -1,5 +1,5 @@
 'use client'
-
+import { LabelList } from "recharts" 
 import {
   BarChart,
   Bar,
@@ -58,33 +58,39 @@ const stringToColor = (str: string): string => {
 export function ServiceBarChart({ data }: ServiceChartProps) {
   return (
     <div className="h-[300px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={data}
-          margin={{ top: 20, right: 30, left: 0, bottom: 60 }}
-        >
-          <CartesianGrid strokeDasharray="0 1" />
-          <XAxis
-            dataKey="service_product"
-            interval={0}
-            angle={-45}
-            textAnchor="end"
-            tick={{ fontSize: 10 }}
-            height={80}
-          />
-          <YAxis allowDecimals={false} />
-          <Tooltip content={<CustomTooltip />} cursor={false} />
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart
+        data={data}
+        margin={{ top: 20, right: 30, left: 0, bottom: 60 }}
+      >
+        <CartesianGrid strokeDasharray="0 1" />
+        <XAxis
+          dataKey="service_product"
+          interval={0}
+          angle={-45}
+          textAnchor="end"
+          tick={{ fontSize: 10 }}
+          height={80}
+        />
+        <YAxis allowDecimals={false} />
+        <Tooltip content={<CustomTooltip />} cursor={false} />
 
-          <Bar radius={5} dataKey="count">
-            {data.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={stringToColor(entry.service_product)}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+        <Bar radius={5} dataKey="count">
+          {data.map((entry, index) => (
+            <Cell
+              key={`cell-${index}`}
+              fill={stringToColor(entry.service_product)}
+            />
+          ))}
+          {/* Add total count labels */}
+          <LabelList
+            dataKey="count"
+            position="top"
+            className="text-xs fill-current"
+          />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  </div>
   )
 }

@@ -92,7 +92,7 @@ const CustomTooltip = ({
   
   export default function ClosedWonTrendsChart({ data }: { data: ClosedWonTrend[] }) {
     return (
-      <Card className="bg-background">
+      <Card className="bg-background shadow-lg">
         <CardHeader>
           <CardTitle className="text-lg">Closed Won Trends</CardTitle>
           <CardDescription>Monthly trend of closed amounts and win count</CardDescription>

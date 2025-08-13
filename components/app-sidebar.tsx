@@ -77,8 +77,8 @@ const data = {
   },
   teams: [
     {
-      name: "Petrosphere",
-      logo: Droplet,
+      name: "Petrosphere Inc.",
+      logo: Droplet ,
       plan: "Leads Tracker",
     },
   ],
@@ -110,6 +110,11 @@ const data = {
           url: "/add-new-leads",
           isActive: pathname === "/add-new-leads",
         },
+        {
+          title: "Proposals tracker",
+          url: "#",
+          isActive: pathname === "#",
+        },
       ],
     },
     {
@@ -136,17 +141,22 @@ const data = {
 }
 
   return (
+    
     <Sidebar collapsible="icon" {...props}>
+      
       <SidebarHeader>
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
         {/* <NavProjects projects={data.projects} /> */}
+        
+
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
-      </SidebarFooter>
+            
+              <NavUser user={data.user} />
+            </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

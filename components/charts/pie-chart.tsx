@@ -66,7 +66,7 @@ export function ChartPieCapturedBy({ data }: ChartPieCapturedByProps) {
   const [activeIndex, setActiveIndex] = React.useState(0)
 
   return (
-    <Card data-chart={id} className="flex flex-col bg-background">
+    <Card data-chart={id} className="flex flex-col bg-card border-0 shadow-lg">
       <ChartStyle id={id} config={chartConfig} />
       <CardHeader className="items-center pb-0">
         <CardTitle>Lead Captures by Personnel</CardTitle>

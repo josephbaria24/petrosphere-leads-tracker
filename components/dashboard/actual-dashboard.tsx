@@ -11,6 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import CountUp from "react-countup"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,7 +19,7 @@ import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
 import { ChartPieCapturedBy } from '../charts/pie-chart'
-import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Printer } from 'lucide-react'
+import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Printer, ArrowUpRight } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
@@ -53,6 +54,7 @@ import Spline from '@splinetool/react-spline'
   
 export function ActualDashboardPage() {
 
+  
 
   const getDateHeaderLabel = () => {
     if (selectedInterval === 'annually') {
@@ -859,8 +861,11 @@ setClosedLostLeads(
 
 
 
-
-
+const makeSmoothTrendData = (
+  chartData: { date: string; value: number }[]
+) => {
+  return chartData.slice(-4); // last 3 months + current
+};
 
 
 const handleOpenPrintView = () => {
@@ -1046,29 +1051,56 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
 
 
 
+const [userName, setUserName] = useState("")
+const [userPosition, setUserPosition] = useState("")
+// Fetch user name & position
+useEffect(() => {
+  const fetchUserProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, position")
+        .eq("id", user.id)
+        .single()
+
+      if (!error && data) {
+        setUserName(data.full_name || "")
+        setUserPosition(data.position || "")
+      }
+    }
+  }
+  fetchUserProfile()
+}, [])
+
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return "Good morning"
+    if (hour < 18) return "Good afternoon"
+    return "Good evening"
+  }
+  
   return (
     <div>
     <SidebarInset>
-      {/* Topbar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 pl-10">
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Overview</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-         
+      {/* Greeting + Total Leads */}
+      <div className="flex pl-4 pb-6">
+        <div className="flex flex-col">
+        <h1 className="text-2xl font-bold">
+          {getGreeting()}, {userName ? userName.split(" ")[0] : "User"}!
+        </h1>
+        {userPosition && (
+          <p className="text-sm text-muted-foreground">
+            {userPosition}
+          </p>
+        )}
         </div>
+        
+        
       </div>
-           
 
-      <Separator className="my-4" />
+      
+ 
       
 
       <div className='flex justify-between'>
@@ -1076,6 +1108,7 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
 
       <div className="flex space-x-3 space-y-3">
         {/* Month Dropdown */}
+       
         {selectedInterval === "monthly" && (
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="w-[140px] text-sm">
@@ -1125,17 +1158,17 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
 
 
                  {/* Dynamic Date Header */}
-  <h2 className="text-lg font-medium text-muted-foreground px-1 ">
-    <span className="text-foreground text-4xl font-semibold">{getDateHeaderLabel()}</span>
-  </h2>
-        
+        <h2 className="text-lg font-medium text-muted-foreground px-1 ">
+          <span className="text-foreground text-3xl font-semibold">{getDateHeaderLabel()}</span>
+        </h2>
+        <Button onClick={handleOpenPrintView} className="bg-transparent cursor-pointer flex items-center gap-2 dark:text-white">
+          <Printer className="w-4 h-4" />
+          Print Report
+        </Button>
       </div>
 
      
-    <Button onClick={handleOpenPrintView} className="bg-background cursor-pointer flex items-center gap-2 dark:text-white">
-      <Printer className="w-4 h-4" />
-      Print Report
-    </Button>
+    
       </div>
       {['weekly', 'quarterly', 'annually'].includes(selectedInterval) && (
         <div className="pt-4 justify-start">
@@ -1162,45 +1195,18 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
       
       {/* CRM Stats Grid */}
       <div  className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-html2canvas-ignore>
-      <StatCard
+      {/* <StatCard
             label="Total Leads"
             value={stats.totalLeads.toString()}
             subtext="All leads recorded"
             className="bg-black dark:bg-white text-white dark:text-black"
-          />
-          <StatCard
-              label="In Progress"
-              value={stats.totalInProgress.toString()}
-              {...getTrend(stats.totalInProgress, stats.inProgressPrev)}
-              subtext="Currently active leads"
-              className="bg-blue-600 dark:bg-blue-800 text-white dark:text-white"
-              details={leadInLeads.length > 0 ? leadInLeads : []}
-            />
-
-            <StatCard
-              label="Win"
-              value={stats.closedLeads.toString()}
-              {...getTrend(stats.closedLeads, stats.closedLeadsPrev)}
-              subtext="Closed as won"
-              className="bg-green-600 dark:bg-green-800 text-white dark:text-white"
-              details={closedWonLeads}
-            />
-
-            <StatCard
-              label="Lost"
-              value={stats.closedLost.toString()}
-              {...getTrend(stats.closedLost, stats.closedLostPrev)}
-              subtext="Closed as lost"
-              className="bg-red-600 dark:bg-red-800 text-white dark:text-white"
-              details={closedLostLeads}
-            />
-
+          /> */}
           <StatCard
             label={
               selectedMonth === "all"
                 ? selectedInterval === "annually"
                   ? `Leads in ${selectedYear}`
-                  : `Leads in ${selectedYear}` // covers quarterly/weekly when month=all
+                  : `Leads in ${selectedYear}`
                 : `Leads in ${selectedMonth} ${selectedYear}`
             }
             value={stats.leadsThisMonth.toString()}
@@ -1208,10 +1214,66 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
             subtext={
               selectedMonth === "all"
                 ? "Total leads in the selected year"
-                : `New leads added in ${selectedMonth} ${selectedYear}`
+                : `New leads: ${selectedMonth} ${selectedYear}`
             }
+            chartData={makeSmoothTrendData(
+              leadAreaChartData.map(d => ({
+                date: d.date,
+                value: Number(d.totalLeads) // ensure it's a number
+              }))
+            )}
             className="bg-black dark:bg-white text-white dark:text-black"
           />
+
+          <StatCard
+            label="In Progress"
+            value={stats.totalInProgress.toString()}
+            {...getTrend(stats.totalInProgress, stats.inProgressPrev)}
+            subtext="Currently active leads"
+            className="bg-blue-600 dark:bg-blue-800 text-white dark:text-white"
+            details={leadInLeads}
+          />
+
+          <StatCard
+            label="Win"
+            value={stats.closedLeads.toString()}
+            {...getTrend(stats.closedLeads, stats.closedLeadsPrev)}
+            subtext="Closed as won"
+            className="bg-green-600 dark:bg-green-800 text-white dark:text-white"
+            details={closedWonLeads}
+          />
+
+          <StatCard
+            label="Lost"
+            value={stats.closedLost.toString()}
+            {...getTrend(stats.closedLost, stats.closedLostPrev)}
+            subtext="Closed as lost"
+            className="bg-red-600 dark:bg-red-800 text-white dark:text-white"
+            details={closedLostLeads}
+          />
+
+
+          
+            <Card className="bg-gradient-to-br from-blue-800 to-yellow-500 border-0 text-white rounded-2xl p-6">
+      
+            <div className="text-sm opacity-80">Total Leads</div>
+
+            {/* Main number */}
+            <div className="text-4xl font-bold">
+              <CountUp
+                start={0}
+                end={stats.totalLeads}
+                duration={2}
+                separator=","
+              />
+            </div>
+
+            {/* Subtitle */}
+            <div className="mt-2 flex items-center text-xs">
+              <span className="bg-white/20 px-1.5 py-0.5 rounded-full mr-1">↑ 5</span>
+              Increased from last month
+            </div>
+          </Card>
 
         </div>
 
@@ -1219,11 +1281,11 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
 
 
         {/* Chart 3: Captured By Personnel */}
-        <div className="grid grid-cols-1 sm:grid-cols-[320px_1fr_450px] gap-4 pt-3 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-[315px_1fr_450px] gap-4 pt-3 items-start">
 
 
               {/* Pie Chart with reduced size */}
-              <div className="w-full max-w-xs h-[240px] sm:h-[200px]">
+              <div className="w-full max-w-xs ">
                 <ChartPieCapturedBy data={capturedByData} />
               </div>
 
@@ -1241,7 +1303,7 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
         {/* Newest leads */}
           
         <div data-html2canvas-ignore> 
-            <Card className="flex-1 bg-background">
+            <Card className="flex-1 bg-background h-[380px] border-l-emerald-400">
               <CardHeader >
                 <CardTitle className="text-xl">Newest Leads</CardTitle>
                 <CardDescription>Most recently captured entries</CardDescription>
@@ -1369,7 +1431,7 @@ const [closedLostLeads, setClosedLostLeads] = useState<{ name: string; captured_
   <div className="py-3">
     
   
-  <Card className="flex-1 bg-background">
+  <Card className="flex-1 bg-background border-0 shadow-lg">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <div>
         <CardTitle className="text-lg">Lead Captures Over Time</CardTitle>

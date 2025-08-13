@@ -5,6 +5,7 @@
 import { TooltipProps } from 'recharts'
 import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 import { useEffect, useState } from 'react'
+import { LabelList } from "recharts" 
 import { supabase } from '@/lib/supabase'
 import {
   BarChart,
@@ -77,15 +78,15 @@ const statuses: LeadStatus[] = [
 ]
 
 const statusColorMap: Record<LeadStatus, string> = {
-  'Lead In': '#82ca9d',
-  'Contact Made': '#f06292',
-  'Needs Defined': '#455a64',
-  'Proposal Sent': '#f702d6',
+  'Lead In': '#1e293b',
+  'Contact Made': '#c2410c',
+  'Needs Defined': '#991b1b',
+  'Proposal Sent': '#a16207',
   'Negotiation Started': '#f79205',
-  'In Progress': '#025cf7', // This color is not used in the chart
-  'Closed Win': '#4caf50',
+  'In Progress': '#4d7c0f', // This color is not used in the chart
+  'Closed Win': '#15803d',
   'Closed Lost': '#f44336', // Added for completeness, but not used in the chart
-  'For Follow up': '#ff9800', // Added for completeness, but not used in the chart
+  'For Follow up': '#1d4ed8', // Added for completeness, but not used in the chart
 }
 
 
@@ -213,32 +214,84 @@ export default function CRMBarChart({
 
   
   return (
-    <Card className="rounded-2xl shadow p-4 w-full bg-background">
+    <Card className="rounded-2xl p-4 w-full bg-card border-0 shadow-lg">
       <CardContent>
         <h2 className="text-xl font-semibold mb-4">Sales Pipeline by Owners</h2>
         <ResponsiveContainer width="100%" height={305}>
-          <BarChart
-            layout="vertical"
-            data={chartData}
-            margin={{ top: 20, right: 30, left: 40, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="0 1" />
-            <XAxis type="number" />
-            <YAxis dataKey="name" type="category" allowDecimals={false}/>
-            <Tooltip content={<CustomTooltip />} cursor={false}/>
-            <Legend />
-            {statuses.map((status) => (
-              <Bar
-              radius={3}
-                key={status}
-                dataKey={status}
-                stackId="a"
-                fill={statusColorMap[status]}
-                name={status.replace(/\b\w/g, (c) => c.toUpperCase())}
-              />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
+  <BarChart
+    layout="vertical"
+    data={chartData.map(row => ({
+      ...row,
+      total: statuses.reduce((sum, status) => sum + (row[status] || 0), 0), // Add total per row
+    }))}
+    margin={{ top: 20, right: 30, left: 40, bottom: 5 }}
+  >
+    <CartesianGrid strokeDasharray="0 1" />
+    <XAxis type="number" />
+    <YAxis dataKey="name" type="category" allowDecimals={false} />
+    <Tooltip content={<CustomTooltip />} cursor={false} />
+    <Legend />
+
+    {statuses.map((status, idx) => (
+      <Bar
+      key={status}
+      dataKey={status}
+      stackId="a"
+      fill={statusColorMap[status]}
+      name={status.replace(/\b\w/g, (c) => c.toUpperCase())}
+      radius={[0, 2, 2, 0]}
+    >
+      {idx === statuses.length - 1 && (
+        <LabelList
+          position="right"
+          className="text-xs"
+          content={({ x, y, width, index }) => {
+            if (index == null) return null
+            const entry = chartData[index]
+            if (!entry) return null
+    
+            const total = statuses.reduce(
+              (sum, s) => sum + (entry[s] || 0),
+              0
+            )
+    
+            const xPos = Number(x) + Number(width) + 4
+            const yPos = Number(y) + 26
+    
+            let color = getComputedStyle(document.documentElement)
+              .getPropertyValue('--foreground')
+              .trim()
+    
+            // If the color is in hex/rgb already, just use it
+            if (color.startsWith('#') || color.startsWith('rgb')) {
+              // do nothing
+            } else {
+              color = `hsl(${color})`
+            }
+    
+            return (
+              <text
+                x={xPos}
+                y={yPos}
+                fontSize="14"
+                fill={color} // ✅ Works in both dark & light mode
+              >
+                {total}
+              </text>
+            )
+          }}
+        />
+      )}
+    </Bar>
+    
+
+
+))}
+
+
+
+  </BarChart>
+</ResponsiveContainer>
       </CardContent>
     </Card>
   )

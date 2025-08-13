@@ -26,6 +26,7 @@ const shortLabelMap: Record<string, string> = {
   Outbound___phone_call: 'O-Phone Call',
   Inbound___phone_call: 'I-Phone Call',
   phone_text: 'Text',
+  Inbound___phone_text: 'I-Text',
   site_visit: 'Visit',
   outbound___site___client_visit: 'O-Visit',
   unknown: 'Unknown',
