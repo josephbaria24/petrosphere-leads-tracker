@@ -20,10 +20,13 @@ interface StatCardProps {
   chartData?: { value: number }[] // Data for sparkline
   className?: string
   details?: { name: string; captured_by?: string; created_at?: string }[]
+  icon?: React.ReactNode
+
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
   label,
+  icon,
   value,
   change,
   trend,
@@ -37,7 +40,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <div className="cursor-pointer bg-card border-0 text-black dark:text-white rounded-2xl p-6 relative overflow-hidden shadow-lg flex flex-col h-full transition hover:opacity-90">
+        <div className="cursor-pointer bg-card border-0 text-black dark:text-white rounded-2xl p-6 relative overflow-hidden shadow-lg flex flex-col h-38 transition hover:opacity-90">
           {/* Top-right icon */}
           {trend && change && (
             <div
@@ -54,10 +57,13 @@ export const StatCard: React.FC<StatCardProps> = ({
           )}
 
           {/* Title */}
-          <div className="text-sm opacity-80">{label}</div>
+          <div className="text-sm opacity-80 flex items-center gap-2">
+            {icon}
+            <span>{label}</span>
+          </div>
 
           {/* Main number + sparkline */}
-          <div className="pt-4 flex items-center gap-2">
+          <div className="pt-2 flex items-center gap-2">
             <div className="text-4xl font-semibold">{value}</div>
             {chartData.length > 0 && (
               <div className="w-16 h-8">
@@ -79,15 +85,18 @@ export const StatCard: React.FC<StatCardProps> = ({
             )}
           </div>
 
-          {/* Subtitle at bottom */}
-          <div className="mt-auto flex items-center text-xs pt-4">
-            {trend && change && (
-              <span className="bg-white/20 px-1.5 py-1 rounded-full mr-1">
-                {trend === 'up' ? '↑' : '↓'} {change}
-              </span>
-            )}
+        {/* Subtitle at bottom */}
+        <div className="mt-auto flex items-center text-xs pt-2 overflow-hidden whitespace-nowrap text-ellipsis">
+          {trend && change && (
+            <span className="bg-zinc-200 dark:bg-white/20 px-1 py-0.5 rounded-full shrink-0">
+              {trend === 'up' ? '↑' : '↓'} {change}
+            </span>
+          )}
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap pl-1">
             {subtext}
-          </div>
+          </span>
+        </div>
+
         </div>
       </DialogTrigger>
 

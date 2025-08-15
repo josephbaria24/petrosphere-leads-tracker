@@ -19,7 +19,7 @@ import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
 import { ChartPieCapturedBy } from '../charts/pie-chart'
-import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Printer, ArrowUpRight } from 'lucide-react'
+import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Printer, ArrowUpRight, Trophy, Hourglass, Users } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
@@ -28,6 +28,7 @@ import CRMBarChart from '../charts/bar-chart-2'
 import ClosedWonTrendsChart from '../charts/line-chart'
 import RevenueOpportunitiesTrendsChart from '../charts/line-chart-2'
 import Spline from '@splinetool/react-spline'
+import Image from 'next/image'
 
 
 
@@ -1084,34 +1085,49 @@ useEffect(() => {
     <div>
     <SidebarInset>
       {/* Greeting + Total Leads */}
-      <div className="flex pl-4 pb-6">
-        <div className="flex flex-col">
-        <h1 className="text-2xl font-bold">
-          {getGreeting()}, {userName ? userName.split(" ")[0] : "User"}!
-        </h1>
-        {userPosition && (
-          <p className="text-sm text-muted-foreground">
-            {userPosition}
-          </p>
-        )}
+      <div className="flex pl-4 pb-6 items-center gap-3">
+        {/* Icon that switches in dark mode */}
+        <div className="w-10 h-10 relative">
+          {/* Light mode icon */}
+          <Image
+            src="/icons/black.png"
+            alt="Logo"
+            fill
+            className="object-contain block dark:hidden"
+          />
+          {/* Dark mode icon */}
+          <Image
+            src="/icons/white.png"
+            alt="Logo"
+            fill
+            className="object-contain hidden dark:block"
+          />
         </div>
-        
-        
+
+        {/* Text greeting */}
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-bold">
+            {getGreeting()}, {userName ? userName.split(" ")[0] : "User"}!
+          </h1>
+          {userPosition && (
+            <p className="text-sm text-muted-foreground">{userPosition}</p>
+          )}
+        </div>
       </div>
 
       
  
-      
-
-      <div className='flex justify-between'>
+      <Separator className="mb-4" />
 
 
-      <div className="flex space-x-3 space-y-3">
+      <div className="flex justify-between pb-3">
         {/* Month Dropdown */}
+       <div className="flex space-x-3 rounded-2xl p-2 bg-zinc-900 dark:bg-card ">
+        
        
         {selectedInterval === "monthly" && (
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[140px] text-sm">
+            <SelectTrigger className="w-[120px] text-sm bg-card border-0 shadow">
               <SelectValue placeholder="Month" />
             </SelectTrigger>
             <SelectContent>
@@ -1130,7 +1146,7 @@ useEffect(() => {
         {/* Year Dropdown */}
         {selectedInterval !== "annually" && (
           <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
-            <SelectTrigger className="w-[100px] text-sm">
+            <SelectTrigger className="w-[100px] text-sm bg-card border-0 shadow">
               <SelectValue placeholder="Year" />
             </SelectTrigger>
             <SelectContent>
@@ -1145,7 +1161,7 @@ useEffect(() => {
 
         {/* Interval Dropdown */}
         <Select value={selectedInterval} onValueChange={setSelectedInterval}>
-          <SelectTrigger className="w-[120px] text-sm">
+          <SelectTrigger className="w-[120px] text-sm bg-card border-0 shadow">
             <SelectValue placeholder="Interval" />
           </SelectTrigger>
           <SelectContent>
@@ -1155,26 +1171,10 @@ useEffect(() => {
             <SelectItem value="annually">Annually</SelectItem>
           </SelectContent>
         </Select>
-
-
-                 {/* Dynamic Date Header */}
-        <h2 className="text-lg font-medium text-muted-foreground px-1 ">
-          <span className="text-foreground text-3xl font-semibold">{getDateHeaderLabel()}</span>
-        </h2>
-        <Button onClick={handleOpenPrintView} className="bg-transparent cursor-pointer flex items-center gap-2 dark:text-white">
-          <Printer className="w-4 h-4" />
-          Print Report
-        </Button>
-      </div>
-
-     
-    
-      </div>
-      {['weekly', 'quarterly', 'annually'].includes(selectedInterval) && (
-        <div className="pt-4 justify-start">
-          <label className="text-sm mb-1 block">Select Period</label>
+        {['weekly', 'quarterly', 'annually'].includes(selectedInterval) && (
+        <div className=" justify-start">
           <Select value={rangeIndex.toString()} onValueChange={(val) => setRangeIndex(parseInt(val))}>
-            <SelectTrigger className="w-[200px] text-sm">
+            <SelectTrigger className="w-[200px] text-sm bg-card border-0 shadow">
               <SelectValue placeholder="Select Range" />
             </SelectTrigger>
             <SelectContent>
@@ -1185,16 +1185,32 @@ useEffect(() => {
               ))}
             </SelectContent>
           </Select>
-          <div className="text-xs text-muted-foreground pt-1">
-            Showing data for: <strong>{timeLabels[rangeIndex]}</strong>
-          </div>
         </div>
       )}
 
+
+
+                 {/* Dynamic Date Header */}
+        <h2 className="text-lg text-white font-medium px-1 flex items-center">
+          <span className="text-white text-lg font-light">{getDateHeaderLabel()}</span>
+        </h2>
+
+        </div>
+
+        <div className='flex justify-end'>
+          <Button onClick={handleOpenPrintView} className="bg-background cursor-pointer flex items-center gap-2 dark:text-white">
+            <Printer className="w-4 h-4" />
+            Print Report
+          </Button>
+        </div>
+     
+      </div>
+
+     
 <div id="print-section">
       
       {/* CRM Stats Grid */}
-      <div  className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-html2canvas-ignore>
+      <div  className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       {/* <StatCard
             label="Total Leads"
             value={stats.totalLeads.toString()}
@@ -1209,6 +1225,7 @@ useEffect(() => {
                   : `Leads in ${selectedYear}`
                 : `Leads in ${selectedMonth} ${selectedYear}`
             }
+            icon={<Users className="w-4 h-4" />} // ✅ icon here
             value={stats.leadsThisMonth.toString()}
             {...getTrend(stats.leadsThisMonth, stats.leadsLastMonth)}
             subtext={
@@ -1217,9 +1234,9 @@ useEffect(() => {
                 : `New leads: ${selectedMonth} ${selectedYear}`
             }
             chartData={makeSmoothTrendData(
-              leadAreaChartData.map(d => ({
+              leadAreaChartData.map((d) => ({
                 date: d.date,
-                value: Number(d.totalLeads) // ensure it's a number
+                value: Number(d.totalLeads),
               }))
             )}
             className="bg-black dark:bg-white text-white dark:text-black"
@@ -1227,6 +1244,7 @@ useEffect(() => {
 
           <StatCard
             label="In Progress"
+            icon={<Hourglass className="w-4 h-4" />}
             value={stats.totalInProgress.toString()}
             {...getTrend(stats.totalInProgress, stats.inProgressPrev)}
             subtext="Currently active leads"
@@ -1235,7 +1253,8 @@ useEffect(() => {
           />
 
           <StatCard
-            label="Win"
+            label="Won"
+            icon={<Trophy className="w-4 h-4" />}
             value={stats.closedLeads.toString()}
             {...getTrend(stats.closedLeads, stats.closedLeadsPrev)}
             subtext="Closed as won"
@@ -1245,6 +1264,7 @@ useEffect(() => {
 
           <StatCard
             label="Lost"
+            icon={<XCircle className="w-4 h-4" />}
             value={stats.closedLost.toString()}
             {...getTrend(stats.closedLost, stats.closedLostPrev)}
             subtext="Closed as lost"
@@ -1253,28 +1273,20 @@ useEffect(() => {
           />
 
 
-          
-            <Card className="bg-gradient-to-br from-blue-800 to-yellow-500 border-0 text-white rounded-2xl p-6">
-      
-            <div className="text-sm opacity-80">Total Leads</div>
-
-            {/* Main number */}
-            <div className="text-4xl font-bold">
-              <CountUp
-                start={0}
-                end={stats.totalLeads}
-                duration={2}
-                separator=","
-              />
+        <Card className="bg-gradient-to-br from-blue-800 to-yellow-500 border-0 text-white rounded-2xl p-6 h-38 shadow-lg">
+          {/* Icon + Label */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 opacity-80" />
+              <span className="text-sm opacity-80">Total Leads</span>
             </div>
+          </div>
 
-            {/* Subtitle */}
-            <div className="mt-2 flex items-center text-xs">
-              <span className="bg-white/20 px-1.5 py-0.5 rounded-full mr-1">↑ 5</span>
-              Increased from last month
-            </div>
-          </Card>
-
+          {/* Main number */}
+          <div className="text-4xl font-bold">
+            <CountUp start={0} end={stats.totalLeads} duration={2} separator="," />
+          </div>
+        </Card>
         </div>
 
 
