@@ -100,19 +100,31 @@ export function NavUser({
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheck />
-                Account
-              </DropdownMenuItem>
-              {/* <DropdownMenuItem>
-                <CreditCard />
-                Billing
-              </DropdownMenuItem> */}
-              <DropdownMenuItem>
-                <Bell />
-                Notifications
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
+
+
+            <DropdownMenuItem
+              onClick={async () => {
+                const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+                  redirectTo: "http://localhost:3000/reset-password",
+                });
+                if (error) {
+                  console.error("Failed to send reset email:", error.message);
+                  alert("❌ Failed to send reset link.");
+                } else {
+                  alert("✅ A password reset link has been sent to your email.");
+                }
+              }}
+            >
+              <CreditCard />
+              Reset Password
+            </DropdownMenuItem>
+
+            <DropdownMenuItem>
+              <Bell />
+              Notifications
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+
 
             <DropdownMenuSeparator />
 
