@@ -113,7 +113,7 @@ const data = {
         {
           title: "Proposals tracker",
           url: "/proposals-tracker",
-          isActive: pathname === "#",
+          isActive: pathname === "/proposals-tracker",
         },
       ],
     },
