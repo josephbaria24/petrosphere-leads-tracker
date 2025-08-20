@@ -15,6 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Separator } from "@radix-ui/react-separator";
 
 export type Proposal = {
   id: number;
@@ -159,6 +160,8 @@ export default function ProposalTrackerPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Add Proposal Form */}
+        <h2 className="text-2xl font-semibold mb-4">My Proposals</h2>
+        <Separator className="" />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {Object.entries(form).map(([key, value]) => (
           <div key={key} className="space-y-1">
