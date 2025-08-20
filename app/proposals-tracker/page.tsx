@@ -14,8 +14,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@radix-ui/react-separator";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export type Proposal = {
   id: number;
@@ -38,8 +39,9 @@ export default function ProposalTrackerPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [regions, setRegions] = useState<string[]>([]);
   const [services, setServices] = useState<string[]>([]); // store service names
+  const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState({    
     company_organization: "",
     phone: "",
     email: "",
@@ -157,6 +159,10 @@ export default function ProposalTrackerPage() {
     }
   };
 
+  const handleCheckboxChange = (service: string, checked: boolean, isEdit = false) => {
+     if (isEdit && editForm) {
+         const selected = editForm.course_requested ? editForm.course_requested.split(",") 
+         : []; const newSelected = checked ? [...selected, service] : selected.filter((s) => s !== service); setEditForm({ ...editForm, course_requested: newSelected.join(",") }); } else { const selected = form.course_requested ? form.course_requested.split(",") : []; const newSelected = checked ? [...selected, service] : selected.filter((s) => s !== service); setForm({ ...form, course_requested: newSelected.join(",") }); } };
   return (
     <div className="p-6 space-y-6">
       {/* Add Proposal Form */}
@@ -221,20 +227,48 @@ export default function ProposalTrackerPage() {
                 ))}
               </select>
             ) : key === "course_requested" ? (
-              // Services Dropdown
-              <select
-                id={key}
-                name={key}
-                value={value}
-                onChange={handleChange}
-                className="border rounded-md p-2 bg-background max-w-xs"
-              >
-                <option value="">Select a service</option>
-                {services.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            ) : (
+                <>
+                <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Input
+                        id={key}
+                        name={key}
+                        value={value}
+                        placeholder="Select services"
+                        readOnly
+                        className="cursor-pointer"
+                      />
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Select Services</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {services.map((service) => {
+                          const selected = value ? String(value).split(",") : [];
+                          return (
+                            <label key={service} className="flex items-center space-x-2">
+                              <Checkbox
+                                checked={selected.includes(service)}
+                                onCheckedChange={(checked) =>
+                                  handleCheckboxChange(service, !!checked)
+                                }
+                              />
+                              <span>{service}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" onClick={() => setIsCourseDialogOpen(false)}>
+                            Done
+                        </Button>
+                        </DialogFooter>
+
+                    </DialogContent>
+                  </Dialog>
+                </>
+              ) : (
               // Default Input
               <Input
                 id={key}
@@ -327,19 +361,48 @@ export default function ProposalTrackerPage() {
                       ))}
                     </select>
                   ) : key === "course_requested" ? (
-                    // Services Dropdown
-                    <select
-                      id={key}
-                      name={key}
-                      value={value}
-                      onChange={(e) => setEditForm((prev) => prev ? { ...prev, course_requested: e.target.value } : prev)}
-                      className="border rounded-md p-2 bg-background max-w-xs"
-                    >
-                      <option value="">Select a service</option>
-                      {services.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                    <>
+                        <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
+
+                        <DialogTrigger asChild>
+                          <Input
+                            id={key}
+                            name={key}
+                            value={value}
+                            placeholder="Select services"
+                            readOnly
+                            className="cursor-pointer"
+                          />
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Select Services</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {services.map((service) => {
+                              const selected = value ? String(value).split(",") : [];
+                              return (
+                                <label key={service} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    checked={selected.includes(service)}
+                                    onCheckedChange={(checked) =>
+                                      handleCheckboxChange(service, !!checked, true)
+                                    }
+                                  />
+                                  <span>{service}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                          <DialogFooter>
+                            <Button type="button" onClick={() => setIsCourseDialogOpen(false)}>
+                                Done
+                            </Button>
+                            </DialogFooter>
+
+                        </DialogContent>
+                      </Dialog>
+                    </>
                   ) : (
                     <Input
                       id={key}
