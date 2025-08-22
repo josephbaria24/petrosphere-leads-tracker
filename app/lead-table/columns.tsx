@@ -41,7 +41,11 @@ export type Lead = {
 export const getColumns = ({
   capturedByFilter,
   setCapturedByFilter,
+  statusFilter,
+  setStatusFilter,
 }: {
+  statusFilter: string[]
+  setStatusFilter: React.Dispatch<React.SetStateAction<string[]>>
   capturedByFilter: string[]
   setCapturedByFilter: React.Dispatch<React.SetStateAction<string[]>>
 }): ColumnDef<Lead>[] => [
@@ -70,72 +74,99 @@ export const getColumns = ({
   },
   {
     accessorKey: "status",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="p-0 hover:bg-transparent text-left group"
-      >
-        Status
-        <ArrowUpDown className="ml-2 h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-      </Button>
-    ),
+    header: function StatusHeader({ column, table }) {
+      const allRows = table.options.data as Lead[];
+
+      const unique = React.useMemo(() => {
+        const set = new Set<string>();
+        allRows.forEach((row) => set.add(row.status || "(Blanks)"));
+        return Array.from(set).sort();
+      }, [allRows]);
+
+      const [open, setOpen] = React.useState(false);
+      const [tempFilter, setTempFilter] = React.useState<string[]>([]);
+
+      React.useEffect(() => {
+        if (open) setTempFilter(statusFilter);
+      }, [open]);
+
+      return (
+        <div className="flex items-center gap-2">
+          Status
+          <DropdownMenu open={open} onOpenChange={setOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent className="max-h-72 overflow-y-auto p-2 space-y-1">
+              <DropdownMenuCheckboxItem
+                checked={tempFilter.length === 0}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  if (tempFilter.length === 0) {
+                    setTempFilter(unique); 
+                  } else {
+                    setTempFilter([]); 
+                  }
+                }}
+              >
+                Select All
+              </DropdownMenuCheckboxItem>
+
+              {unique.map((value) => (
+                <DropdownMenuCheckboxItem
+                  key={value}
+                  checked={tempFilter.includes(value)}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setTempFilter((prev) =>
+                      prev.includes(value)
+                        ? prev.filter((v) => v !== value)
+                        : [...prev, value]
+                    );
+                  }}
+                >
+                  {value}
+                </DropdownMenuCheckboxItem>
+              ))}
+
+              <div className="pt-2 border-t border-gray-200 flex justify-end">
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    setStatusFilter(tempFilter);
+                    setOpen(false);
+                  }}
+                >
+                  Apply
+                </Button>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <ArrowUpDown
+            className="ml-1 h-4 w-4 text-muted-foreground opacity-50 hover:opacity-100 cursor-pointer"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          />
+        </div>
+      );
+    },
+    enableSorting: true,
     cell: ({ row }) => {
       const status = row.getValue("status") as string
-      const statusMap: Record<
-        string,
-        { label: string; className: string; icon: React.ReactNode }
-      > = {
-        "lead in": {
-          label: "Lead In",
-          className: "bg-gray-500 text-white",
-          icon: <UserPlus className="w-3.5 h-3.5 mr-1.5" />,
-        },
-        "contact made": {
-          label: "Contact Made",
-          className: "bg-blue-600 text-white",
-          icon: <MessageCircle className="w-3.5 h-3.5 mr-1.5" />,
-        },
-        "needs defined": {
-          label: "Needs Defined",
-          className: "bg-yellow-500 text-white",
-          icon: <FileText className="w-3.5 h-3.5 mr-1.5" />,
-        },
-        "proposal sent": {
-          label: "Proposal Sent",
-          className: "bg-purple-600 text-white",
-          icon: <FileText className="w-3.5 h-3.5 mr-1.5" />,
-        },
-        "negotiation started": {
-          label: "Negotiation Started",
-          className: "bg-orange-500 text-white",
-          icon: <Handshake className="w-3.5 h-3.5 mr-1.5" />,
-        },
-        "closed won": {
-          label: "Closed Win",
-          className: "bg-green-600 text-white",
-          icon: <BadgeCheck className="w-3.5 h-3.5 mr-1.5" />,
-        },
-        "closed win": {
-          label: "Closed Win",
-          className: "bg-green-600 text-white",
-          icon: <BadgeCheck className="w-3.5 h-3.5 mr-1.5" />,
-        },
-        "closed lost": {
-          label: "Closed Lost",
-          className: "bg-red-600 text-white",
-          icon: <XCircle className="w-3.5 h-3.5 mr-1.5" />,
-        },
-        "in progress": {
-          label: "In Progress",
-          className: "bg-zinc-800 text-white border border-zinc-700",
-          icon: <Loader className="w-3.5 h-3.5 mr-1.5 animate-spin" />,
-        },
-        "done": {
-          label: "Done",
-          className: "bg-black text-green-400 border border-green-700",
-          icon: <CheckCircle className="w-3.5 h-3.5 mr-1.5 text-green-500" />,
-        },
+      const statusMap: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
+        "lead in": { label: "Lead In", className: "bg-gray-500 text-white", icon: <UserPlus className="w-3.5 h-3.5 mr-1.5" /> },
+        "contact made": { label: "Contact Made", className: "bg-blue-600 text-white", icon: <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> },
+        "needs defined": { label: "Needs Defined", className: "bg-yellow-500 text-white", icon: <FileText className="w-3.5 h-3.5 mr-1.5" /> },
+        "proposal sent": { label: "Proposal Sent", className: "bg-purple-600 text-white", icon: <FileText className="w-3.5 h-3.5 mr-1.5" /> },
+        "negotiation started": { label: "Negotiation Started", className: "bg-orange-500 text-white", icon: <Handshake className="w-3.5 h-3.5 mr-1.5" /> },
+        "closed won": { label: "Closed Win", className: "bg-green-600 text-white", icon: <BadgeCheck className="w-3.5 h-3.5 mr-1.5" /> },
+        "closed win": { label: "Closed Win", className: "bg-green-600 text-white", icon: <BadgeCheck className="w-3.5 h-3.5 mr-1.5" /> },
+        "closed lost": { label: "Closed Lost", className: "bg-red-600 text-white", icon: <XCircle className="w-3.5 h-3.5 mr-1.5" /> },
+        "in progress": { label: "In Progress", className: "bg-zinc-800 text-white border border-zinc-700", icon: <Loader className="w-3.5 h-3.5 mr-1.5 animate-spin" /> },
+        "done": { label: "Done", className: "bg-black text-green-400 border border-green-700", icon: <CheckCircle className="w-3.5 h-3.5 mr-1.5 text-green-500" /> },
       }
 
       const normalized = status?.toLowerCase() || ""
@@ -143,11 +174,7 @@ export const getColumns = ({
 
       return (
         <div className="flex items-center">
-          <span
-            className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full font-medium ${
-              badge?.className || "bg-gray-400 text-white"
-            }`}
-          >
+          <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full font-medium ${badge?.className || "bg-gray-400 text-white"}`}>
             {badge?.icon}
             {badge?.label || status || "—"}
           </span>

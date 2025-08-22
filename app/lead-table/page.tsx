@@ -87,6 +87,9 @@ export default function DataTablePage() {
 
   // 🔐 Redirect if not logged in
   const [isReady, setIsReady] = useState(false)
+
+  // 🧩 Filters
+  const [statusFilter, setStatusFilter] = useState<string[]>([])
   const [capturedByFilter, setCapturedByFilter] = useState<string[]>([])
 
    
@@ -163,17 +166,29 @@ export default function DataTablePage() {
     fetchAllLeads()
   }, [])
 
-  const filteredData = React.useMemo(() => {
-    if (capturedByFilter.length === 0) return data
-    return data.filter((row) =>
-      capturedByFilter.includes(row.captured_by || "(Blanks)")
-    )
-  }, [data, capturedByFilter])
   
+  // 🔽 Apply BOTH filters (status + capturedBy)
+  const filteredData = React.useMemo(() => {
+    let result = data
+
+    if (statusFilter.length > 0) {
+      result = result.filter((row) =>
+        statusFilter.includes(row.status || "(Blanks)")
+      )
+    }
+
+    if (capturedByFilter.length > 0) {
+      result = result.filter((row) =>
+        capturedByFilter.includes(row.captured_by || "(Blanks)")
+      )
+    }
+
+    return result
+  }, [data, statusFilter, capturedByFilter])
 
   const table = useReactTable({
     data: filteredData,
-    columns: getColumns({ capturedByFilter, setCapturedByFilter }),
+    columns: getColumns({ capturedByFilter, setCapturedByFilter, statusFilter, setStatusFilter }),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),

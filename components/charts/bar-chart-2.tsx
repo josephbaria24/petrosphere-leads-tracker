@@ -79,7 +79,7 @@ const statuses: LeadStatus[] = [
 
 const statusColorMap: Record<LeadStatus, string> = {
   'Lead In': '#1e293b',
-  'Contact Made': '#c2410c',
+  'Contact Made': '#06b6d4',
   'Needs Defined': '#991b1b',
   'Proposal Sent': '#a16207',
   'Negotiation Started': '#f79205',
