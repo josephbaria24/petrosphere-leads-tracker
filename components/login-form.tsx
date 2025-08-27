@@ -85,7 +85,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
               </svg>
               Login with Microsoft
             </Button>
-
+{/* 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -135,15 +135,15 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
     </button>
   </div>
-</div>
+</div> */}
 
                 {errorMsg && (
                   <p className="text-sm text-red-500 text-center -mt-2">{errorMsg}</p>
                 )}
-
+{/* 
                 <Button type="submit" className="w-full">
                   Login
-                </Button>
+                </Button> */}
               </div>
 
               {/* <div className="text-center text-sm">
