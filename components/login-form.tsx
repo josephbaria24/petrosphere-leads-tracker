@@ -55,7 +55,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
         redirectTo: process.env.NODE_ENV === 'development'
           ? 'http://localhost:3000/dashboard'
           : 'https://crm.petros-global.com/dashboard',
-        scopes: 'email',
+        scopes: 'openid profile email offline_access User.Read' 
       },
     });
     
