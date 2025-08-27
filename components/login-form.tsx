@@ -48,6 +48,20 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       
   }
 
+  const handleAzureLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'azure',
+      options: {
+        redirectTo: process.env.NODE_ENV === 'development'
+          ? 'http://localhost:3000/dashboard'
+          : 'https://crm.petros-global.com/dashboard',
+        scopes: 'email',
+      },
+    });
+    
+  }
+  
+  
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
@@ -61,11 +75,27 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
         <CardContent>
           <form onSubmit={handleSubmit}>
             <div className="grid gap-6">
-              {/* <div className="flex flex-col gap-4">
-                <Button variant="outline" className="w-full" type="button">
-                  Login with Google
-                </Button>
-              </div> */}
+            <div className="flex flex-col gap-4">
+            <Button variant="outline" className="w-full flex items-center gap-2 cursor-pointer" type="button" onClick={handleAzureLogin}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" width="20" height="20">
+                <path fill="#F25022" d="M1 1h10v10H1z" />
+                <path fill="#7FBA00" d="M12 1h10v10H12z" />
+                <path fill="#00A4EF" d="M1 12h10v10H1z" />
+                <path fill="#FFB900" d="M12 12h10v10H12z" />
+              </svg>
+              Login with Microsoft
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">or continue with email</span>
+              </div>
+            </div>
+          </div>
+
 
               
 
