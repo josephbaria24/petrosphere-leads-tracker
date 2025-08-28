@@ -6,8 +6,8 @@ export const runtime = "nodejs"        // use Node runtime
 export const dynamic = "force-dynamic" // don't cache session for this route
 
 export async function GET() {
-  // The helper takes care of cookies (both reading & writing)
-  const supabase = createRouteHandlerClient({ cookies })
+  const supabase = createRouteHandlerClient({ cookies: () => Promise.resolve(cookies()) })
+
 
   const { data, error } = await supabase.auth.getSession()
   if (error) return new NextResponse("Session error", { status: 401 })
@@ -24,7 +24,6 @@ export async function GET() {
     return new NextResponse("No photo", { status: res.status })
   }
 
-  // Node runtime: you can safely use Buffer, but arrayBuffer also works
   const arrayBuf = await res.arrayBuffer()
   return new NextResponse(arrayBuf, {
     status: 200,

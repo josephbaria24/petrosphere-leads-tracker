@@ -2,25 +2,35 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Proposal } from "./page";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
 export function getProposalColumns(
-  onEdit: (proposal: Proposal) => void
+  onEdit: (proposal: Proposal) => void,
+  onDelete: (proposal: Proposal) => void
 ): ColumnDef<Proposal>[] {
   return [
     {
-      id: "edit",
+      id: "actions",
       header: "",
       cell: ({ row }) => {
         const proposal = row.original;
         return (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onEdit(proposal)}
-          >
-            <Pencil className="w-4 h-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onEdit(proposal)}
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(proposal)}
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+            </Button>
+          </div>
         );
       },
       enableSorting: false,

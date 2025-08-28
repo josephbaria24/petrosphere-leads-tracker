@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect  } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -21,9 +21,54 @@ import { Check, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import EditLeadModal from '@/components/EditLeadModal'
 
+// Optimized debounce hook with ref
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+
+  useEffect(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
+
+const INITIAL_FORM_STATE = {
+  contact_name: '',
+  email: '',
+  phone: '',
+  mobile: '',
+  company: '',
+  address: '',
+  region: '',
+  service_product: '',
+  mode_of_service: '',
+  service_price: 0,
+  lead_source: '',
+  notes: '',
+  status: '',
+  captured_by: '',
+  first_contact: null,
+  last_contact: null,
+}
+
+const CAPTURED_BY_OPTIONS = ['Ross', 'Randy', 'Michelle', 'Harthwell', 'Sergs', 'Krezel', 'Carmela', 'Other']
+const SERVICE_MODES = ['Face to Face', 'E-learning', 'Online']
 
 export default function AddNewLeadPage() {
-  
   const router = useRouter()
   const session = useSession()
 
@@ -34,223 +79,227 @@ export default function AddNewLeadPage() {
   const [servicePrices, setServicePrices] = useState<Record<string, number>>({})
   const [editingDropdown, setEditingDropdown] = useState<string | null>(null)
   const [isRegionOpen, setIsRegionOpen] = useState(false)
-
-
+  const [isLeadSourceOpen, setIsLeadSourceOpen] = useState(false)
   const [duplicateLead, setDuplicateLead] = useState<any>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const checkDuplicateLead = async (name: string, email: string) => {
-    if (!name || !email) return
-  
-    const { data, error } = await supabase
-      .from("crm_leads")
-      .select("*")
-      .ilike("contact_name", name.trim())
-      .ilike("email", email.trim())
-      .limit(1)
-  
-    if (error) {
-      toast.error("Error checking duplicates", { description: error.message })
-      return
-    }
-  
-    if (data && data.length > 0) {
-      setDuplicateLead(data[0])
-      toast.warning("Lead already exists", {
-        description: `This lead exists in the database.`,
-      })
-      setIsEditModalOpen(true)
-    } else {
-      setDuplicateLead(null)
-    }
-  }
-  
-
-
-  const [serviceDetails, setServiceDetails] = useState<
-  {
-      name: string
-      mode: string
-      price: number
-    }[]
-  >([])
-
+  const [serviceDetails, setServiceDetails] = useState<Array<{ name: string; mode: string; price: number }>>([])
   const [serviceSearch, setServiceSearch] = useState('')
-
-
-  const [form, setForm] = useState({
-    contact_name: '',
-    email: '',
-    phone: '',
-    mobile: '',
-    company: '',
-    address: '',
-    region: '',
-    service_product: '',
-    mode_of_service: '',
-    service_price: 0,
-    lead_source: '',
-    notes: '',
-    status: '',
-    captured_by: '',
-    first_contact: null,
-    last_contact: null,
-  })
-
-  const handleChange = (field: string, value: string | number) => {
-    setForm(prev => ({ ...prev, [field]: value }))
-  }
+  const [form, setForm] = useState(INITIAL_FORM_STATE)
   
+  // Use refs to avoid re-renders on intermediate values
+  const duplicateCheckTimeoutRef = useRef<NodeJS.Timeout| null>(null)
+  
+  // Only debounce service search, not form fields for instant feedback
+  const debouncedServiceSearch = useDebounce(serviceSearch, 200)
 
-  const validateForm = () => {
+  // Memoized filtered services
+  const filteredServices = useMemo(() => {
+    if (!debouncedServiceSearch) return Object.keys(servicePrices)
+    const search = debouncedServiceSearch.toLowerCase()
+    return Object.keys(servicePrices).filter(service =>
+      service.toLowerCase().includes(search)
+    )
+  }, [servicePrices, debouncedServiceSearch])
+
+  // Memoized total price
+  const totalServicePrice = useMemo(() => 
+    serviceDetails.reduce((sum, s) => sum + s.price, 0), 
+    [serviceDetails]
+  )
+
+  // Optimized form handler that doesn't recreate on every render
+  const handleChange = useCallback((field: string, value: string | number) => {
+    setForm(prev => {
+      if (prev[field as keyof typeof prev] === value) return prev // Prevent unnecessary updates
+      return { ...prev, [field]: value }
+    })
+  }, [])
+
+  // Optimized duplicate check with manual debouncing
+  const checkDuplicateLeadAsync = useCallback(async (name: string, email: string) => {
+    if (!name.trim() || !email.trim()) return
+
+    try {
+      const { data, error } = await supabase
+        .from("crm_leads")
+        .select("*")
+        .ilike("contact_name", name.trim())
+        .ilike("email", email.trim())
+        .limit(1)
+
+      if (error) {
+        console.warn("Duplicate check error:", error.message)
+        return
+      }
+
+      if (data && data.length > 0) {
+        setDuplicateLead(data[0])
+        toast.warning("Lead already exists", {
+          description: `This lead exists in the database.`,
+        })
+        setIsEditModalOpen(true)
+      } else {
+        setDuplicateLead(null)
+      }
+    } catch (err) {
+      console.warn("Duplicate check failed:", err)
+    }
+  }, [])
+
+  // Manual debounced duplicate check to avoid useEffect dependencies
+  const checkDuplicateLead = useCallback((name: string, email: string) => {
+    if (duplicateCheckTimeoutRef.current) {
+      clearTimeout(duplicateCheckTimeoutRef.current)
+    }
+    
+    duplicateCheckTimeoutRef.current = setTimeout(() => {
+      checkDuplicateLeadAsync(name, email)
+    }, 800)
+  }, [checkDuplicateLeadAsync])
+
+  // Optimized service handlers
+  const handleServiceToggle = useCallback((service: string, checked: boolean) => {
+    setServiceDetails(prev => {
+      if (checked) {
+        return [...prev, { name: service, mode: '', price: 0 }]
+      } else {
+        return prev.filter(s => s.name !== service)
+      }
+    })
+  }, [])
+
+  const handleServiceModeChange = useCallback((service: string, mode: string) => {
+    setServiceDetails(prev => 
+      prev.map(s => s.name === service ? { ...s, mode } : s)
+    )
+  }, [])
+
+  const handleServicePriceChange = useCallback((service: string, price: number) => {
+    setServiceDetails(prev => 
+      prev.map(s => s.name === service ? { ...s, price } : s)
+    )
+  }, [])
+
+  const validateForm = useCallback(() => {
     const requiredFields = [
       'contact_name', 'email', 'phone', 'mobile', 'company', 'address',
       'region', 'lead_source', 'status', 'captured_by', 'first_contact', 'last_contact'
     ]
-  
+
     for (const field of requiredFields) {
       if (!form[field as keyof typeof form]) {
         toast.error('Missing Required Field', {
-          description: `Please fill out or select: ${field.replace(/_/g, ' ')}`,
+          description: `Please fill out: ${field.replace(/_/g, ' ')}`,
         })
         return false
       }
     }
-  
-    const hasIncompleteServices = serviceDetails.some(s => !s.mode || !s.price)
-    if (serviceDetails.length === 0 || hasIncompleteServices) {
+
+    if (serviceDetails.length === 0 || serviceDetails.some(s => !s.mode || !s.price)) {
       toast.error('Incomplete Service Info', {
         description: 'Please select at least one service with mode and price.',
       })
       return false
     }
-  
+
     return true
-  }
-  
-  const [isLeadSourceOpen, setIsLeadSourceOpen] = useState(false)
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-  
-    const fullCompany = `${form.company} - ${form.address}`.trim();
-    const selectedNames = serviceDetails.map((s) => s.name).join(', ');
-    const totalPrice = serviceDetails.reduce((sum, s) => sum + s.price, 0);
-    const allModes = serviceDetails.map((s) => s.mode).filter(Boolean).join(', ');
-    const firstName = form.captured_by?.split(' ')[0] || form.captured_by;
-    
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-  
-    let fullName = 'Unknown';
-  
-    if (user && !userError) {
-      const { data: profile, error: profileError } = await supabase
+  }, [form, serviceDetails])
+
+  const handleSubmit = useCallback(async () => {
+    if (!validateForm()) return
+
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (!user || userError) {
+        toast.error("User session error")
+        return
+      }
+
+      const { data: profile } = await supabase
         .from('public_profiles')
         .select('full_name')
         .eq('id', user.id)
-        .single();
-  
-      if (profile && !profileError) {
-        fullName = profile.full_name;
-      }
-    }
-  
-    const { error } = await supabase.from('crm_leads').insert([
-      {
+        .single()
+
+      const fullCompany = `${form.company} - ${form.address}`.trim()
+      const selectedNames = serviceDetails.map(s => s.name).join(', ')
+      const totalPrice = totalServicePrice
+      const allModes = serviceDetails.map(s => s.mode).filter(Boolean).join(', ')
+      const firstName = form.captured_by?.split(' ')[0] || form.captured_by
+
+      const { error } = await supabase.from('crm_leads').insert([{
         ...form,
         captured_by: firstName,
         company: fullCompany,
         service_product: selectedNames,
         service_price: totalPrice,
         mode_of_service: allModes,
-      },
-    ]);
-  
-    if (error) {
-      toast.error('Submission Failed', {
-        description: error.message || 'Could not save lead. Please try again.',
-      });
-    } else {
-      toast.success('Lead Submitted', {
-        description: 'The new lead has been successfully added.',
-      });
-  
-      // Reset form
-      setForm({
-        contact_name: '',
-        email: '',
-        phone: '',
-        mobile: '',
-        company: '',
-        address: '',
-        region: '',
-        service_product: '',
-        mode_of_service: '',
-        service_price: 0,
-        lead_source: '',
-        notes: '',
-        status: '',
-        captured_by: '',
-        first_contact: null,
-        last_contact: null,
-      });
-  
-      // Insert activity log
-      await supabase.from('activity_logs').insert({
-        user_name: fullName,
-        action: 'added',
-        entity_type: 'lead',
-      });
+        user_id: user.id,
+      }])
+
+      if (error) {
+        toast.error('Submission Failed', { description: error.message })
+        return
+      }
+
+      toast.success('Lead Submitted')
+      setForm(INITIAL_FORM_STATE)
+      setServiceDetails([])
+
+      // Log activity
+      if (profile?.full_name) {
+        supabase.from('activity_logs').insert({
+          user_name: profile.full_name,
+          action: 'added',
+          entity_type: 'lead',
+        })
+      }
+    } catch (err) {
+      toast.error('Submission Failed')
     }
-  };
-  
+  }, [form, serviceDetails, totalServicePrice, validateForm])
 
+  const fetchTable = useCallback(async (table: 'regions' | 'lead_sources' | 'lead_statuses') => {
+    try {
+      const { data, error } = await supabase.from(table).select('name')
+      if (error) throw error
 
-
-  const fetchTable = async (table: 'regions' | 'lead_sources' | 'lead_statuses') => {
-    const { data, error } = await supabase.from(table).select('name')
-    if (error) {
-      toast.error(`Failed to fetch ${table}`, { description: error.message })
-      return
+      const names = data.map(d => d.name)
+      if (table === 'regions') setRegions(names)
+      else if (table === 'lead_sources') setLeadSources(names)
+      else if (table === 'lead_statuses') setLeadStatuses(names)
+    } catch (err) {
+      console.warn(`Failed to fetch ${table}:`, err)
     }
-  
-    const names = data.map((d) => d.name)
-    if (table === 'regions') setRegions(names)
-    else if (table === 'lead_sources') setLeadSources(names)
-    else if (table === 'lead_statuses') setLeadStatuses(names)
-  }
+  }, [])
 
-
-
+  // Initial data fetch
   useEffect(() => {
-    const fetchOptions = async () => {
-      await Promise.all([
+    const initializeData = async () => {
+      const [regionsP, sourcesP, statusesP] = await Promise.allSettled([
         fetchTable('regions'),
         fetchTable('lead_sources'),
         fetchTable('lead_statuses'),
       ])
-  
-      const { data: services, error: serviceError } = await supabase.from('services').select('*')
-      if (serviceError) {
-        toast.error('Failed to fetch services', { description: serviceError.message })
-        return
-      }
-  
-      setServicePrices(
-        services?.reduce((acc, cur) => {
-          acc[cur.name] = cur.price
-          return acc
-        }, {} as Record<string, number>) || {}
-      )
-    }
-  
-    fetchOptions()
-  }, [])
-  
 
-   // 🔐 Redirect if not logged in
-   useEffect(() => {
+      try {
+        const { data: services } = await supabase.from('services').select('*')
+        if (services) {
+          setServicePrices(
+            services.reduce((acc, cur) => ({ ...acc, [cur.name]: cur.price }), {})
+          )
+        }
+      } catch (err) {
+        console.warn('Failed to fetch services:', err)
+      }
+    }
+
+    initializeData()
+  }, [fetchTable])
+
+  // Auth check
+  useEffect(() => {
     if (session === null) {
       router.replace('/login')
     } else if (session) {
@@ -259,12 +308,11 @@ export default function AddNewLeadPage() {
   }, [session, router])
 
   if (!isReady) {
-    return <div className="p-10 text-center">Loading...</div> // Optional spinner
+    return <div className="p-10 text-center">Loading...</div>
   }
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Topbar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4 pl-10">
           <Breadcrumb>
@@ -281,32 +329,37 @@ export default function AddNewLeadPage() {
         </div>
       </div>
       <Separator className="my-4" />
+      
       <Card>
         <CardHeader>
           <CardTitle>Add New Lead</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Duplicate lead edit modal */}
-{duplicateLead && (
-  <EditLeadModal
-    isOpen={isEditModalOpen}
-    onClose={() => setIsEditModalOpen(false)}
-    onSave={async (updated) => {
-      const { error } = await supabase
-        .from("crm_leads")
-        .update(updated)
-        .eq("id", duplicateLead.id)
+          {duplicateLead && (
+            <EditLeadModal
+              isOpen={isEditModalOpen}
+              onClose={() => setIsEditModalOpen(false)}
+              onSave={async (updated) => {
+                try {
+                  const { error } = await supabase
+                    .from("crm_leads")
+                    .update(updated)
+                    .eq("id", duplicateLead.id)
 
-      if (error) {
-        toast.error("Update failed", { description: error.message })
-      } else {
-        toast.success("Lead updated successfully")
-      }
-    }}
-    lead={duplicateLead}
-    currentUserName={form.captured_by || "Unknown"}
-  />
-)}
+                  if (error) {
+                    toast.error("Update failed")
+                  } else {
+                    toast.success("Lead updated successfully")
+                  }
+                } catch {
+                  toast.error("Update failed")
+                }
+              }}
+              lead={duplicateLead}
+              currentUserName={form.captured_by || "Unknown"}
+            />
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="contact_name">Contact Name</Label>
@@ -329,65 +382,69 @@ export default function AddNewLeadPage() {
             </div>
             <div>
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} />
+              <Input 
+                id="phone" 
+                value={form.phone} 
+                onChange={(e) => handleChange('phone', e.target.value)} 
+              />
             </div>
             <div>
               <Label htmlFor="mobile">Mobile</Label>
-              <Input id="mobile" value={form.mobile} onChange={(e) => handleChange('mobile', e.target.value)} />
+              <Input 
+                id="mobile" 
+                value={form.mobile} 
+                onChange={(e) => handleChange('mobile', e.target.value)} 
+              />
             </div>
             <div>
               <Label htmlFor="company">Company</Label>
-              <Input id="company" value={form.company} onChange={(e) => handleChange('company', e.target.value)} />
+              <Input 
+                id="company" 
+                value={form.company} 
+                onChange={(e) => handleChange('company', e.target.value)} 
+              />
             </div>
             <div>
-                <Label htmlFor="address">Company Address</Label>
-                <Input
-                    id="address"
-                    value={form.address}
-                    onChange={(e) => handleChange('address', e.target.value)}
-                />
-                </div>
+              <Label htmlFor="address">Company Address</Label>
+              <Input
+                id="address"
+                value={form.address}
+                onChange={(e) => handleChange('address', e.target.value)}
+              />
+            </div>
 
-            {/* Region dropdown */}
             <div>
-            <Label htmlFor="region">Region</Label>
-              <div className="relative">
+              <Label htmlFor="region">Region</Label>
               <Select
-                  open={isRegionOpen}
-                  onOpenChange={setIsRegionOpen}
-                  onValueChange={(val) => handleChange('region', val)}
-                >
-                  <SelectTrigger id="region">
-                    <SelectValue placeholder="Select region" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* Edit Icon */}
-                    <div className="flex justify-end p-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setIsRegionOpen(false)
-                          setEditingDropdown('regions')
-                        }}
-                        className="text-xs text-blue-500 hover:underline"
-                      >
-                        ✎ Edit
-                      </button>
-                    </div>
-
-                    {/* Dropdown Items */}
-                    {regions.map((region) => (
-                      <SelectItem key={region} value={region}>
-                        {region}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
+                open={isRegionOpen}
+                onOpenChange={setIsRegionOpen}
+                onValueChange={(val) => handleChange('region', val)}
+              >
+                <SelectTrigger id="region">
+                  <SelectValue placeholder="Select region" />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="flex justify-end p-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setIsRegionOpen(false)
+                        setEditingDropdown('regions')
+                      }}
+                      className="text-xs text-blue-500 hover:underline"
+                    >
+                      ✎ Edit
+                    </button>
+                  </div>
+                  {regions.map((region) => (
+                    <SelectItem key={region} value={region}>
+                      {region}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
            
-            {/* Lead Source dropdown */}
             <div className="w-full">
               <Label htmlFor="lead_source">Lead Source</Label>
               <Popover open={isLeadSourceOpen} onOpenChange={setIsLeadSourceOpen}>
@@ -395,8 +452,6 @@ export default function AddNewLeadPage() {
                   <button
                     id="lead_source"
                     role="combobox"
-                    aria-controls="dropdown-id"
-                    aria-expanded={isLeadSourceOpen}
                     className="w-full p-2 border rounded-md text-left flex items-center justify-between"
                   >
                     <span>{form.lead_source || "Select source"}</span>
@@ -408,7 +463,7 @@ export default function AddNewLeadPage() {
                     <CommandInput placeholder="Search lead source..." />
                     <CommandEmpty>No source found.</CommandEmpty>
                     <CommandGroup className="max-h-[200px] overflow-y-auto">
-                      {[...new Set(leadSources)].map((source) => (
+                      {leadSources.map((source) => (
                         <CommandItem
                           key={source}
                           value={source}
@@ -429,76 +484,72 @@ export default function AddNewLeadPage() {
               </Popover>
             </div>
 
-
-            {/* first and last contact */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            <div className="grid grid-cols-2 gap-4 col-span-full">
+              <div>
                 <Label htmlFor="first_contact">First Contact</Label>
                 <DatePicker
-            value={form.first_contact ? new Date(form.first_contact) : undefined}
-            onChange={(date) => handleChange('first_contact', date?.toISOString() || '')}
-            />
-
-            </div>
-            <div>
+                  value={form.first_contact ? new Date(form.first_contact) : undefined}
+                  onChange={(date) => handleChange('first_contact', date?.toISOString() || '')}
+                />
+              </div>
+              <div>
                 <Label htmlFor="last_contact">Last Contact</Label>
                 <DatePicker
-            value={form.last_contact ? new Date(form.last_contact) : undefined}
-            onChange={(date) => handleChange('last_contact', date?.toISOString() || '')}
-            />
-            </div>
+                  value={form.last_contact ? new Date(form.last_contact) : undefined}
+                  onChange={(date) => handleChange('last_contact', date?.toISOString() || '')}
+                />
+              </div>
             </div>
 
-                        {/* Status dropdown */}
-            <div >
+            <div>
               <Label htmlFor="status">Status</Label>
-              <Select onValueChange={(val) => handleChange('status', val) }>
-                <SelectTrigger className='cursor-pointer' id="status">
+              <Select onValueChange={(val) => handleChange('status', val)}>
+                <SelectTrigger id="status">
                   <SelectValue placeholder="Select stage" />
                 </SelectTrigger>
                 <SelectContent>
-                {leadStatuses.map(stage => (
+                  {leadStatuses.map(stage => (
                     <SelectItem key={stage} value={stage}>{stage}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-          {/* Captured by */}
+          
           <div>
             <Label htmlFor="captured_by">Captured By</Label>
             <div className="space-y-1">
-                <Select onValueChange={(val) => handleChange('captured_by', val)}>
-                <SelectTrigger className='cursor-pointer' id="captured_by">
-                    <SelectValue placeholder="Select user or type below" />
+              <Select onValueChange={(val) => handleChange('captured_by', val)}>
+                <SelectTrigger id="captured_by">
+                  <SelectValue placeholder="Select user or type below" />
                 </SelectTrigger>
                 <SelectContent>
-                    {['Ross','Randy', 'Michelle', 'Harthwell','Sergs', 'Krezel', 'Carmela','Other'].map(person => (
+                  {CAPTURED_BY_OPTIONS.map(person => (
                     <SelectItem key={person} value={person}>
-                        {person}
+                      {person}
                     </SelectItem>
-                    ))}
+                  ))}
                 </SelectContent>
-                </Select>
-                <Input
+              </Select>
+              <Input
                 placeholder="Or manually enter name"
                 value={form.captured_by}
                 onChange={(e) => handleChange('captured_by', e.target.value)}
-                />
+              />
             </div>
-            </div>
+          </div>
 
-          {/* Notes */}
           <div>
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" value={form.notes} onChange={(e) => handleChange('notes', e.target.value)} />
+            <Textarea 
+              id="notes" 
+              value={form.notes} 
+              onChange={(e) => handleChange('notes', e.target.value)} 
+            />
           </div>
           
-             {/* Service dropdown */}
-             <div>
-             <Label htmlFor="service_product">Service/Product</Label>
-
-            {/* Search Bar */}
+          <div>
+            <Label htmlFor="service_product">Service/Product</Label>
             <div className="mb-2">
               <Input
                 type="text"
@@ -508,86 +559,47 @@ export default function AddNewLeadPage() {
               />
             </div>
 
-            {/* Filtered Services List */}
-<div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto border p-2 rounded-md">
+            <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto border p-2 rounded-md">
+              {filteredServices.map((service) => {
+                const selected = serviceDetails.find((s) => s.name === service)
+                return (
+                  <div key={service} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center border-b pb-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={!!selected}
+                        onChange={(e) => handleServiceToggle(service, e.target.checked)}
+                      />
+                      <span>{service}</span>
+                    </label>
 
-          {Object.keys(servicePrices)
-            .filter(service =>
-              service.toLowerCase().includes(serviceSearch.toLowerCase())
-            )
-            .map((service) => {
-              const selected = serviceDetails.find((s) => s.name === service)
+                    <Select
+                      value={selected?.mode || ''}
+                      onValueChange={(value) => handleServiceModeChange(service, value)}
+                      disabled={!selected}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Mode of Service" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SERVICE_MODES.map(mode => (
+                          <SelectItem key={mode} value={mode}>{mode}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-              return (
-                <div
-                  key={service}
-                  className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center border-b pb-2"
-                >
-                  {/* Checkbox + name */}
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={!!selected}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setServiceDetails((prev) => [
-                            ...prev,
-                            { name: service, mode: '', price: 0 },
-                          ])
-                        } else {
-                          setServiceDetails((prev) =>
-                            prev.filter((s) => s.name !== service)
-                          )
-                        }
-                      }}
+                    <Input
+                      type="number"
+                      placeholder="₱0.00"
+                      value={selected?.price || ''}
+                      onChange={(e) => handleServicePriceChange(service, Number(e.target.value))}
+                      disabled={!selected}
                     />
-                    <span>{service}</span>
-                  </label>
+                  </div>
+                )
+              })}
+            </div>
 
-                  {/* Mode of Service Dropdown */}
-                  <Select
-                    value={selected?.mode || ''}
-                    onValueChange={(value) => {
-                      setServiceDetails((prev) =>
-                        prev.map((s) =>
-                          s.name === service ? { ...s, mode: value } : s
-                        )
-                      )
-                    }}
-                    disabled={!selected}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Mode of Service" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Face to Face">Face to Face</SelectItem>
-                      <SelectItem value="E-learning">E-learning</SelectItem>
-                      <SelectItem value="Online">Online</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                {/* Price Input */}
-                <Input
-                  type="number"
-                  placeholder="₱0.00"
-                  value={selected?.price || ''}
-                  onChange={(e) => {
-                    setServiceDetails((prev) =>
-                      prev.map((s) =>
-                        s.name === service
-                          ? { ...s, price: Number(e.target.value) }
-                          : s
-                      )
-                    )
-                  }}
-                  disabled={!selected}
-                />
-              </div>
-            )
-          })}
-        </div>
-
-            {/* Summary Output */}
             {serviceDetails.length > 0 && (
               <div className="text-sm text-muted-foreground mt-2 space-y-1">
                 <strong>Selected:</strong>
@@ -599,113 +611,82 @@ export default function AddNewLeadPage() {
                   ))}
                 </ul>
                 <p>
-                  <strong>Total Price:</strong> ₱
-                  {serviceDetails.reduce((sum, s) => sum + s.price, 0).toFixed(2)}
+                  <strong>Total Price:</strong> ₱{totalServicePrice.toFixed(2)}
                 </p>
               </div>
             )}
           </div>
 
-
-          {/* Submit */}
-          <Button onClick={handleSubmit} className='cursor-pointer'>Submit Lead</Button>
+          <Button onClick={handleSubmit}>Submit Lead</Button>
         </CardContent>
       </Card>
 
-
-      {/* Editing dropdown */}
       {editingDropdown && (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md relative overflow-hidden">
-            {/* Top Close Button */}
-
-            <div className="max-h-[90vh] overflow-y-auto p-6 pt-10">
-              
-           
             <button
               onClick={() => setEditingDropdown(null)}
               className="absolute top-2 right-2 text-gray-600 hover:text-black text-lg"
-              aria-label="Close modal"
             >
               ✕
             </button>
-
-            {/* Modal Content */}
-            <div className="p-6 pt-10"> {/* Extra top padding for close button */}
-            <EditListModal
-              title={
-                editingDropdown === 'regions'
-                  ? 'Regions'
-                  : editingDropdown === 'leadSources'
-                  ? 'Lead Sources'
-                  : 'Lead Statuses'
-              }
-              values={
-                editingDropdown === 'regions'
-                  ? regions
-                  : editingDropdown === 'leadSources'
-                  ? leadSources
-                  : leadStatuses
-              }
-              onAdd={async (val) => {
-                if (!val) return
-                const table =
-                  editingDropdown === 'regions'
-                    ? 'regions'
-                    : editingDropdown === 'leadSources'
-                    ? 'lead_sources'
-                    : 'lead_statuses'
-
-                const { error } = await supabase.from(table).insert({ name: val })
-                if (error) {
-                  toast.error('Add failed', { description: error.message })
-                } else {
-                  await fetchTable(table)
-                  toast.success('Added successfully')
+            <div className="max-h-[90vh] overflow-y-auto p-6 pt-10">
+              <EditListModal
+                title={
+                  editingDropdown === 'regions' ? 'Regions' :
+                  editingDropdown === 'leadSources' ? 'Lead Sources' : 'Lead Statuses'
                 }
-              }}
-              onEdit={async (oldVal, newVal) => {
-                if (!newVal) return
-                const table =
-                  editingDropdown === 'regions'
-                    ? 'regions'
-                    : editingDropdown === 'leadSources'
-                    ? 'lead_sources'
-                    : 'lead_statuses'
-
-                const { error } = await supabase.from(table).update({ name: newVal }).eq('name', oldVal)
-                if (error) {
-                  toast.error('Update failed', { description: error.message })
-                } else {
-                  await fetchTable(table)
-                  toast.success('Updated successfully')
+                values={
+                  editingDropdown === 'regions' ? regions :
+                  editingDropdown === 'leadSources' ? leadSources : leadStatuses
                 }
-              }}
-              onDelete={async (val) => {
-                const table =
-                  editingDropdown === 'regions'
-                    ? 'regions'
-                    : editingDropdown === 'leadSources'
-                    ? 'lead_sources'
-                    : 'lead_statuses'
+                onAdd={async (val) => {
+                  if (!val) return
+                  const table = 
+                    editingDropdown === 'regions' ? 'regions' :
+                    editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
 
-                const { error } = await supabase.from(table).delete().eq('name', val)
-                if (error) {
-                  toast.error('Delete failed', { description: error.message })
-                } else {
-                  await fetchTable(table)
-                  toast.success('Deleted successfully')
-                }
-              }}
-              onSave={() => setEditingDropdown(null)}
-            />
+                  const { error } = await supabase.from(table).insert({ name: val })
+                  if (error) {
+                    toast.error('Add failed')
+                  } else {
+                    await fetchTable(table)
+                    toast.success('Added successfully')
+                  }
+                }}
+                onEdit={async (oldVal, newVal) => {
+                  if (!newVal) return
+                  const table = 
+                    editingDropdown === 'regions' ? 'regions' :
+                    editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
 
-               </div>
+                  const { error } = await supabase.from(table).update({ name: newVal }).eq('name', oldVal)
+                  if (error) {
+                    toast.error('Update failed')
+                  } else {
+                    await fetchTable(table)
+                    toast.success('Updated successfully')
+                  }
+                }}
+                onDelete={async (val) => {
+                  const table = 
+                    editingDropdown === 'regions' ? 'regions' :
+                    editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
+
+                  const { error } = await supabase.from(table).delete().eq('name', val)
+                  if (error) {
+                    toast.error('Delete failed')
+                  } else {
+                    await fetchTable(table)
+                    toast.success('Deleted successfully')
+                  }
+                }}
+                onSave={() => setEditingDropdown(null)}
+              />
             </div>
           </div>
         </div>
       )}
-
     </div>
   )
 }
