@@ -1,8 +1,9 @@
+//app\api\send-weekly-reports\route.ts
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { sendEmail } from '@/lib/sendEmail';
-import { PDFDocument, PDFFont, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
 
@@ -113,7 +114,7 @@ if (smError) throw smError;
 
     // Create PDF
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([595.28, 841.89]);
+    let page = pdfDoc.addPage([595.28, 841.89]);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
@@ -157,13 +158,37 @@ if (smError) throw smError;
     };
     const drawTable = (rows: Array<[string, string | number]>) => {
       const col1X = 60;
-      const col2X = 350;
+      const col2XRightEdge = 545; // right side of the page
       rows.forEach(([label, value]) => {
+        const check = ensurePageSpace(page, y, pdfDoc);
+        page = check.page;
+        y = check.y;
+    
+        // Draw label
         page.drawText(label, { x: col1X, y, size: 11, font });
-        page.drawText(String(value), { x: col2X, y, size: 11, font });
+    
+        // Right-align value
+        const valueStr = String(value);
+        const valueWidth = font.widthOfTextAtSize(valueStr, 11);
+        page.drawText(valueStr, { x: col2XRightEdge - valueWidth - 10, y, size: 11, font });
+    
         y -= tableLineHeight;
       });
       y -= 8;
+    };
+    
+    const ensurePageSpace = (
+      currentPage: PDFPage,
+      currentY: number,
+      pdfDoc: PDFDocument,
+      resetY = 800,
+      heightNeeded = 60
+    ): { page: PDFPage; y: number } => {
+      if (currentY < heightNeeded) {
+        const newPage = pdfDoc.addPage([595.28, 841.89]);
+        return { page: newPage, y: resetY };
+      }
+      return { page: currentPage, y: currentY };
     };
 
     // Summary sections
@@ -185,7 +210,7 @@ if (smError) throw smError;
     page.drawText('Page 1', { x: 545, y: 35, size: 9, font, color: rgb(0.5, 0.5, 0.5) });
 
     // Page 2 - Webinar Summary
-    const webinarPage = pdfDoc.addPage([595.28, 841.89]);
+    let webinarPage = pdfDoc.addPage([595.28, 841.89]);
     let wy = 800;
     webinarPage.drawText(`Webinar Summary for ${reportMonth} ${reportYear}`, {
       x: 50,
@@ -247,10 +272,13 @@ const drawWrappedTableRow = (
   yStart: number
 ) => {
   const lineHeight = tableLineHeight;
-  let y = yStart;
-
-  // Draw label (single line)
+  let check = ensurePageSpace(webinarPage, yStart, pdfDoc);
+  webinarPage = check.page;
+  let y = check.y;
+  
   webinarPage.drawText(label, { x: col1X, y, size, font });
+  // ...
+  
 
   // Wrap the value text
   const words = String(value).split(' ');
