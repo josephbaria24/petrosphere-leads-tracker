@@ -398,25 +398,25 @@ export default function DataTablePage() {
           </Button>
         </div>
         {selectedIds.length > 0 && (
-  <AlertDialog>
-    <AlertDialogTrigger asChild>
-      <Button variant="destructive" size="sm">
-        Delete Selected
-      </Button>
-    </AlertDialogTrigger>
-    <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>Action Restricted</AlertDialogTitle>
-        <AlertDialogDescription>
-          Deleting leads is restricted. Please contact your IT administrator if you need to remove an entry.
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <AlertDialogFooter>
-        <AlertDialogCancel>Close</AlertDialogCancel>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
-)}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm">
+              Delete Selected
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Action Restricted</AlertDialogTitle>
+              <AlertDialogDescription>
+                Deleting leads is restricted. Please contact your IT administrator if you need to remove an entry.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Close</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
 
       </div>

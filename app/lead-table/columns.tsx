@@ -37,6 +37,18 @@ export type Lead = {
   notes?: string
   created_at?: string
 }
+// Define the exact order you want
+const STATUS_ORDER = [
+  "Lead In",
+  "Contact Made",
+  "Needs Defined",
+  "Proposal Sent",
+  "Negotiation Started",
+  "For Follow up",
+  "Closed Win",
+  "Closed Lost",
+];
+
 
 export const getColumns = ({
   capturedByFilter,
@@ -80,9 +92,17 @@ export const getColumns = ({
       const unique = React.useMemo(() => {
         const set = new Set<string>();
         allRows.forEach((row) => set.add(row.status || "(Blanks)"));
-        return Array.from(set).sort();
+      
+        // Keep blanks at top
+        const blanks = set.has("(Blanks)") ? ["(Blanks)"] : [];
+      
+        const ordered = STATUS_ORDER.filter((s) => set.has(s));
+        const leftovers = Array.from(set).filter(
+          (s) => !STATUS_ORDER.includes(s) && s !== "(Blanks)"
+        );
+      
+        return [...blanks, ...ordered, ...leftovers];
       }, [allRows]);
-
       const [open, setOpen] = React.useState(false);
       const [tempFilter, setTempFilter] = React.useState<string[]>([]);
 

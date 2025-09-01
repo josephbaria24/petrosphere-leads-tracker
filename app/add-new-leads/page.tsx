@@ -71,7 +71,17 @@ const SERVICE_MODES = ['Face to Face', 'E-learning', 'Online']
 export default function AddNewLeadPage() {
   const router = useRouter()
   const session = useSession()
-
+  const STATUS_ORDER = [
+    "Lead In",
+    "Contact Made",
+    "Needs Defined",
+    "Proposal Sent",
+    "Negotiation Started",
+    "For Follow up",
+    "Closed Win",
+    "Closed Lost",
+  ];
+  
   const [isReady, setIsReady] = useState(false)
   const [regions, setRegions] = useState<string[]>([])
   const [leadSources, setLeadSources] = useState<string[]>([])
@@ -283,15 +293,25 @@ export default function AddNewLeadPage() {
     try {
       const { data, error } = await supabase.from(table).select('name')
       if (error) throw error
-
-      const names = data.map(d => d.name)
-      if (table === 'regions') setRegions(names)
-      else if (table === 'lead_sources') setLeadSources(names)
-      else if (table === 'lead_statuses') setLeadStatuses(names)
+  
+      let names = data.map(d => d.name)
+  
+      if (table === 'lead_statuses') {
+        // Sort according to STATUS_ORDER
+        names = STATUS_ORDER.filter(s => names.includes(s)).concat(
+          names.filter(s => !STATUS_ORDER.includes(s)) // put leftovers at the end
+        )
+        setLeadStatuses(names)
+      } else if (table === 'regions') {
+        setRegions(names)
+      } else if (table === 'lead_sources') {
+        setLeadSources(names)
+      }
     } catch (err) {
       console.warn(`Failed to fetch ${table}:`, err)
     }
   }, [])
+  
 
   // Initial data fetch
   useEffect(() => {

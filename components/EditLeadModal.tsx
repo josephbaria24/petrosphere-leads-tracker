@@ -40,7 +40,7 @@ interface EditModalProps {
 }
 
 const leadStages = [
-  'Lead In', 'Contact Made', 'Needs Defined', 'Proposal Sent', 'For Follow up','Negotiation Started',
+  'Lead In', 'Contact Made', 'Needs Defined', 'Proposal Sent','Negotiation Started','For Follow up',
   'Closed Win', 'Closed Lost'
 ]
 

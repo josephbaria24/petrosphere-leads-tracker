@@ -1239,7 +1239,7 @@ useEffect(() => {
             <PopoverTrigger asChild>
             <Button
             disabled={loading}
-            className="bg-background hover:bg-gray-100 cursor-pointer flex items-center gap-2 dark:text-white text-black"
+            className="bg-background hover:bg-gray-100 dark:hover:bg-zinc-900 cursor-pointer flex items-center gap-2 dark:text-white text-black"
             >
             {loading ? (
             <>
