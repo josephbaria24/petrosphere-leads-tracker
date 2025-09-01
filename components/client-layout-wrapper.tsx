@@ -3,15 +3,15 @@
 import { useEffect, useState } from 'react'
 import { Session, SessionContextProvider } from '@supabase/auth-helpers-react'
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Toaster } from "sonner"
 import { ThemeToggle } from './mode-toggle'
 
-
 export function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const isLoginPage = pathname === "/login"
 
   const [supabaseClient] = useState(() => createPagesBrowserClient())
@@ -19,15 +19,43 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    const getSession = async () => {
+    const initSession = async () => {
       const { data } = await supabaseClient.auth.getSession()
-      setInitialSession(data.session)
+      const session = data.session
+      setInitialSession(session)
       setIsReady(true)
-    }
-    getSession()
-  }, [supabaseClient])
 
-  // Wait until session is loaded to avoid false redirects
+      if (!session && !isLoginPage) {
+        router.replace("/login")
+      }
+
+      if (session && isLoginPage) {
+        router.replace("/")
+      }
+    }
+
+    initSession()
+
+    // Subscribe to auth changes (login/logout)
+    const {
+      data: { subscription }
+    } = supabaseClient.auth.onAuthStateChange((event, session) => {
+      setInitialSession(session)
+
+      if (event === "SIGNED_OUT") {
+        router.replace("/login")
+      }
+
+      if (event === "SIGNED_IN" && isLoginPage) {
+        router.replace("/")
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabaseClient, router, isLoginPage])
+
   if (!isReady) {
     return <div className="p-10 text-center">Loading...</div>
   }
@@ -41,16 +69,14 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
       ) : (
         <SidebarProvider>
           <div className="flex h-screen w-full overflow-hidden">
-            <AppSidebar/>
+            <AppSidebar />
             <Toaster richColors position="top-right" />
             <div className="relative flex-1 overflow-y-auto">
               <div className="absolute top-4 left-0 right-0 z-50 flex items-center justify-between px-0">
                 <SidebarTrigger />
                 <div className="mb-4 flex justify-center pr-5">
-                <ThemeToggle />
-              </div>
-                
-
+                  <ThemeToggle />
+                </div>
               </div>
               <main className="p-4 md:p-6">{children}</main>
             </div>

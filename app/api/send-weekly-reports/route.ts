@@ -53,14 +53,16 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
 );
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const today = new Date();
-    const monthStart = startOfMonth(today);
-    const monthEnd = endOfMonth(today);
-    const reportMonth = format(today, 'MMMM');
-    const reportYear = format(today, 'yyyy');
-
+    const { searchParams } = new URL(req.url)
+    const month = searchParams.get("month")
+  
+    const today = month ? new Date(`${month}-01`) : new Date()
+    const monthStart = startOfMonth(today)
+    const monthEnd = endOfMonth(today)
+    const reportMonth = format(today, 'MMMM')
+    const reportYear = format(today, 'yyyy')
     // Fetch webinars for this month/year
     const { data: webinars, error: webinarError } = await supabase
       .from('webinar_tracker')
@@ -80,14 +82,14 @@ export async function GET() {
       return NextResponse.json({ message: 'No new leads found for the month.' });
     }
     // Fetch social media engagement for this month/year
-const { data: socialMedia, error: smError } = await supabase
-.from('social_media_tracker')
-.select<'*', SocialMedia>()
-.eq('month', reportMonth)
-.eq('year', reportYear)
-.maybeSingle();
+    const { data: socialMedia, error: smError } = await supabase
+    .from('social_media_tracker')
+    .select<'*', SocialMedia>()
+    .eq('month', reportMonth)
+    .eq('year', reportYear)
+    .maybeSingle();
 
-if (smError) throw smError;
+    if (smError) throw smError;
 
 
     // Summaries
@@ -404,14 +406,14 @@ const pdfBytes = await pdfDoc.save();
     await sendEmail({
       to: [
         'jlb@petrosphere.com.ph',
-        'josephbaria89@gmail.com',
-        'rlm@petrosphere.com.ph',
-        'dra@petrosphere.com.ph',
-        'kbg@petrosphere.com.ph',
-        'sales@petrosphere.com.ph',
-        'ceo@petrosphere.com.ph',
-        'admin@petrosphere.com.ph',
-        'ops@petrosphere.com.ph'
+        // 'josephbaria89@gmail.com',
+        // 'rlm@petrosphere.com.ph',
+        // 'dra@petrosphere.com.ph',
+        // 'kbg@petrosphere.com.ph',
+        // 'sales@petrosphere.com.ph',
+        // 'ceo@petrosphere.com.ph',
+        // 'admin@petrosphere.com.ph',
+        // 'ops@petrosphere.com.ph'
       ],
       subject: `Automated Monthly Sales & Marketing Report - ${format(today, 'MMM yyyy')}`,
       text: 'Attached is your monthly leads summary report in PDF format.',

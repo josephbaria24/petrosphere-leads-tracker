@@ -19,7 +19,7 @@ import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
 import { ChartPieCapturedBy } from '../charts/pie-chart'
-import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Printer, ArrowUpRight, Trophy, Hourglass, Users } from 'lucide-react'
+import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Printer, ArrowUpRight, Trophy, Hourglass, Users, Loader2, Send } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
@@ -27,8 +27,10 @@ import { useRouter } from 'next/navigation'
 import CRMBarChart from '../charts/bar-chart-2'
 import ClosedWonTrendsChart from '../charts/line-chart'
 import RevenueOpportunitiesTrendsChart from '../charts/line-chart-2'
-import Spline from '@splinetool/react-spline'
 import Image from 'next/image'
+import { toast } from 'sonner'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
+import { format, parse } from 'date-fns'
 
 
 
@@ -1081,6 +1083,41 @@ useEffect(() => {
     return "Good evening"
   }
   
+  const [loading, setLoading] = useState(false);
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+// Fetch available months for dropdown (from Supabase)
+useEffect(() => {
+  fetch("/api/available-months")
+  .then(res => res.json())
+  .then(data => setAvailableMonths(data.months))
+  .catch(() => setAvailableMonths([]));
+  }, []);
+  
+  
+  const handleGenerate = async (month: string) => {
+  setLoading(true);
+  
+  
+  try {
+  const res = await fetch(`/api/send-weekly-reports?month=${month}`);
+  const json = await res.json();
+  
+  
+  if (!res.ok) throw new Error(json?.error || "Failed to send report");
+  
+  
+  toast.success("Report sent successfully!");
+  setTimeout(() => {
+  router.push("/reports/success");
+  }, 1000);
+  } catch (err) {
+  toast.error("Something went wrong.");
+  } finally {
+  setLoading(false);
+  }
+  };
+
+
   return (
     <div>
     <SidebarInset>
@@ -1198,10 +1235,41 @@ useEffect(() => {
         </div>
 
         <div className='flex justify-end'>
-          <Button onClick={handleOpenPrintView} className="bg-background cursor-pointer flex items-center gap-2 dark:text-white">
-            <Printer className="w-4 h-4" />
-            Print Report
-          </Button>
+        <Popover>
+            <PopoverTrigger asChild>
+            <Button
+            disabled={loading}
+            className="bg-background hover:bg-gray-100 cursor-pointer flex items-center gap-2 dark:text-white text-black"
+            >
+            {loading ? (
+            <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Sending...
+            </>
+            ) : (
+            <>
+            <Send className="w-4 h-4" />
+            Generate Report
+            </>
+            )}
+            </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px]">
+            <p className="text-sm font-medium text-gray-600 mb-2">Select Month:</p>
+            <ul className="space-y-1">
+            {availableMonths.map((monthStr) => (
+            <li key={monthStr}>
+            <button
+            className="w-full text-left text-sm text-blue-600 hover:underline"
+            onClick={() => handleGenerate(monthStr)}
+            >
+            {format(parse(monthStr, "yyyy-MM", new Date()), "MMMM yyyy")}
+            </button>
+            </li>
+            ))}
+            </ul>
+            </PopoverContent>
+            </Popover>
         </div>
      
       </div>
