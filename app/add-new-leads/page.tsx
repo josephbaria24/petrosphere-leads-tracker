@@ -242,7 +242,26 @@ export default function AddNewLeadPage() {
         toast.error('Submission Failed', { description: error.message })
         return
       }
-
+ // ✅ Auto-insert into proposals_tracker if applicable
+      if (form.status.toLowerCase() === "proposal sent") {
+        const { error: proposalError } = await supabase.from('proposals_tracker').insert([{
+          company_organization: fullCompany,
+          phone: form.phone,
+          email: form.email,
+          region: form.region,
+          date_requested: new Date().toISOString().split("T")[0],
+          course_requested: selectedNames,
+          status: form.status,
+          person_in_charge: firstName,
+          user_id: user.id,
+        }]);
+  
+        if (proposalError) {
+          toast.warning("Lead saved, but proposal tracker update failed", {
+            description: proposalError.message,
+          });
+        }
+      }
       toast.success('Lead Submitted')
       setForm(INITIAL_FORM_STATE)
       setServiceDetails([])

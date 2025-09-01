@@ -181,22 +181,63 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
     </div>
 
     <div className="flex justify-end pt-2">
-      <Button
-        onClick={async () => {
-          await onSave(edited)
+    <Button
+      onClick={async () => {
+        await onSave(edited)
 
-          // ✅ Log the activity to activity_logs
-          await supabase.from('activity_logs').insert({
-            user_name: currentUserName,
-            action: 'edited',
-            entity_type: 'lead',
-          })
+        // ✅ Sync proposal tracker based on new status
+        const fullCompanyName = `${edited.company ?? ''}`;
+        const { data: existingProposal, error: findError } = await supabase
+          .from('proposals_tracker')
+          .select('id')
+          .ilike('company_organization', fullCompanyName)
+          .ilike('email', edited.email || '')
+          .maybeSingle();
 
-          onClose()
-        }}
-      >
-        Save Changes
-      </Button>
+        if (edited.status?.toLowerCase() === 'proposal sent') {
+          // If status is now "Proposal Sent" and no matching proposal exists, insert it
+          if (!existingProposal) {
+            await supabase.from('proposals_tracker').insert([{
+              company_organization: fullCompanyName,
+              phone: edited.phone || '',
+              email: edited.email || '',
+              region: edited.region || '',
+              date_requested: new Date().toISOString().split("T")[0],
+              course_requested: edited.service_product || '',
+              status: edited.status,
+              person_in_charge: edited.captured_by || '',
+              user_id: (await supabase.auth.getUser()).data.user?.id,
+            }]);
+          } else {
+            // Proposal exists, just update status and other fields
+            await supabase.from('proposals_tracker').update({
+              phone: edited.phone || '',
+              region: edited.region || '',
+              course_requested: edited.service_product || '',
+              status: edited.status,
+              person_in_charge: edited.captured_by || '',
+            }).eq('id', existingProposal.id);
+          }
+        } else if (existingProposal) {
+          // If status is now NOT "Proposal Sent" but a proposal exists, update its status
+          await supabase.from('proposals_tracker').update({
+            status: edited.status,
+          }).eq('id', existingProposal.id);
+        }
+
+        // ✅ Log the activity
+        await supabase.from('activity_logs').insert({
+          user_name: currentUserName,
+          action: 'edited',
+          entity_type: 'lead',
+        })
+
+        onClose()
+      }}
+    >
+      Save Changes
+    </Button>
+
     </div>
   </DialogContent>
 </Dialog>

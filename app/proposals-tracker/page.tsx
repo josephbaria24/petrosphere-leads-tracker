@@ -283,7 +283,6 @@ export default function ProposalTrackerPage() {
       person_in_charge
     } = editForm;
   
-    // Validate required fields
     if (!company_organization || !email || !course_requested) {
       toast.error("Missing required fields", {
         description: "Please ensure company, email, and course fields are filled.",
@@ -291,7 +290,8 @@ export default function ProposalTrackerPage() {
       return;
     }
   
-    const { error } = await supabase
+    // ✅ Update proposals_tracker
+    const { error: proposalError } = await supabase
       .from("proposals_tracker")
       .update({
         company_organization,
@@ -305,17 +305,35 @@ export default function ProposalTrackerPage() {
       })
       .eq("id", id);
   
-    if (error) {
-      toast.error("Update failed", { description: error.message });
-    } else {
-      toast.success("Proposal updated", {
-        description: `Changes to "${company_organization}" saved.`,
-      });
-      setEditForm(null);
-      setIsEditing(false);
-      fetchProposals();
+    if (proposalError) {
+      toast.error("Proposal update failed", { description: proposalError.message });
+      return;
     }
+  
+    // ✅ Also update matching lead in crm_leads
+    const { error: leadError } = await supabase
+      .from("crm_leads")
+      .update({
+        status,
+      })
+      .ilike("company", company_organization)
+      .ilike("email", email);
+  
+    if (leadError) {
+      toast.warning("Proposal updated, but failed to update lead", {
+        description: leadError.message
+      });
+    }
+  
+    toast.success("Proposal updated", {
+      description: `Changes to "${company_organization}" saved.`,
+    });
+  
+    setEditForm(null);
+    setIsEditing(false);
+    fetchProposals();
   };
+  
   
 
   const handleCheckboxChange = (service: string, checked: boolean, isEdit = false) => {
@@ -535,14 +553,36 @@ return (
           key === "id" || key === "user_id" ? null : (
             <div key={key}>
               <Label htmlFor={key}>{key.replace(/_/g, " ")}</Label>
-              <Input
-                id={key}
-                name={key}
-                value={value ?? ""}
-                onChange={(e) =>
-                  setEditForm((prev) => prev && { ...prev, [key]: e.target.value })
-                }
-              />
+              {key === "status" ? (
+  <Select
+  value={String(value ?? "")}
+
+    onValueChange={(val) =>
+      setEditForm((prev) => prev && { ...prev, status: val })
+    }
+  >
+    <SelectTrigger className="w-full">
+      <SelectValue placeholder="Select a status" />
+    </SelectTrigger>
+    <SelectContent>
+      {leadStatuses.map((s) => (
+        <SelectItem key={s} value={s}>
+          {s}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+) : (
+  <Input
+    id={key}
+    name={key}
+    value={value ?? ""}
+    onChange={(e) =>
+      setEditForm((prev) => prev && { ...prev, [key]: e.target.value })
+    }
+  />
+)}
+
             </div>
           )
         )}
