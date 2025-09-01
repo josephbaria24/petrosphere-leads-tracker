@@ -24,8 +24,21 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
       setInitialSession(data.session)
       setIsReady(true)
     }
+  
     getSession()
+  
+    // AUTO LOGOUT ON TAB/BROWSER CLOSE
+    const handleTabClose = async () => {
+      await supabaseClient.auth.signOut()
+    }
+  
+    window.addEventListener('beforeunload', handleTabClose)
+  
+    return () => {
+      window.removeEventListener('beforeunload', handleTabClose)
+    }
   }, [supabaseClient])
+  
 
   // Wait until session is loaded to avoid false redirects
   if (!isReady) {

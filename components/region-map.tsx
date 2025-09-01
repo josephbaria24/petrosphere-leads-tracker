@@ -12,6 +12,29 @@ export default function RegionHeatmap() {
   const [regionCounts, setRegionCounts] = useState<RegionCount[]>([])
   const [geoData, setGeoData] = useState<any>(null)
 
+  const regionMarkerCoords: Record<string, [number, number]> = {
+    "Ilocos Region": [16.048498, 120.511297 ],
+    "Cagayan Valley": [17.3, 121.7],
+    "Central Luzon": [15.2, 120.9],
+    "CALABARZON": [14.1, 121.3],
+    "MIMAROPA Region": [10.2, 119.0],
+    "Bicol Region": [13.3, 123.4],
+    "Western Visayas": [10.6, 122.5],
+    "Central Visayas": [9.8, 123.3],
+    "Eastern Visayas": [11.2, 124.8],
+    "Zamboanga Peninsula": [7.9, 123.0],
+    "Northern Mindanao": [8.181906, 124.922944],
+    "Davao Region": [7.3, 125.7],
+    "SOCCSKSARGEN": [6.9, 124.9],
+    "Caraga": [8.820247, 125.712667],
+    "Bangsamoro Autonomous Region": [6.8, 124.3],
+    "Cordillera Administrative Region": [17.5, 121.1],
+    "Negros Island Region": [10.2, 123.1],
+    "National Capital Region": [14.6, 121.0],
+    "Autonomous Region in Muslim Mindanao": [6.9, 124.3] // fallback alias for legacy label
+  }
+  
+  
   const customMarker = L.icon({
     iconUrl: "/pin.png",
     iconSize: [32, 32],
@@ -43,7 +66,7 @@ export default function RegionHeatmap() {
     }
 
     const fetchGeoData = async () => {
-      const res = await fetch("/ph_regions_nir_corrected.geojson")
+      const res = await fetch("/ph_regions_with_ncr.geojson")
       const json = await res.json()
       setGeoData(json)
     }
@@ -59,7 +82,7 @@ export default function RegionHeatmap() {
            count > 10 ? "#FC4E2A" :
            count > 5  ? "#FD8D3C" :
            count > 0  ? "#FEB24C" :
-                        "#FFEDA0"
+                        "#FFFFFF"
   }
 
   const regionNameMap: Record<string, string> = {
@@ -107,33 +130,25 @@ export default function RegionHeatmap() {
   }
 
   const onEachFeature = (feature: any, layer: any) => {
-    const geoName = feature.properties.NAME_1
-    const count = findCount(geoName)
-    layer.bindPopup(`<strong>${geoName}</strong><br/>Leads: ${count}`)
-  }
-
-  const getFeatureCenter = (feature: any): [number, number] => {
-    try {
-      if (!feature || !feature.geometry || !feature.geometry.coordinates) {
-        console.warn("Skipping invalid feature:", feature);
-        return [0, 0] as [number, number]; // fallback
-      }
+    const geoName = feature.properties.NAME_1;
+    const count = findCount(geoName);
   
-      const layer = L.geoJSON(feature);
-      const bounds = layer.getBounds();
+    const popupContent = `<strong>${geoName}</strong><br/>Leads: ${count}`;
+    
+    layer.bindPopup(popupContent);
   
-      if (!bounds.isValid()) {
-        console.warn("Invalid bounds for:", feature.properties?.NAME_1);
-        return [0, 0] as [number, number]; // fallback
-      }
-  
-      const center = bounds.getCenter();
-      return [center.lat, center.lng] as [number, number]; // cast to tuple
-    } catch (err) {
-      console.error("Error getting center for feature:", feature, err);
-      return [0, 0] as [number, number]; // fallback
-    }
+    // 🔥 Add this to open popup when polygon is clicked
+    layer.on("click", function (e: any) {
+      layer.openPopup(e.latlng);
+    });
   };
+  
+
+  const getManualCenter = (geoName: string): [number, number] => {
+    const normalized = regionNameMap[geoName] || geoName;
+    return regionMarkerCoords[normalized] || [0, 0]; // fallback to [0,0] if not found
+  };
+  
   
   
 
@@ -155,19 +170,21 @@ export default function RegionHeatmap() {
               />
             ))}
 
-            {geoData.features.map((feature: any, idx: number) => {
-              const center = getFeatureCenter(feature)
-              const geoName = feature.properties.NAME_1
-              const count = findCount(geoName)
-              return (
-                <Marker key={idx} position={center} icon={customMarker}>
-                  <Popup>
-                    <strong>{geoName}</strong><br />
-                    Leads: {count}
-                  </Popup>
-                </Marker>
-              )
-            })}
+        {geoData.features.map((feature: any, idx: number) => {
+          const geoName = feature.properties.NAME_1;
+          const count = findCount(geoName);
+          const markerPos = getManualCenter(geoName); // <- use manual coords
+
+          return (
+            <Marker key={idx} position={markerPos} icon={customMarker}>
+              <Popup>
+                <strong>{geoName}</strong><br />
+                Leads: {count}
+              </Popup>
+            </Marker>
+          );
+        })}
+
           </>
         )}
       </MapContainer>
