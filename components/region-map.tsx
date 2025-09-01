@@ -32,17 +32,18 @@ export default function RegionHeatmap() {
       const counts: Record<string, number> = {}
       data?.forEach((lead) => {
         if (lead.region) {
-          counts[lead.region] = (counts[lead.region] || 0) + 1
+          counts[lead.region] = (counts[lead.region] || 0) + 1;
         }
-      })
-
+      });
+      console.log("🧩 Processed Region Counts:", counts); // <-- HERE
       setRegionCounts(
         Object.entries(counts).map(([region, count]) => ({ region, count }))
-      )
+      );
+      
     }
 
     const fetchGeoData = async () => {
-      const res = await fetch("/ph_regions.geojson")
+      const res = await fetch("/ph_regions_nir_corrected.geojson")
       const json = await res.json()
       setGeoData(json)
     }
@@ -79,16 +80,19 @@ export default function RegionHeatmap() {
     "Region XII - SOCCSKSARGEN": "SOCCSKSARGEN",
     "Region XIII - Caraga": "Caraga",
     "CAR - Cordillera Administrative Region": "Cordillera Administrative Region",
-    "BARMM - Bangsamoro Autonomous Region in Muslim Mindanao": "Bangsamoro Autonomous Region"
+    "BARMM - Bangsamoro Autonomous Region in Muslim Mindanao": "Bangsamoro Autonomous Region",
+    "NIR - Negros Island Region": "Negros Island Region"
   }
 
   const findCount = (geoName: string) => {
     const match = regionCounts.find(
       r => regionNameMap[r.region] === geoName || r.region === geoName
-    )
-    return match ? match.count : 0
-  }
-
+    );
+    const count = match ? match.count : 0;
+    console.log("🔍 Matching geoName:", geoName, "| Found region:", match?.region || "None", "| Count:", count);
+    return count;
+  };
+  
   const style = (feature: any) => {
     const geoName = feature.properties.NAME_1
     const count = findCount(geoName)
@@ -108,10 +112,30 @@ export default function RegionHeatmap() {
     layer.bindPopup(`<strong>${geoName}</strong><br/>Leads: ${count}`)
   }
 
-  const getFeatureCenter = (feature: any) => {
-    const bounds = L.geoJSON(feature).getBounds()
-    return bounds.getCenter()
-  }
+  const getFeatureCenter = (feature: any): [number, number] => {
+    try {
+      if (!feature || !feature.geometry || !feature.geometry.coordinates) {
+        console.warn("Skipping invalid feature:", feature);
+        return [0, 0] as [number, number]; // fallback
+      }
+  
+      const layer = L.geoJSON(feature);
+      const bounds = layer.getBounds();
+  
+      if (!bounds.isValid()) {
+        console.warn("Invalid bounds for:", feature.properties?.NAME_1);
+        return [0, 0] as [number, number]; // fallback
+      }
+  
+      const center = bounds.getCenter();
+      return [center.lat, center.lng] as [number, number]; // cast to tuple
+    } catch (err) {
+      console.error("Error getting center for feature:", feature, err);
+      return [0, 0] as [number, number]; // fallback
+    }
+  };
+  
+  
 
   return (
     <div style={{ height: "600px", width: "100%" }}>
@@ -122,11 +146,15 @@ export default function RegionHeatmap() {
         />
         {geoData && (
           <>
-            <GeoJSON
-              data={geoData}
-              style={style}
-              onEachFeature={onEachFeature}
-            />
+            {geoData.features.map((feature: any, idx: number) => (
+              <GeoJSON
+                key={idx}
+                data={feature}
+                style={style}
+                onEachFeature={onEachFeature}
+              />
+            ))}
+
             {geoData.features.map((feature: any, idx: number) => {
               const center = getFeatureCenter(feature)
               const geoName = feature.properties.NAME_1
