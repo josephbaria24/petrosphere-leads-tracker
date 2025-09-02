@@ -3,14 +3,6 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import CountUp from "react-countup"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset } from "@/components/ui/sidebar"
@@ -31,7 +23,7 @@ import Image from 'next/image'
 import { toast } from 'sonner'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { format, parse } from 'date-fns'
-
+import { startOfMonth, endOfMonth } from 'date-fns';
 
 
   function generateTimeLabels(interval: string, month: string, year: number, availableYears: number[]): string[] {
@@ -58,6 +50,10 @@ import { format, parse } from 'date-fns'
 export function ActualDashboardPage() {
 
   
+
+  const today = new Date();
+  const startDate = startOfMonth(today);
+  const endDate = endOfMonth(today);
 
   const getDateHeaderLabel = () => {
     if (selectedInterval === 'annually') {
@@ -223,7 +219,7 @@ export function ActualDashboardPage() {
         .from('crm_leads')
         .select('captured_by, first_contact')
         .gte('first_contact', startDate.toISOString())
-        .lt('first_contact', endDate.toISOString())
+        .lte('first_contact', endDate.toISOString())
         .range(from, to);
   
       if (error) {
@@ -312,7 +308,7 @@ export function ActualDashboardPage() {
         .from('crm_leads')
         .select('lead_source, first_contact')
         .gte('first_contact', startDate.toISOString())
-        .lt('first_contact', endDate.toISOString())
+        .lte('first_contact', endDate.toISOString())
         .range(offset, offset + limit - 1)
   
       if (error) {
@@ -465,7 +461,7 @@ export function ActualDashboardPage() {
         .from('crm_leads')
         .select('service_product, first_contact')
         .gte('first_contact', startDate.toISOString())
-        .lt('first_contact', endDate.toISOString())
+        .lte('first_contact', endDate.toISOString())
         .range(offset, offset + limit - 1)
   
       if (error) {
@@ -653,35 +649,35 @@ useEffect(() => {
         supabase
           .from("crm_leads")
           .select("id", { count: "exact", head: true })
-          .lt("first_contact", startDate.toISOString()),
+          .lte("first_contact", startDate.toISOString()),
     
         supabase
           .from("crm_leads")
           .select("id", { count: "exact", head: true })
           .ilike("status", "closed win")
           .gte("first_contact", startDate.toISOString())
-          .lt("first_contact", endDate.toISOString()),
+          .lte("first_contact", endDate.toISOString()),
     
         supabase
           .from("crm_leads")
           .select("id", { count: "exact", head: true })
           .ilike("status", "closed win")
           .gte("first_contact", prevStart.toISOString())
-          .lt("first_contact", prevEnd.toISOString()),
+          .lte("first_contact", prevEnd.toISOString()),
     
         supabase
           .from("crm_leads")
           .select("id", { count: "exact", head: true })
           .ilike("status", "closed lost")
           .gte("first_contact", startDate.toISOString())
-          .lt("first_contact", endDate.toISOString()),
+          .lte("first_contact", endDate.toISOString()),
     
         supabase
           .from("crm_leads")
           .select("id", { count: "exact", head: true })
           .ilike("status", "closed lost")
           .gte("first_contact", prevStart.toISOString())
-          .lt("first_contact", prevEnd.toISOString()),
+          .lte("first_contact", prevEnd.toISOString()),
     
         // Current In Progress (includes "Lead In")
         supabase
@@ -689,7 +685,7 @@ useEffect(() => {
         .select("id", { count: "exact", head: true })
         .or('status.ilike.%in progress%,status.ilike.%lead in%')
         .gte("first_contact", startDate.toISOString())
-        .lt("first_contact", endDate.toISOString()),
+        .lte("first_contact", endDate.toISOString()),
 
         // Previous In Progress (includes "Lead In")
         supabase
@@ -697,19 +693,19 @@ useEffect(() => {
         .select("id", { count: "exact", head: true })
         .or('status.ilike.%in progress%,status.ilike.%lead in%')
         .gte("first_contact", prevStart.toISOString())
-        .lt("first_contact", prevEnd.toISOString()),
+        .lte("first_contact", prevEnd.toISOString()),
 
         supabase
           .from("crm_leads")
           .select("id", { count: "exact", head: true })
           .gte("first_contact", startDate.toISOString())
-          .lt("first_contact", endDate.toISOString()),
+          .lte("first_contact", endDate.toISOString()),
     
         supabase
           .from("crm_leads")
           .select("id", { count: "exact", head: true })
           .gte("first_contact", prevStart.toISOString())
-          .lt("first_contact", prevEnd.toISOString()),
+          .lte("first_contact", prevEnd.toISOString()),
       ]).then(results => results.map(r => r.count ?? 0))
     
       setStats({
@@ -742,7 +738,7 @@ while (!done) {
     .select('contact_name, captured_by, first_contact')
     .in('status', ['Lead In', 'In Progress'])
     .gte('first_contact', startDate.toISOString())
-    .lt('first_contact', endDate.toISOString())
+    .lte('first_contact', endDate.toISOString())
     .range(from, to)
 
   if (error) {
@@ -793,7 +789,7 @@ while (!done) {
     .select('contact_name, captured_by, first_contact')
     .ilike('status', 'closed won')
     .gte('first_contact', startDate.toISOString())
-    .lt('first_contact', endDate.toISOString())
+    .lte('first_contact', endDate.toISOString())
     .range(from, to)
 
   if (error) break
@@ -817,7 +813,7 @@ while (!done) {
     .select('contact_name, captured_by, first_contact')
     .ilike('status', 'closed lost')
     .gte('first_contact', startDate.toISOString())
-    .lt('first_contact', endDate.toISOString())
+    .lte('first_contact', endDate.toISOString())
     .range(from, to)
 
   if (error) break
@@ -1383,7 +1379,7 @@ useEffect(() => {
         {/* Newest leads */}
           
         <div data-html2canvas-ignore> 
-            <Card className="flex-1 bg-background h-[380px] border-l-emerald-400">
+            <Card className="flex-1 bg-background h-[380px] border-l-white-400">
               <CardHeader >
                 <CardTitle className="text-xl">Newest Leads</CardTitle>
                 <CardDescription>Most recently captured entries</CardDescription>

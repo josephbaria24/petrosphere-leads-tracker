@@ -273,7 +273,7 @@ export default function CRMBarChart({
               <text
                 x={xPos}
                 y={yPos}
-                fontSize="14"
+                fontSize="12"
                 fill={color} // ✅ Works in both dark & light mode
               >
                 {total}

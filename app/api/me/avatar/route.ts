@@ -1,26 +1,35 @@
 import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
+import { cookies as getCookies } from "next/headers"
 
-export const runtime = "nodejs"        // use Node runtime
-export const dynamic = "force-dynamic" // don't cache session for this route
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 export async function GET() {
-  const supabase = createRouteHandlerClient({ cookies: () => Promise.resolve(cookies()) })
+  const cookieStore = getCookies()
 
+  // 💡 Correct: wrap the already-evaluated cookieStore in a function
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
-  const { data, error } = await supabase.auth.getSession()
-  if (error) return new NextResponse("Session error", { status: 401 })
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession()
 
-  const token = data.session?.provider_token
-  if (!token) return new NextResponse("No provider token", { status: 401 })
+  if (error || !session) {
+    return new NextResponse("Session error", { status: 401 })
+  }
+
+  const token = session.provider_token
+  if (!token) {
+    return new NextResponse("No provider token", { status: 401 })
+  }
 
   const res = await fetch("https://graph.microsoft.com/v1.0/me/photo/$value", {
     headers: { Authorization: `Bearer ${token}` },
   })
 
   if (!res.ok) {
-    // 404 is normal if the M365 account has no photo
     return new NextResponse("No photo", { status: res.status })
   }
 
@@ -28,7 +37,7 @@ export async function GET() {
   return new NextResponse(arrayBuf, {
     status: 200,
     headers: {
-      "Content-Type": res.headers.get("Content-Type") || "image/jpeg",
+      "Content-Type": res.headers.get("Content-Type") ?? "image/jpeg",
       "Cache-Control": "private, max-age=3600",
     },
   })

@@ -36,9 +36,9 @@ export default function RegionHeatmap() {
   
   
   const customMarker = L.icon({
-    iconUrl: "/pin.png",
+    iconUrl: "/pin8.png",
     iconSize: [32, 32],
-    iconAnchor: [16, 32],
+    iconAnchor: [12, 32],
     popupAnchor: [0, -32]
   });
   useEffect(() => {
