@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-function createFilterHeader({
+const FilterHeader = ({
   title,
   accessor,
   filter,
@@ -28,7 +28,7 @@ function createFilterHeader({
   filter: string[];
   setFilter: React.Dispatch<React.SetStateAction<string[]>>;
   table: any;
-}) {
+}) => {
   const allRows = table.options.data as Lead[];
   const unique = React.useMemo(() => {
     const set = new Set<string>();
@@ -41,7 +41,7 @@ function createFilterHeader({
 
   React.useEffect(() => {
     if (open) setTempFilter(filter);
-  }, [open]);
+  }, [open, filter]);
 
   return (
     <div className="flex items-center gap-2">
@@ -345,7 +345,7 @@ export const getColumns = ({
   {
     accessorKey: "region",
     header: ({ column, table }) =>
-      createFilterHeader({
+      FilterHeader({
         title: "Region",
         accessor: "region",
         filter: regionFilter,
@@ -357,7 +357,7 @@ export const getColumns = ({
   {
     accessorKey: "lead_source",
     header: ({ column, table }) =>
-      createFilterHeader({
+      FilterHeader({
         title: "Lead Source",
         accessor: "lead_source",
         filter: leadSourceFilter,
@@ -395,7 +395,7 @@ export const getColumns = ({
   {
     accessorKey: "service_product",
     header: ({ column, table }) =>
-      createFilterHeader({
+      FilterHeader({
         title: "Service",
         accessor: "service_product",
         filter: serviceFilter,
@@ -407,7 +407,7 @@ export const getColumns = ({
   {
     accessorKey: "mode_of_service",
     header: ({ column, table }) =>
-      createFilterHeader({
+      FilterHeader({
         title: "Mode of Service",
         accessor: "mode_of_service",
         filter: modeOfServiceFilter,
