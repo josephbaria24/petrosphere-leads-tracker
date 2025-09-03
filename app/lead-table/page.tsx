@@ -91,7 +91,11 @@ export default function DataTablePage() {
   // 🧩 Filters
   const [statusFilter, setStatusFilter] = useState<string[]>([])
   const [capturedByFilter, setCapturedByFilter] = useState<string[]>([])
-
+  const [regionFilter, setRegionFilter] = useState<string[]>([]);
+  const [serviceFilter, setServiceFilter] = useState<string[]>([]);
+  const [modeOfServiceFilter, setModeOfServiceFilter] = useState<string[]>([]);
+  const [leadSourceFilter, setLeadSourceFilter] = useState<string[]>([]);
+  
    
   // Define the Lead type based on your database schema
   const [data, setData] = React.useState<Lead[]>([])
@@ -182,13 +186,50 @@ export default function DataTablePage() {
         capturedByFilter.includes(row.captured_by || "(Blanks)")
       )
     }
+    if (regionFilter.length > 0) {
+  result = result.filter((row) =>
+    regionFilter.includes(row.region || "(Blanks)")
+  );
+}
+if (serviceFilter.length > 0) {
+  result = result.filter((row) =>
+    serviceFilter.includes(row.service_product || "(Blanks)")
+  );
+}
+if (modeOfServiceFilter.length > 0) {
+  result = result.filter((row) =>
+    modeOfServiceFilter.includes(row.mode_of_service || "(Blanks)")
+  );
+}
+if (leadSourceFilter.length > 0) {
+  result = result.filter((row) =>
+    leadSourceFilter.includes(row.lead_source || "(Blanks)")
+  );
+}
 
-    return result
-  }, [data, statusFilter, capturedByFilter])
+
+return result;
+}, [
+  data,
+  statusFilter,
+  capturedByFilter,
+  regionFilter,
+  serviceFilter,
+  modeOfServiceFilter,
+  leadSourceFilter,
+]);
 
   const table = useReactTable({
     data: filteredData,
-    columns: getColumns({ capturedByFilter, setCapturedByFilter, statusFilter, setStatusFilter }),
+    columns: getColumns({
+      capturedByFilter, setCapturedByFilter,
+      statusFilter, setStatusFilter,
+      regionFilter, setRegionFilter,
+      serviceFilter, setServiceFilter,
+      modeOfServiceFilter, setModeOfServiceFilter,
+      leadSourceFilter, setLeadSourceFilter
+    }),
+    
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -447,4 +488,5 @@ export default function DataTablePage() {
     </div>
   )
 }
+
 

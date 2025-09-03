@@ -16,7 +16,94 @@ import {
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+function createFilterHeader({
+  title,
+  accessor,
+  filter,
+  setFilter,
+  table,
+}: {
+  title: string;
+  accessor: keyof Lead;
+  filter: string[];
+  setFilter: React.Dispatch<React.SetStateAction<string[]>>;
+  table: any;
+}) {
+  const allRows = table.options.data as Lead[];
+  const unique = React.useMemo(() => {
+    const set = new Set<string>();
+    allRows.forEach((row) => set.add(String(row[accessor] ?? "(Blanks)")));
+    return Array.from(set);
+  }, [allRows]);
 
+  const [open, setOpen] = React.useState(false);
+  const [tempFilter, setTempFilter] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    if (open) setTempFilter(filter);
+  }, [open]);
+
+  return (
+    <div className="flex items-center gap-2">
+      {title}
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm">
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+  
+        <DropdownMenuContent className="p-0 w-56">
+          {/* Scrollable list of filters */}
+          <div className="max-h-72 overflow-y-auto p-2 space-y-1">
+            <DropdownMenuCheckboxItem
+              checked={tempFilter.length === 0}
+              onSelect={(e) => {
+                e.preventDefault();
+                if (tempFilter.length === 0) setTempFilter(unique);
+                else setTempFilter([]);
+              }}
+            >
+              Select All
+            </DropdownMenuCheckboxItem>
+  
+            {unique.map((value) => (
+              <DropdownMenuCheckboxItem
+                key={value}
+                checked={tempFilter.includes(value)}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setTempFilter((prev) =>
+                    prev.includes(value)
+                      ? prev.filter((v) => v !== value)
+                      : [...prev, value]
+                  );
+                }}
+              >
+                {value}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </div>
+  
+          {/* Sticky footer for the apply button */}
+          <div className="sticky bottom-0 bg-white dark:bg-transparent border-t border-gray-200 p-2">
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                setFilter(tempFilter);
+                setOpen(false);
+              }}
+            >
+              Apply
+            </Button>
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+  
+}
 export type Lead = {
   id: string
   contact_name: string
@@ -55,11 +142,27 @@ export const getColumns = ({
   setCapturedByFilter,
   statusFilter,
   setStatusFilter,
+  regionFilter,
+  setRegionFilter,
+  serviceFilter,
+  setServiceFilter,
+  modeOfServiceFilter,
+  setModeOfServiceFilter,
+  leadSourceFilter,
+  setLeadSourceFilter,
 }: {
-  statusFilter: string[]
-  setStatusFilter: React.Dispatch<React.SetStateAction<string[]>>
-  capturedByFilter: string[]
-  setCapturedByFilter: React.Dispatch<React.SetStateAction<string[]>>
+  statusFilter: string[];
+  setStatusFilter: React.Dispatch<React.SetStateAction<string[]>>;
+  capturedByFilter: string[];
+  setCapturedByFilter: React.Dispatch<React.SetStateAction<string[]>>;
+  regionFilter: string[];
+  setRegionFilter: React.Dispatch<React.SetStateAction<string[]>>;
+  serviceFilter: string[];
+  setServiceFilter: React.Dispatch<React.SetStateAction<string[]>>;
+  modeOfServiceFilter: string[];
+  setModeOfServiceFilter: React.Dispatch<React.SetStateAction<string[]>>;
+  leadSourceFilter: string[];
+  setLeadSourceFilter: React.Dispatch<React.SetStateAction<string[]>>;
 }): ColumnDef<Lead>[] => [
   
   {
@@ -86,7 +189,8 @@ export const getColumns = ({
   },
   {
     accessorKey: "status",
-    header: function StatusHeader({ column, table }) {
+    header: function StatusHeader({ column, table }: { column: any, table: any }) {
+      const setFilter = setStatusFilter;
       const allRows = table.options.data as Lead[];
 
       const unique = React.useMemo(() => {
@@ -120,51 +224,53 @@ export const getColumns = ({
               </Button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent className="max-h-72 overflow-y-auto p-2 space-y-1">
-              <DropdownMenuCheckboxItem
-                checked={tempFilter.length === 0}
-                onSelect={(e) => {
-                  e.preventDefault();
-                  if (tempFilter.length === 0) {
-                    setTempFilter(unique); 
-                  } else {
-                    setTempFilter([]); 
-                  }
-                }}
-              >
-                Select All
-              </DropdownMenuCheckboxItem>
+            <DropdownMenuContent className="p-0 w-56">
+  {/* Scrollable filter options */}
+  <div className="max-h-72 overflow-y-auto p-2 space-y-1">
+    <DropdownMenuCheckboxItem
+      checked={tempFilter.length === 0}
+      onSelect={(e) => {
+        e.preventDefault();
+        if (tempFilter.length === 0) setTempFilter(unique);
+        else setTempFilter([]);
+      }}
+    >
+      Select All
+    </DropdownMenuCheckboxItem>
 
-              {unique.map((value) => (
-                <DropdownMenuCheckboxItem
-                  key={value}
-                  checked={tempFilter.includes(value)}
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    setTempFilter((prev) =>
-                      prev.includes(value)
-                        ? prev.filter((v) => v !== value)
-                        : [...prev, value]
-                    );
-                  }}
-                >
-                  {value}
-                </DropdownMenuCheckboxItem>
-              ))}
+    {unique.map((value) => (
+      <DropdownMenuCheckboxItem
+        key={value}
+        checked={tempFilter.includes(value)}
+        onSelect={(e) => {
+          e.preventDefault();
+          setTempFilter((prev) =>
+            prev.includes(value)
+              ? prev.filter((v) => v !== value)
+              : [...prev, value]
+          );
+        }}
+      >
+        {value}
+      </DropdownMenuCheckboxItem>
+    ))}
+  </div>
 
-              <div className="pt-2 border-t border-gray-200 flex justify-end">
-                <Button
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    setStatusFilter(tempFilter);
-                    setOpen(false);
-                  }}
-                >
-                  Apply
-                </Button>
-              </div>
-            </DropdownMenuContent>
+  {/* Sticky footer with Apply button */}
+  <div className="sticky bottom-0 bg-white border-t dark:bg-transparent border-gray-200 p-2 z-10">
+    <Button
+      size="sm"
+      className="w-full"
+      onClick={() => {
+        setFilter(tempFilter);
+        setOpen(false);
+      }}
+    >
+      Apply
+    </Button>
+  </div>
+</DropdownMenuContent>
+
           </DropdownMenu>
           <ArrowUpDown
             className="ml-1 h-4 w-4 text-muted-foreground opacity-50 hover:opacity-100 cursor-pointer"
@@ -238,28 +344,26 @@ export const getColumns = ({
   },
   {
     accessorKey: "region",
-    header: ({ column }) => (
-      <div
-        className="flex items-center gap-2 cursor-pointer group"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Region
-        <ArrowUpDown className="ml-1 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    ),
+    header: ({ column, table }) =>
+      createFilterHeader({
+        title: "Region",
+        accessor: "region",
+        filter: regionFilter,
+        setFilter: setRegionFilter,
+        table,
+      }),
     enableSorting: true,
   },
   {
     accessorKey: "lead_source",
-    header: ({ column }) => (
-      <div
-        className="flex items-center gap-2 cursor-pointer group"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Lead Source
-        <ArrowUpDown className="ml-1 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    ),
+    header: ({ column, table }) =>
+      createFilterHeader({
+        title: "Lead Source",
+        accessor: "lead_source",
+        filter: leadSourceFilter,
+        setFilter: setLeadSourceFilter,
+        table,
+      }),
     enableSorting: true,
   },
   {
@@ -290,20 +394,27 @@ export const getColumns = ({
   },
   {
     accessorKey: "service_product",
-    header: ({ column }) => (
-      <div
-        className="flex items-center gap-2 cursor-pointer group"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Service
-        <ArrowUpDown className="ml-1 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    ),
+    header: ({ column, table }) =>
+      createFilterHeader({
+        title: "Service",
+        accessor: "service_product",
+        filter: serviceFilter,
+        setFilter: setServiceFilter,
+        table,
+      }),
     enableSorting: true,
   },
   {
     accessorKey: "mode_of_service",
-    header: "Mode of Service",
+    header: ({ column, table }) =>
+      createFilterHeader({
+        title: "Mode of Service",
+        accessor: "mode_of_service",
+        filter: modeOfServiceFilter,
+        setFilter: setModeOfServiceFilter,
+        table,
+      }),
+    enableSorting: true,
   },
   {
     accessorKey: "service_price",
