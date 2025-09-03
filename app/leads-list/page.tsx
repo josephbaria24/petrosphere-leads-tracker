@@ -608,30 +608,6 @@ export default function LeadsListPage() {
       <div className="flex justify-end px-10 mt-2 text-sm text-muted-foreground">
   Showing {leads.length.toLocaleString()} {leads.length === 1 ? 'lead' : 'leads'}
 </div>
-    {selectedLead && (
-      <EditLeadModal
-      isOpen={editModalOpen}
-      onClose={() => setEditModalOpen(false)}
-      lead={selectedLead}
-      onSave={async (updated: Partial<Lead>) => {
-        const { error } = await supabase
-          .from('crm_leads')
-          .update(updated)
-          .eq('id', updated.id)
-      
-        if (!error) {
-          setLeads(prev =>
-            prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l))
-          )
-          setEditModalOpen(false)
-          setSelectedLead(null)
-        } else {
-          console.error(error)
-        }
-      }}
-      currentUserName={currentUserName} 
-    />)}
-
     </div>
     
   )
