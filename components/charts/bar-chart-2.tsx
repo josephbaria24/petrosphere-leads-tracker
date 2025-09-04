@@ -214,7 +214,7 @@ export default function CRMBarChart({
 
   
   return (
-    <Card className="rounded-2xl p-4 w-full bg-card border-0 shadow-lg">
+    <Card className="rounded-2xl p-4 w-full bg-background border-1 shadow-lg">
       <CardContent>
         <h2 className="text-xl font-semibold mb-4">Sales Pipeline by Owners</h2>
         <ResponsiveContainer width="100%" height={305}>
@@ -224,7 +224,7 @@ export default function CRMBarChart({
       ...row,
       total: statuses.reduce((sum, status) => sum + (row[status] || 0), 0), // Add total per row
     }))}
-    margin={{ top: 20, right: 30, left: 40, bottom: 5 }}
+    margin={{ top: 0, right: 30, left: 20, bottom: 0 }}
   >
     <CartesianGrid strokeDasharray="0 1" />
     <XAxis type="number" />

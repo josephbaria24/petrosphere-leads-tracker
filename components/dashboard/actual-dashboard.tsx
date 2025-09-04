@@ -888,6 +888,86 @@ const handleOpenPrintView = () => {
 
 const [closedWonTrendData, setClosedWonTrendData] = useState<ClosedWonTrend[]>([])
 
+const [closedWonRevenue, setClosedWonRevenue] = useState(0);
+const fetchClosedWonRevenue = async (
+  year: number,
+  month: string,
+  interval: string,
+  rangeIndex: number
+) => {
+  let startDate = new Date(year, 0, 1);
+  let endDate = new Date(year + 1, 0, 1);
+  const label = timeLabels[rangeIndex];
+
+  switch (interval) {
+    case 'weekly': {
+      const janFirst = new Date(year, 0, 1);
+      startDate = new Date(janFirst);
+      startDate.setDate(janFirst.getDate() + rangeIndex * 7);
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 7);
+      break;
+    }
+    case 'quarterly': {
+      const startMonth = rangeIndex * 3;
+      startDate = new Date(year, startMonth, 1);
+      endDate = new Date(year, startMonth + 3, 1);
+      break;
+    }
+    case 'annually': {
+      const labelYear = parseInt(label);
+      if (!label || isNaN(labelYear)) return;
+      startDate = new Date(labelYear, 0, 1);
+      endDate = new Date(labelYear + 1, 0, 1);
+      break;
+    }
+    default: {
+      if (month !== 'all') {
+        const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
+        startDate = new Date(year, monthIndex, 1);
+        endDate = new Date(year, monthIndex + 1, 1);
+      }
+    }
+  }
+
+  // Redundant fallback (can be removed but safe)
+  if (month !== 'all' && interval !== 'annually') {
+    const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
+    startDate = new Date(year, monthIndex, 1);
+    endDate = new Date(year, monthIndex + 1, 1);
+  }
+
+  let totalRevenue = 0;
+  const pageSize = 1000;
+  let from = 0;
+  let to = pageSize - 1;
+  let done = false;
+
+  while (!done) {
+    const { data, error } = await supabase
+      .from('crm_leads')
+      .select('service_price')
+      .ilike('status', 'Closed Win')
+      .gte('first_contact', startDate.toISOString())
+      .lte('first_contact', endDate.toISOString())
+      .range(from, to);
+
+    if (error) break;
+    if (!data || data.length === 0) break;
+
+    totalRevenue += data.reduce((sum, lead) => sum + (Number(lead.service_price) || 0), 0);
+
+    if (data.length < pageSize) {
+      done = true;
+    } else {
+      from += pageSize;
+      to += pageSize;
+    }
+  }
+
+  setClosedWonRevenue(totalRevenue);
+};
+
 
 
 const fetchClosedWonTrends = async () => {
@@ -956,11 +1036,13 @@ const fetchClosedWonTrends = async () => {
 
 useEffect(() => {
   const loadData = async () => {
-    const trends = await fetchClosedWonTrends()
-    setClosedWonTrendData(trends)
-  }
-  loadData()
-}, [])
+    const trends = await fetchClosedWonTrends();
+    setClosedWonTrendData(trends);
+    fetchClosedWonRevenue(selectedYear, selectedMonth, selectedInterval, rangeIndex);
+  };
+  loadData();
+}, [selectedYear, selectedMonth, selectedInterval, rangeIndex]);
+
 
 
 type RevenueOpportunitiesTrend = {
@@ -1149,7 +1231,23 @@ useEffect(() => {
       </div>
 
       
- 
+      <div className="px-0 pb-2">
+        <div className="text-sm font-semibold text-muted-foreground mb-1">
+          Closed Won Revenue Progress
+        </div>
+        <div className="relative w-[12vw] h-5 bg-gray-300 dark:bg-zinc-700 rounded overflow-hidden">
+          <div
+            className="absolute top-0 left-0 h-full bg-green-500 transition-all duration-500"
+            style={{
+              width: `${Math.min(closedWonRevenue / 750000 * 100, 100)}%`
+            }}
+          />
+        </div>
+        <div className="text-xs mt-1 text-muted-foreground">
+          ₱{closedWonRevenue.toLocaleString()} / ₱750,000
+        </div>
+      </div>
+
       <Separator className="mb-4" />
 
 
