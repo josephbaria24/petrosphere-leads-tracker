@@ -105,13 +105,6 @@ export function NavUser({
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => router.push("/reset-password")}>
-                <CreditCard />
-                Reset Password
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-
             <DropdownMenuSeparator />
 
             <DropdownMenuItem onClick={handleLogout}>
