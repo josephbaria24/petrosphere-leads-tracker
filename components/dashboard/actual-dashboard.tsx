@@ -1233,11 +1233,11 @@ useEffect(() => {
       
       <div className="px-0 pb-2">
         <div className="text-sm font-semibold text-muted-foreground mb-1">
-          Closed Won Revenue Progress
+          Closed Won Revenue Goal
         </div>
-        <div className="relative w-[12vw] h-5 bg-gray-300 dark:bg-zinc-700 rounded overflow-hidden">
+        <div className="relative w-[10vw] h-1 bg-gray-300 dark:bg-zinc-700 rounded overflow-hidden">
           <div
-            className="absolute top-0 left-0 h-full bg-green-500 transition-all duration-500"
+            className="absolute top-0 left-0 h-full bg-blue-800 dark:bg-blue-600 transition-all duration-500"
             style={{
               width: `${Math.min(closedWonRevenue / 750000 * 100, 100)}%`
             }}
@@ -1253,7 +1253,7 @@ useEffect(() => {
 
       <div className="flex justify-between pb-3">
         {/* Month Dropdown */}
-       <div className="flex space-x-3 rounded-2xl p-2 bg-zinc-900 dark:bg-card ">
+       <div className="flex space-x-3 rounded-lg p-2 bg-zinc-300 dark:bg-card ">
         
        
         {selectedInterval === "monthly" && (
@@ -1321,10 +1321,10 @@ useEffect(() => {
 
 
 
-                 {/* Dynamic Date Header */}
-        <h2 className="text-lg text-white font-medium px-1 flex items-center">
-          <span className="text-white text-lg font-light">{getDateHeaderLabel()}</span>
-        </h2>
+                 {/* Dynamic Date Header
+        <h2 className="text-lg px-1 flex items-center">
+          <span className=" text-lg font-normal">{getDateHeaderLabel()}</span>
+        </h2> */}
 
         </div>
 

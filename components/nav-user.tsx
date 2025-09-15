@@ -1,5 +1,6 @@
 "use client"
 import { useSession } from "@supabase/auth-helpers-react"
+import { useEffect } from "react"
 
 import {
   BadgeCheck,
@@ -56,6 +57,50 @@ export function NavUser({
 
     router.push("/login")
   }
+
+  // Auto logout after 24 hours
+  useEffect(() => {
+    if (!session) return
+
+    const checkSessionExpiry = () => {
+      const loginTime = localStorage.getItem('login_time')
+      const now = Date.now()
+      const oneDayInMs = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+
+      if (!loginTime) {
+        // Set login time if not exists
+        localStorage.setItem('login_time', now.toString())
+        return
+      }
+
+      const timeSinceLogin = now - parseInt(loginTime)
+      
+      if (timeSinceLogin >= oneDayInMs) {
+        console.log("Session expired after 24 hours, logging out...")
+        handleLogout()
+      }
+    }
+
+    // Check immediately
+    checkSessionExpiry()
+
+    // Check every minute
+    const interval = setInterval(checkSessionExpiry, 60 * 1000)
+
+    return () => clearInterval(interval)
+  }, [session])
+
+  // Set login time when session is established
+  useEffect(() => {
+    if (session && !localStorage.getItem('login_time')) {
+      localStorage.setItem('login_time', Date.now().toString())
+    }
+    
+    // Clear login time when session is gone
+    if (!session) {
+      localStorage.removeItem('login_time')
+    }
+  }, [session])
 
   // Don't render avatar until session is available
   const showAvatar = !!session
@@ -117,4 +162,3 @@ export function NavUser({
     </SidebarMenu>
   )
 }
-

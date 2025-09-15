@@ -124,7 +124,7 @@ const data = {
       isActive: pathname === "/webinar-list",
     },
     {
-      title: "Social Media Engagement",
+      title: "SocMed Engagement",
       url: "social-media-list",
       icon: Facebook,
       isActive: pathname === "/social-media-list",

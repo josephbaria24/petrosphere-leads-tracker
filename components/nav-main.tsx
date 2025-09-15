@@ -59,14 +59,19 @@ export function NavMain({
                 <SidebarMenuSub>
                   {item.items?.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
-                      <SidebarMenuSubButton
-                        asChild
-                        className={subItem.isActive ? "bg-blue-500 text-white dark:bg-blue-600 font-semibold" : ""}
-                      >
-                        <Link href={subItem.url}>
-                          <span>{subItem.title}</span>
-                        </Link>
-                      </SidebarMenuSubButton>
+                    <SidebarMenuSubButton
+                      asChild
+                      className={
+                        subItem.isActive
+                          ? "text-blue-700 font-semibold"
+                          : "text-gray-500 hover:text-gray-800"
+                      }
+                    >
+                      <Link href={subItem.url}>
+                        <span>{subItem.title}</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+
 
                     </SidebarMenuSubItem>
                   ))}
@@ -79,14 +84,17 @@ export function NavMain({
             <SidebarMenuButton
               asChild
               tooltip={item.title}
-              className={item.isActive ? "bg-blue-500 text-white dark:bg-blue-600 font-semibold" : ""}
+              className={
+                item.isActive
+                  ? "text-blue-700 font-semibold" // active = orange + bold
+                  : "text-gray-500 hover:text-gray-800" // inactive = grey
+              }
             >
               <Link href={item.url} className="flex items-center gap-2 w-full">
                 {item.icon && <item.icon />}
                 <span>{item.title}</span>
               </Link>
             </SidebarMenuButton>
-
           </SidebarMenuItem>
         )
       )}

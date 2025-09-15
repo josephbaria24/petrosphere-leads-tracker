@@ -29,7 +29,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} font-sans`}
         style={{
-          fontFamily: `var(--font-inter), var(--font-geist-sans), system-ui, sans-serif`,
+          fontFamily: `var(--font-geist-sans),var(--font-inter),  system-ui, sans-serif`,
         }}
       >
         <ThemeProvider
