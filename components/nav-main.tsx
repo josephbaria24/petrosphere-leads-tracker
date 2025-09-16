@@ -36,69 +36,70 @@ export function NavMain({
   }[]
 }) {
   return (
-    <SidebarGroup>
+    <SidebarGroup
+      className="rounded-xl border-1 dark:bg-background border-zinc-200 dark:border-zinc-700 pl-1 py-3 shadow"
+    >
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) =>
-        item.items && item.items.length > 0 ? (
-          <Collapsible
-            key={item.title}
-            asChild
-            defaultOpen={item.isActive}
-            className="group/collapsible"
-          >
-            <SidebarMenuItem>
-              <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={item.title}>
+          item.items && item.items.length > 0 ? (
+            <Collapsible
+              key={item.title}
+              asChild
+              defaultOpen={item.isActive}
+              className="group/collapsible"
+            >
+              <SidebarMenuItem className="font-medium text-zinc-600 dark:text-zinc-400">
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton tooltip={item.title}>
+                    {item.icon && <item.icon />}
+                    <span>{item.title}</span>
+                    <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="font-medium">
+                  <SidebarMenuSub>
+                    {item.items?.map((subItem) => (
+                      <SidebarMenuSubItem key={subItem.title}>
+                        <SidebarMenuSubButton
+                          asChild
+                          className={
+                            subItem.isActive
+                              ? "text-blue-700 dark:text-blue-600 font-extrabold"
+                              : "text-zinc-600 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white"
+                          }
+                        >
+                          <Link href={subItem.url}>
+                            <span>{subItem.title}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </Collapsible>
+          ) : (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton
+                asChild
+                tooltip={item.title}
+                className={
+                  item.isActive
+                    ? "text-blue-700 dark:text-blue-600 font-extrabold"
+                    : "text-zinc-600 font-medium dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white"
+                }
+              >
+                <Link href={item.url} className="flex items-center gap-2 w-full">
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
-                  <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                </SidebarMenuButton>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SidebarMenuSub>
-                  {item.items?.map((subItem) => (
-                    <SidebarMenuSubItem key={subItem.title}>
-                    <SidebarMenuSubButton
-                      asChild
-                      className={
-                        subItem.isActive
-                          ? "text-blue-700 font-semibold"
-                          : "text-gray-500 hover:text-gray-800"
-                      }
-                    >
-                      <Link href={subItem.url}>
-                        <span>{subItem.title}</span>
-                      </Link>
-                    </SidebarMenuSubButton>
-
-
-                    </SidebarMenuSubItem>
-                  ))}
-                </SidebarMenuSub>
-              </CollapsibleContent>
+                </Link>
+              </SidebarMenuButton>
             </SidebarMenuItem>
-          </Collapsible>
-        ) : (
-          <SidebarMenuItem key={item.title}>
-            <SidebarMenuButton
-              asChild
-              tooltip={item.title}
-              className={
-                item.isActive
-                  ? "text-blue-700 font-semibold" // active = orange + bold
-                  : "text-gray-500 hover:text-gray-800" // inactive = grey
-              }
-            >
-              <Link href={item.url} className="flex items-center gap-2 w-full">
-                {item.icon && <item.icon />}
-                <span>{item.title}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        )
-      )}
+          )
+        )}
       </SidebarMenu>
     </SidebarGroup>
   )
 }
+

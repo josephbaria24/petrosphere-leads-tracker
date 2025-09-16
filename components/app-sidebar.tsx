@@ -147,8 +147,8 @@ const data = {
       <SidebarHeader>
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={data.navMain} />
+      <SidebarContent className="m-1">
+        <NavMain items={data.navMain}/>
         {/* <NavProjects projects={data.projects} /> */}
         
 

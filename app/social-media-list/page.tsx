@@ -196,7 +196,7 @@ export default function SocialMediaTablePage() {
 
       <Separator className="my-4" />
       <Select value={selectedYear} onValueChange={setSelectedYear}>
-        <SelectTrigger className="w-[120px] mr-4 ml-4">
+        <SelectTrigger className="w-[120px] mr-4">
           <SelectValue placeholder="Select year" />
         </SelectTrigger>
         <SelectContent>

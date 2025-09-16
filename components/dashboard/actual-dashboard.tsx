@@ -1203,16 +1203,16 @@ useEffect(() => {
       <div className="flex pl-4 pb-6 items-center gap-3">
         {/* Icon that switches in dark mode */}
         <div className="w-10 h-10 relative">
-          {/* Light mode icon */}
+          
           <Image
-            src="/icons/black.png"
+            src="/icons/black2.png"
             alt="Logo"
             fill
             className="object-contain block dark:hidden"
           />
-          {/* Dark mode icon */}
+        
           <Image
-            src="/icons/white.png"
+            src="/icons/white2.png"
             alt="Logo"
             fill
             className="object-contain hidden dark:block"
@@ -1253,7 +1253,7 @@ useEffect(() => {
 
       <div className="flex justify-between pb-3">
         {/* Month Dropdown */}
-       <div className="flex space-x-3 rounded-lg p-2 bg-zinc-300 dark:bg-card ">
+       <div className="flex space-x-3 rounded-lg p-2 bg-zinc-100 dark:bg-card ">
         
        
         {selectedInterval === "monthly" && (
