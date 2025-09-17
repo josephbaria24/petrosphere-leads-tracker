@@ -145,86 +145,94 @@ export default function LeadsMapPage() {
           </p>
         </div>
 
-        {/* Key Metrics Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-blue-600 to-blue-900 text-white">
+   {/* Key Metrics Dashboard */}
+   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="relative overflow-hidden border border-white/20 shadow-xl bg-white/10 dark:bg-gray-900/30 backdrop-blur-md hover:bg-white/15 dark:hover:bg-gray-900/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm font-medium">Total Leads</p>
-                  <p className="text-3xl font-bold">
+                  <p className="text-gray-600 dark:text-gray-300 text-sm font-medium mb-2">Total Leads</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">
                     {loading ? "..." : totalLeads.toLocaleString()}
                   </p>
                 </div>
-                <div className="bg-blue-500 bg-opacity-30 rounded-full p-3">
-                  <Users className="h-6 w-6" />
+                <div className="bg-white/20 dark:bg-gray-800/30 backdrop-blur-sm rounded-full p-3 border border-white/30 dark:border-gray-600/30">
+                  <Users className="h-6 w-6 text-gray-700 dark:text-gray-200" />
                 </div>
               </div>
-              <div className="mt-4 flex items-center text-blue-100 text-sm">
-                <TrendingUp className="h-4 w-4 mr-1" />
+              <div className="mt-4 flex items-center text-gray-600 dark:text-gray-400 text-sm">
+                <TrendingUp className="h-4 w-4 mr-2 text-emerald-600 dark:text-emerald-400" />
                 <span>
                   {loading ? "..." : `${monthlyGrowth >= 0 ? '+' : ''}${monthlyGrowth.toFixed(1)}% from last month`}
                 </span>
               </div>
             </CardContent>
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent pointer-events-none"></div>
           </Card>
 
-          <Card className="relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-800 text-white">
+          <Card className="relative overflow-hidden border border-white/20 shadow-xl bg-white/10 dark:bg-gray-900/20 backdrop-blur-md hover:bg-white/15 dark:hover:bg-gray-900/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-emerald-100 text-sm font-medium">Active Regions</p>
-                  <p className="text-3xl font-bold">
+                  <p className="text-gray-600 dark:text-gray-300 text-sm font-medium mb-2">Active Regions</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">
                     {loading ? "..." : activeRegions}
                   </p>
                 </div>
-                <div className="bg-emerald-500 bg-opacity-30 rounded-full p-3">
-                  <MapPin className="h-6 w-6" />
+                <div className="bg-white/20 dark:bg-gray-800/30 backdrop-blur-sm rounded-full p-3 border border-white/30 dark:border-gray-600/30">
+                  <MapPin className="h-6 w-6 text-gray-700 dark:text-gray-200" />
                 </div>
               </div>
-              <div className="mt-4 flex items-center text-emerald-100 text-sm">
-                <Activity className="h-4 w-4 mr-1" />
+              <div className="mt-4 flex items-center text-gray-600 dark:text-gray-400 text-sm">
+                <Activity className="h-4 w-4 mr-2 text-blue-600 dark:text-blue-400" />
                 <span>Across Philippines</span>
               </div>
             </CardContent>
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent pointer-events-none"></div>
           </Card>
 
-          <Card className="relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-amber-500 to-amber-800 text-white">
+          <Card className="relative overflow-hidden border border-white/20 shadow-xl bg-white/10 dark:bg-gray-900/20 backdrop-blur-md hover:bg-white/15 dark:hover:bg-gray-900/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-amber-100 text-sm font-medium">Top Region</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-gray-600 dark:text-gray-300 text-sm font-medium mb-2">Top Region</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {loading ? "..." : topRegion.name}
                   </p>
                 </div>
-                <div className="bg-amber-500 bg-opacity-30 rounded-full p-3">
-                  <Target className="h-6 w-6" />
+                <div className="bg-white/20 dark:bg-gray-800/30 backdrop-blur-sm rounded-full p-3 border border-white/30 dark:border-gray-600/30">
+                  <Target className="h-6 w-6 text-gray-700 dark:text-gray-200" />
                 </div>
               </div>
-              <div className="mt-4 flex items-center text-amber-100 text-sm">
+              <div className="mt-4 flex items-center text-gray-600 dark:text-gray-400 text-sm">
                 <span>
                   {loading ? "..." : `${topRegion.count.toLocaleString()} leads (${topRegion.percentage.toFixed(1)}%)`}
                 </span>
               </div>
             </CardContent>
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent pointer-events-none"></div>
           </Card>
 
-          <Card className="relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-purple-500 to-purple-800 text-white">
+          <Card className="relative overflow-hidden border border-white/20 shadow-xl bg-white/10 dark:bg-gray-900/20 backdrop-blur-md hover:bg-white/15 dark:hover:bg-gray-900/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm font-medium">Avg. Conversion</p>
-                  <p className="text-3xl font-bold">{conversionRate}%</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm font-medium mb-2">Avg. Conversion</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{conversionRate}%</p>
                 </div>
-                <div className="bg-purple-500 bg-opacity-30 rounded-full p-3">
-                  <TrendingUp className="h-6 w-6" />
+                <div className="bg-white/20 dark:bg-gray-800/30 backdrop-blur-sm rounded-full p-3 border border-white/30 dark:border-gray-600/30">
+                  <TrendingUp className="h-6 w-6 text-gray-700 dark:text-gray-200" />
                 </div>
               </div>
-              <div className="mt-4 flex items-center text-purple-100 text-sm">
+              <div className="mt-4 flex items-center text-gray-600 dark:text-gray-400 text-sm">
                 <span>Industry benchmark</span>
               </div>
             </CardContent>
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent pointer-events-none"></div>
           </Card>
         </div>
 

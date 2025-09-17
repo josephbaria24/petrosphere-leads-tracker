@@ -65,7 +65,7 @@ export function NavMain({
                           asChild
                           className={
                             subItem.isActive
-                              ? "text-blue-700 dark:text-blue-600 font-extrabold"
+                              ? "text-yellow-500 dark:text-yellow-600  font-extrabold border-1 border-blue-700 dark:border-blue-600"
                               : "text-zinc-600 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white"
                           }
                         >
@@ -86,7 +86,7 @@ export function NavMain({
                 tooltip={item.title}
                 className={
                   item.isActive
-                    ? "text-blue-700 dark:text-blue-600 font-extrabold"
+                    ? "text-yellow-500 dark:text-yellow-600 font-extrabold border-1 border-blue-700 dark:border-blue-600"
                     : "text-zinc-600 font-medium dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white"
                 }
               >

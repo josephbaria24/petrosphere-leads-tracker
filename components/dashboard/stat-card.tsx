@@ -101,7 +101,7 @@ export const StatCard: React.FC<StatCardProps> = ({
       </DialogTrigger>
 
       {/* Modal content */}
-      <DialogContent className="max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="max-h-[90vh] lg:max-w-[25vw] md:max-w-[50vw] sm:max-w-[80vw] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>{label} Details</DialogTitle>
         </DialogHeader>

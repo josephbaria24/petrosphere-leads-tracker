@@ -1435,20 +1435,30 @@ useEffect(() => {
           />
 
 
-        <Card className="bg-gradient-to-br from-blue-800 to-yellow-500 border-0 text-white rounded-2xl p-6 h-38 shadow-lg">
-          {/* Icon + Label */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5 opacity-80" />
-              <span className="text-sm opacity-80">Total Leads</span>
+ {/* Professional Card Design */}
+ <div className="bg-card border-0 border-gray-200/60 rounded-xl p-4 shadow-lg hover:shadow-md transition-all duration-300 group">
+          {/* Header Section */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 bg-blue-50 dark:bg-blue-50/20 rounded-md flex items-center justify-center group-hover:bg-blue-100 transition-colors duration-200">
+                <UserPlus className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <span className="text-sm font-medium text-zinc-600 dark:text-gray-300 tracking-wide">
+                  Total Leads
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Main number */}
-          <div className="text-4xl font-bold">
-            <CountUp start={0} end={stats.totalLeads} duration={2} separator="," />
+          {/* Main Metric */}
+          <div className="mb-2">
+            <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+              <CountUp start={0} end={stats.totalLeads} duration={2} separator="," />
+            </div>
+            <div className="w-12 h-1 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full mt-3"></div>
           </div>
-        </Card>
+        </div>
         </div>
 
 
