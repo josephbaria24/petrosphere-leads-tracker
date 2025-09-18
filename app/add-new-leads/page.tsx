@@ -17,15 +17,15 @@ import { Separator } from '@/components/ui/separator'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
-import { Check, ChevronDown } from "lucide-react"
+import { Check, ChevronDown, User, Building2, Phone, Mail, MapPin, Calendar, DollarSign, FileText, Settings, Search, Plus, Edit3, PersonStandingIcon, UserPlus2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import EditLeadModal from '@/components/EditLeadModal'
+import { Badge } from '@/components/ui/badge'
 
 // Optimized debounce hook with ref
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
-
 
   useEffect(() => {
     if (timeoutRef.current) {
@@ -312,7 +312,6 @@ export default function AddNewLeadPage() {
     }
   }, [])
   
-
   // Initial data fetch
   useEffect(() => {
     const initializeData = async () => {
@@ -347,385 +346,616 @@ export default function AddNewLeadPage() {
   }, [session, router])
 
   if (!isReady) {
-    return <div className="p-10 text-center">Loading...</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800">
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 border-4 border-zinc-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-slate-600 dark:text-slate-400 font-medium">Loading your workspace...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 pl-10">
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard">Manage Lead</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Add New Lead</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
+    <div className="min-h-screen rounded-lg bg-card">
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Header Section */}
+        <div className="bg-white/80 dark:bg-card backdrop-blur-sm border-0 rounded-xl p-6 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink 
+                      href="/dashboard" 
+                      className="text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium"
+                    >
+                      Manage Lead
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="text-slate-400 dark:text-slate-500" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="text-slate-900 dark:text-slate-100 font-semibold">
+                      Add New Lead
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <UserPlus2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
+                  Add New Lead
+                  </h1>
+                  <p className="text-zinc-600 dark:text-zinc-400">
+                  Fill out the form below to add a new lead to your CRM system
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          </div>
         </div>
-      </div>
-      <Separator className="my-4" />
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Add New Lead</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {duplicateLead && (
-            <EditLeadModal
-              isOpen={isEditModalOpen}
-              onClose={() => setIsEditModalOpen(false)}
-              onSave={async (updated) => {
-                try {
-                  const { error } = await supabase
-                    .from("crm_leads")
-                    .update(updated)
-                    .eq("id", duplicateLead.id)
-
-                  if (error) {
-                    toast.error("Update failed")
-                  } else {
-                    toast.success("Lead updated successfully")
-                  }
-                } catch {
-                  toast.error("Update failed")
-                }
-              }}
-              lead={duplicateLead}
-              currentUserName={form.captured_by || "Unknown"}
-            />
-          )}
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="contact_name">Contact Name</Label>
-              <Input
-                id="contact_name"
-                value={form.contact_name}
-                onChange={(e) => handleChange('contact_name', e.target.value)}
-                onBlur={() => checkDuplicateLead(form.contact_name, form.email)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={form.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-                onBlur={() => checkDuplicateLead(form.contact_name, form.email)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="phone">Phone</Label>
-              <Input 
-                id="phone" 
-                value={form.phone} 
-                onChange={(e) => handleChange('phone', e.target.value)} 
-              />
-            </div>
-            <div>
-              <Label htmlFor="mobile">Mobile</Label>
-              <Input 
-                id="mobile" 
-                value={form.mobile} 
-                onChange={(e) => handleChange('mobile', e.target.value)} 
-              />
-            </div>
-            <div>
-              <Label htmlFor="company">Company</Label>
-              <Input 
-                id="company" 
-                value={form.company} 
-                onChange={(e) => handleChange('company', e.target.value)} 
-              />
-            </div>
-            <div>
-              <Label htmlFor="address">Company Address</Label>
-              <Input
-                id="address"
-                value={form.address}
-                onChange={(e) => handleChange('address', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="region">Region</Label>
-              <Select
-                open={isRegionOpen}
-                onOpenChange={setIsRegionOpen}
-                onValueChange={(val) => handleChange('region', val)}
-              >
-                <SelectTrigger id="region">
-                  <SelectValue placeholder="Select region" />
-                </SelectTrigger>
-                <SelectContent>
-                  <div className="flex justify-end p-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setIsRegionOpen(false)
-                        setEditingDropdown('regions')
-                      }}
-                      className="text-xs text-blue-500 hover:underline"
-                    >
-                      ✎ Edit
-                    </button>
-                  </div>
-                  {regions.map((region) => (
-                    <SelectItem key={region} value={region}>
-                      {region}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-           
-            <div className="w-full">
-              <Label htmlFor="lead_source">Lead Source</Label>
-              <Popover open={isLeadSourceOpen} onOpenChange={setIsLeadSourceOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    id="lead_source"
-                    role="combobox"
-                    className="w-full p-2 border rounded-md text-left flex items-center justify-between"
-                  >
-                    <span>{form.lead_source || "Select source"}</span>
-                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search lead source..." />
-                    <CommandEmpty>No source found.</CommandEmpty>
-                    <CommandGroup className="max-h-[200px] overflow-y-auto">
-                      {leadSources.map((source) => (
-                        <CommandItem
-                          key={source}
-                          value={source}
-                          onSelect={() => {
-                            handleChange('lead_source', source)
-                            setIsLeadSourceOpen(false)
-                          }}
-                        >
-                          <Check
-                            className={cn("mr-2 h-4 w-4", form.lead_source === source ? "opacity-100" : "opacity-0")}
-                          />
-                          {source}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 col-span-full">
-              <div>
-                <Label htmlFor="first_contact">First Contact</Label>
-                <DatePicker
-                  value={form.first_contact ? new Date(form.first_contact) : undefined}
-                  onChange={(date) => handleChange('first_contact', date?.toISOString() || '')}
-                />
+        
+        {/* Main Form Card */}
+        <Card className="border-0 shadow-xl bg-white/95 dark:bg-background backdrop-blur-sm">
+          <CardHeader className="pb-0">
+            <div className="flex items-center space-x-3">
+              <div className="">
+              <UserPlus2 className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
               </div>
               <div>
-                <Label htmlFor="last_contact">Last Contact</Label>
-                <DatePicker
-                  value={form.last_contact ? new Date(form.last_contact) : undefined}
-                  onChange={(date) => handleChange('last_contact', date?.toISOString() || '')}
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select onValueChange={(val) => handleChange('status', val)}>
-                <SelectTrigger id="status">
-                  <SelectValue placeholder="Select stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  {leadStatuses.map(stage => (
-                    <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <div>
-            <Label htmlFor="captured_by">Captured By</Label>
-            <div className="space-y-1">
-              <Select onValueChange={(val) => handleChange('captured_by', val)}>
-                <SelectTrigger id="captured_by">
-                  <SelectValue placeholder="Select user or type below" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CAPTURED_BY_OPTIONS.map(person => (
-                    <SelectItem key={person} value={person}>
-                      {person}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                placeholder="Or manually enter name"
-                value={form.captured_by}
-                onChange={(e) => handleChange('captured_by', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea 
-              id="notes" 
-              value={form.notes} 
-              onChange={(e) => handleChange('notes', e.target.value)} 
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="service_product">Service/Product</Label>
-            <div className="mb-2">
-              <Input
-                type="text"
-                placeholder="Search services..."
-                value={serviceSearch}
-                onChange={(e) => setServiceSearch(e.target.value)}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto border p-2 rounded-md">
-              {filteredServices.map((service) => {
-                const selected = serviceDetails.find((s) => s.name === service)
-                return (
-                  <div key={service} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center border-b pb-2">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={!!selected}
-                        onChange={(e) => handleServiceToggle(service, e.target.checked)}
-                      />
-                      <span>{service}</span>
-                    </label>
-
-                    <Select
-                      value={selected?.mode || ''}
-                      onValueChange={(value) => handleServiceModeChange(service, value)}
-                      disabled={!selected}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Mode of Service" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SERVICE_MODES.map(mode => (
-                          <SelectItem key={mode} value={mode}>{mode}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Input
-                      type="number"
-                      placeholder="₱0.00"
-                      value={selected?.price || ''}
-                      onChange={(e) => handleServicePriceChange(service, Number(e.target.value))}
-                      disabled={!selected}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-
-            {serviceDetails.length > 0 && (
-              <div className="text-sm text-muted-foreground mt-2 space-y-1">
-                <strong>Selected:</strong>
-                <ul className="list-disc list-inside">
-                  {serviceDetails.map((s) => (
-                    <li key={s.name}>
-                      {s.name} – {s.mode} – ₱{s.price.toFixed(2)}
-                    </li>
-                  ))}
-                </ul>
-                <p>
-                  <strong>Total Price:</strong> ₱{totalServicePrice.toFixed(2)}
+                <CardTitle className="text-xl font-semibold text-slate-900 dark:text-white">
+                  Lead Information
+                </CardTitle>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                  Complete all required fields to create a new lead entry
                 </p>
               </div>
-            )}
-          </div>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="space-y-8">
+            {/* Duplicate Lead Modal */}
+            {duplicateLead && (
+              <EditLeadModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSave={async (updated) => {
+                  try {
+                    const { error } = await supabase
+                      .from("crm_leads")
+                      .update(updated)
+                      .eq("id", duplicateLead.id)
 
-          <Button onClick={handleSubmit}>Submit Lead</Button>
-        </CardContent>
-      </Card>
-
-      {editingDropdown && (
-        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md relative overflow-hidden">
-            <button
-              onClick={() => setEditingDropdown(null)}
-              className="absolute top-2 right-2 text-gray-600 hover:text-black text-lg"
-            >
-              ✕
-            </button>
-            <div className="max-h-[90vh] overflow-y-auto p-6 pt-10">
-              <EditListModal
-                title={
-                  editingDropdown === 'regions' ? 'Regions' :
-                  editingDropdown === 'leadSources' ? 'Lead Sources' : 'Lead Statuses'
-                }
-                values={
-                  editingDropdown === 'regions' ? regions :
-                  editingDropdown === 'leadSources' ? leadSources : leadStatuses
-                }
-                onAdd={async (val) => {
-                  if (!val) return
-                  const table = 
-                    editingDropdown === 'regions' ? 'regions' :
-                    editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
-
-                  const { error } = await supabase.from(table).insert({ name: val })
-                  if (error) {
-                    toast.error('Add failed')
-                  } else {
-                    await fetchTable(table)
-                    toast.success('Added successfully')
+                    if (error) {
+                      toast.error("Update failed")
+                    } else {
+                      toast.success("Lead updated successfully")
+                    }
+                  } catch {
+                    toast.error("Update failed")
                   }
                 }}
-                onEdit={async (oldVal, newVal) => {
-                  if (!newVal) return
-                  const table = 
-                    editingDropdown === 'regions' ? 'regions' :
-                    editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
-
-                  const { error } = await supabase.from(table).update({ name: newVal }).eq('name', oldVal)
-                  if (error) {
-                    toast.error('Update failed')
-                  } else {
-                    await fetchTable(table)
-                    toast.success('Updated successfully')
-                  }
-                }}
-                onDelete={async (val) => {
-                  const table = 
-                    editingDropdown === 'regions' ? 'regions' :
-                    editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
-
-                  const { error } = await supabase.from(table).delete().eq('name', val)
-                  if (error) {
-                    toast.error('Delete failed')
-                  } else {
-                    await fetchTable(table)
-                    toast.success('Deleted successfully')
-                  }
-                }}
-                onSave={() => setEditingDropdown(null)}
+                lead={duplicateLead}
+                currentUserName={form.captured_by || "Unknown"}
               />
+            )}
+            
+            {/* Contact Information Section */}
+            <div className="space-y-6">
+              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
+                <User className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Contact Details</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="contact_name" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Contact Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="contact_name"
+                    value={form.contact_name}
+                    onChange={(e) => handleChange('contact_name', e.target.value)}
+                    onBlur={() => checkDuplicateLead(form.contact_name, form.email)}
+                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                    placeholder="Enter contact name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
+                    <Mail className="w-4 h-4" />
+                    <span>Email Address <span className="text-red-500">*</span></span>
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => handleChange('email', e.target.value)}
+                    onBlur={() => checkDuplicateLead(form.contact_name, form.email)}
+                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                    placeholder="contact@example.com"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
+                    <Phone className="w-4 h-4" />
+                    <span>Phone Number <span className="text-red-500">*</span></span>
+                  </Label>
+                  <Input 
+                    id="phone" 
+                    value={form.phone} 
+                    onChange={(e) => handleChange('phone', e.target.value)}
+                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                    placeholder="+63 xxx xxx xxxx"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="mobile" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Mobile Number <span className="text-red-500">*</span>
+                  </Label>
+                  <Input 
+                    id="mobile" 
+                    value={form.mobile} 
+                    onChange={(e) => handleChange('mobile', e.target.value)}
+                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                    placeholder="+63 9xx xxx xxxx"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Company Information Section */}
+            <div className="space-y-6">
+              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
+                <Building2 className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Company Information</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="company" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Company Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input 
+                    id="company" 
+                    value={form.company} 
+                    onChange={(e) => handleChange('company', e.target.value)}
+                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                    placeholder="Company name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
+                    <MapPin className="w-4 h-4" />
+                    <span>Company Address <span className="text-red-500">*</span></span>
+                  </Label>
+                  <Input
+                    id="address"
+                    value={form.address}
+                    onChange={(e) => handleChange('address', e.target.value)}
+                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                    placeholder="Complete address"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="region" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Region <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    open={isRegionOpen}
+                    onOpenChange={setIsRegionOpen}
+                    onValueChange={(val) => handleChange('region', val)}
+                  >
+                    <SelectTrigger 
+                      id="region"
+                      className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                    >
+                      <SelectValue placeholder="Select region" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <div className="flex justify-end p-2">
+                      </div>
+                      {regions.map((region) => (
+                        <SelectItem 
+                          key={region} 
+                          value={region}
+                        >
+                          {region}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+               
+                <div className="space-y-2">
+                  <Label htmlFor="lead_source" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Lead Source <span className="text-red-500">*</span>
+                  </Label>
+                  <Popover open={isLeadSourceOpen} onOpenChange={setIsLeadSourceOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                      >
+                        <span className="truncate">{form.lead_source || "Select lead source"}</span>
+                        <ChevronDown className="ml-2 h-4 w-4 opacity-50 flex-shrink-0" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0 bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600">
+                      <Command className="bg-transparent">
+                        <CommandInput 
+                          placeholder="Search lead source..." 
+                          className="border-0 focus:ring-0 bg-transparent"
+                        />
+                        <CommandEmpty>No source found.</CommandEmpty>
+                        <CommandGroup className="max-h-[200px] overflow-y-auto">
+                          {leadSources.map((source) => (
+                            <CommandItem
+                              key={source}
+                              value={source}
+                              onSelect={() => {
+                                handleChange('lead_source', source)
+                                setIsLeadSourceOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn("mr-2 h-4 w-4", form.lead_source === source ? "opacity-100" : "opacity-0")}
+                              />
+                              {source}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline Section */}
+            <div className="space-y-6">
+              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
+                <Calendar className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Timeline & Status</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="first_contact" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    First Contact <span className="text-red-500">*</span>
+                  </Label>
+                  <DatePicker
+                    value={form.first_contact ? new Date(form.first_contact) : undefined}
+                    onChange={(date) => handleChange('first_contact', date?.toISOString() || '')}
+                    
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="last_contact" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Last Contact <span className="text-red-500">*</span>
+                  </Label>
+                  <DatePicker
+                    value={form.last_contact ? new Date(form.last_contact) : undefined}
+                    onChange={(date) => handleChange('last_contact', date?.toISOString() || '')}
+                  />
+                </div>
+
+                <div className="space-y-5">
+                  <Label htmlFor="status" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Current Status <span className="text-red-500">*</span>
+                  </Label>
+                  <Select onValueChange={(val) => handleChange('status', val)}>
+                    <SelectTrigger 
+                      id="status"
+                      className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                    >
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-zinc-800 border-slate-300 dark:border-slate-600">
+                      {leadStatuses.map(stage => (
+                        <SelectItem 
+                          key={stage} 
+                          value={stage}
+                          className="focus:bg-zinc-50 dark:focus:bg-zinc-900/20"
+                        >
+                          {stage}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            
+            {/* Captured By Section */}
+            <div className="space-y-6">
+              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
+                <Settings className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Assignment</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="captured_by" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Captured By <span className="text-red-500">*</span>
+                  </Label>
+                  <Select onValueChange={(val) => handleChange('captured_by', val)}>
+                    <SelectTrigger 
+                      id="captured_by"
+                      className=" justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                    >
+                      <SelectValue placeholder="Select team member" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-zinc-800 border-slate-300 dark:border-slate-600">
+                      {CAPTURED_BY_OPTIONS.map(person => (
+                        <SelectItem 
+                          key={person} 
+                          value={person}
+                          className="focus:bg-zinc-50 dark:focus:bg-zinc-900/20"
+                        >
+                          {person}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Or manually enter name
+                  </Label>
+                  <Input
+                    placeholder="Enter custom name..."
+                    value={form.captured_by}
+                    onChange={(e) => handleChange('captured_by', e.target.value)}
+                    className="justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Notes Section */}
+            <div className="space-y-6">
+              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
+                <FileText className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Additional Information</h3>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Notes & Comments
+                </Label>
+                <Textarea 
+                  id="notes" 
+                  value={form.notes} 
+                  onChange={(e) => handleChange('notes', e.target.value)}
+                  className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 focus:border-zinc-500 dark:focus:border-zinc-400 transition-colors min-h-[120px] resize-none"
+                  placeholder="Add any additional notes or comments about this lead..."
+                />
+              </div>
+            </div>
+            
+            {/* Services Section */}
+            <div className="space-y-6">
+              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
+                <DollarSign className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Services & Pricing</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="service_search" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Search Services
+                  </Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                      id="service_search"
+                      type="text"
+                      placeholder="Search for services..."
+                      value={serviceSearch}
+                      onChange={(e) => setServiceSearch(e.target.value)}
+                      className="pl-10 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 focus:border-zinc-500 dark:focus:border-zinc-400 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4 space-y-3 max-h-[400px] overflow-y-auto border border-zinc-200 dark:border-zinc-700">
+                  {filteredServices.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                      <p>No services found matching your search.</p>
+                    </div>
+                  ) : (
+                    filteredServices.map((service) => {
+                      const selected = serviceDetails.find((s) => s.name === service)
+                      return (
+                        <div key={service} className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700 space-y-3">
+                          <label className="flex items-center space-x-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!selected}
+                              onChange={(e) => handleServiceToggle(service, e.target.checked)}
+                              className="w-4 h-4 text-zinc-600 bg-zinc-100 border-zinc-300 rounded focus:ring-zinc-500 dark:focus:ring-zinc-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                            />
+                            <span className="font-medium text-slate-900 dark:text-white">{service}</span>
+                          </label>
+
+                          {selected && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-7 pt-2 border-t border-zinc-200 dark:border-zinc-600">
+                              <div className="space-y-1">
+                                <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                                  Service Mode
+                                </Label>
+                                <Select
+                                  value={selected?.mode || ''}
+                                  onValueChange={(value) => handleServiceModeChange(service, value)}
+                                >
+                                  <SelectTrigger className="h-9 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600">
+                                    <SelectValue placeholder="Select mode" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600">
+                                    {SERVICE_MODES.map(mode => (
+                                      <SelectItem 
+                                        key={mode} 
+                                        value={mode}
+                                        className="focus:bg-zinc-50 dark:focus:bg-zinc-900/20"
+                                      >
+                                        {mode}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="space-y-1">
+                                <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                                  Price (₱)
+                                </Label>
+                                <Input
+                                  type="number"
+                                  placeholder="0.00"
+                                  value={selected?.price || ''}
+                                  onChange={(e) => handleServicePriceChange(service, Number(e.target.value))}
+                                  className="h-9 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
+                {serviceDetails.length > 0 && (
+                  <div className="bg-zinc-50 dark:bg-zinc-900/20 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <h4 className="font-semibold text-blue-900 dark:text-blue-100">Selected Services</h4>
+                    </div>
+                    
+                    <div className="space-y-2 mb-4">
+                      {serviceDetails.map((s) => (
+                        <div key={s.name} className="flex items-center justify-between py-2 px-3 bg-white dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700">
+                          <div className="flex-1">
+                            <span className="font-medium text-slate-900 dark:text-white">{s.name}</span>
+                            {s.mode && (
+                              <Badge variant="secondary" className="ml-2 text-xs bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-slate-300">
+                                {s.mode}
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="font-semibold text-slate-900 dark:text-white">₱{s.price.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="flex justify-between items-center pt-3 border-t border-zinc-200 dark:border-zinc-700">
+                      <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Total Amount:</span>
+                      <span className="text-xl font-bold text-blue-900 dark:text-blue-100">₱{totalServicePrice.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <div className="pt-6 border-t border-zinc-200 dark:border-zinc-700">
+              <Button 
+                onClick={handleSubmit}
+               
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Add Lead
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Edit Modal */}
+        {editingDropdown && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md relative overflow-hidden border border-slate-200 dark:border-slate-700">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+              
+              <button
+                onClick={() => setEditingDropdown(null)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-medium transition-colors z-10"
+              >
+                ✕
+              </button>
+              
+              <div className="max-h-[90vh] overflow-y-auto p-6 pt-12">
+                <EditListModal
+                  title={
+                    editingDropdown === 'regions' ? 'Manage Regions' :
+                    editingDropdown === 'leadSources' ? 'Manage Lead Sources' : 'Manage Lead Statuses'
+                  }
+                  values={
+                    editingDropdown === 'regions' ? regions :
+                    editingDropdown === 'leadSources' ? leadSources : leadStatuses
+                  }
+                  onAdd={async (val) => {
+                    if (!val) return
+                    const table = 
+                      editingDropdown === 'regions' ? 'regions' :
+                      editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
+
+                    const { error } = await supabase.from(table).insert({ name: val })
+                    if (error) {
+                      toast.error('Failed to add item', { description: error.message })
+                    } else {
+                      await fetchTable(table)
+                      toast.success('Item added successfully')
+                    }
+                  }}
+                  onEdit={async (oldVal, newVal) => {
+                    if (!newVal) return
+                    const table = 
+                      editingDropdown === 'regions' ? 'regions' :
+                      editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
+
+                    const { error } = await supabase.from(table).update({ name: newVal }).eq('name', oldVal)
+                    if (error) {
+                      toast.error('Failed to update item', { description: error.message })
+                    } else {
+                      await fetchTable(table)
+                      toast.success('Item updated successfully')
+                    }
+                  }}
+                  onDelete={async (val) => {
+                    const table = 
+                      editingDropdown === 'regions' ? 'regions' :
+                      editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
+
+                    const { error } = await supabase.from(table).delete().eq('name', val)
+                    if (error) {
+                      toast.error('Failed to delete item', { description: error.message })
+                    } else {
+                      await fetchTable(table)
+                      toast.success('Item deleted successfully')
+                    }
+                  }}
+                  onSave={() => setEditingDropdown(null)}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
