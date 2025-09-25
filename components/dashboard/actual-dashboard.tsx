@@ -146,6 +146,66 @@ export function ActualDashboardPage() {
 
 
   useEffect(() => {
+    const checkLeadInputStatus = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+  
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email, id")
+        .eq("id", user.id)
+        .single();
+  
+      const SALES_EMAILS = [
+        "kbg@petrosphere.com.ph",
+        "dra@petrosphere.com.ph",
+        "rlm@petrosphere.com.ph",
+        "jlb@petrosphere.com.ph"
+      ];
+  
+      if (!profile || !SALES_EMAILS.includes(profile.email)) return;
+  
+      const todayKey = `lead-reminder-shown-${user.id}-${new Date().toISOString().slice(0, 10)}`;
+      const alreadyShown = localStorage.getItem(todayKey);
+      if (alreadyShown) return;
+  
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+  
+      const { data: leadsToday, error } = await supabase
+        .from("crm_leads")
+        .select("id")
+        .eq("user_id", profile.id)
+        .gte("created_at", startOfToday.toISOString())
+        .lte("created_at", endOfToday.toISOString());
+  
+      if (error) {
+        console.error("Error checking today's leads:", error);
+        return;
+      }
+  
+      if (!leadsToday || leadsToday.length === 0) {
+        toast("🚨 Reminder", {
+          description: "You haven’t submitted your lead quota for today.",
+          duration: Infinity, // Will not disappear until manually dismissed
+          action: {
+            label: "Dismiss",
+            onClick: () => {},
+          },
+        });
+  
+        localStorage.setItem(todayKey, "true");
+      }
+    };
+  
+    checkLeadInputStatus();
+  }, []);
+  
+
+
+  useEffect(() => {
     const fetchNewestLeads = async () => {
       const { data, error } = await supabase
         .from('crm_leads')
