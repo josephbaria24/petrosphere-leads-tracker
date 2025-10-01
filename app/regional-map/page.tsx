@@ -23,6 +23,28 @@ export default function LeadsMapPage() {
   const [monthlyGrowth, setMonthlyGrowth] = useState(0)
   const [loading, setLoading] = useState(true)
 
+  const validRegions = [
+    "Region I - Ilocos Region",
+    "Region II - Cagayan Valley",
+    "Region III - Central Luzon",
+    "Region IV-A - CALABARZON",
+    "Region IV-B - MIMAROPA Region",
+    "Region V - Bicol Region",
+    "Region VI - Western Visayas",
+    "Region VII - Central Visayas",
+    "Region VIII - Eastern Visayas",
+    "Region IX - Zamboanga Peninsula",
+    "Region X - Northern Mindanao",
+    "Region XI - Davao Region",
+    "Region XII - SOCCSKSARGEN",
+    "Region XIII - Caraga",
+    "NCR - National Capital Region",
+    "CAR - Cordillera Administrative Region",
+    "BARMM - Bangsamoro Autonomous Region in Muslim Mindanao",
+    "NIR - Negros Island Region"
+  ]
+
+  
   const regionNameMap: Record<string, string> = {
     "National Capital Region": "Metro Manila",
     "CALABARZON": "Calabarzon",
@@ -63,10 +85,12 @@ export default function LeadsMapPage() {
         // Process region counts
         const counts: Record<string, number> = {}
         leadsData.forEach((lead: LeadData) => {
-          if (lead.region) {
+          if (lead.region && validRegions.includes(lead.region)) {
             counts[lead.region] = (counts[lead.region] || 0) + 1
           }
         })
+        
+        
 
         const regionCountsArray = Object.entries(counts)
           .map(([region, count]) => ({ region, count }))

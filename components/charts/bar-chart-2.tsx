@@ -195,6 +195,7 @@ export default function CRMBarChart({
       const map: Record<string, ChartData> = {}
   
       allData.forEach(({ captured_by, status }) => {
+        
         const name = captured_by?.trim() || 'Unknown'
         const normalizedStatus = status?.toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase()) as LeadStatus
   

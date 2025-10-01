@@ -226,7 +226,7 @@ const drawBarChart = (
       page.drawText(valueText, {
         x: barX + (barWidth - textWidth) / 2,
         y: barY + barHeight + 5,
-        size: 8,
+        size: 7,
         font,
         color: rgb(0.3, 0.3, 0.3)
       });
@@ -238,7 +238,7 @@ const drawBarChart = (
     page.drawText(labelText, {
       x: barX + (barWidth - labelWidth) / 2,
       y: y + 15,
-      size: 8,
+      size: 7,
       font,
       color: rgb(0.3, 0.3, 0.3)
     });
@@ -404,7 +404,7 @@ const drawLineChart = (
     page.drawText(labelText, {
       x: labelX - textWidth / 2,
       y: y + 5,
-      size: 8,
+      size: 7,
       font,
       color: rgb(0.3, 0.3, 0.3)
     });
@@ -529,13 +529,14 @@ export async function GET(req: Request) {
       font: fontBold,
       color: rgb(0, 0, 0.6)
     });
-    page.drawText(`Report Date: ${format(today, 'MMM dd, yyyy')}`, {
+    page.drawText(`Report Generated: ${format(new Date(), 'MMM dd, yyyy')}`, {
       x: 50 + logoDims.width + 20,
       y: 785,
       size: 10,
       font,
       color: rgb(0.3, 0.3, 0.3)
     });
+
     page.drawText(`Covers: ${format(monthStart, 'MMM dd, yyyy')} - ${format(monthEnd, 'MMM dd, yyyy')}`, {
       x: 50 + logoDims.width + 20,
       y: 772,
@@ -597,7 +598,7 @@ export async function GET(req: Request) {
       page.drawText(`${arrow} ${change}`, {
         x: x + 10,
         y: y + height - 48,
-        size: 8,
+        size: 7,
         font,
         color: rgb(...changeColor as [number, number, number])
       });
@@ -637,7 +638,7 @@ export async function GET(req: Request) {
     const comparisonData = [
       ['Total Leads', currentData.totalLeads, previousData.totalLeads],
       ['Revenue Potential', currentData.potentialIncome, previousData.potentialIncome],
-      ['Conversion Rate', 
+      ['Conversion Rate(closed won/total)', 
         currentData.totalLeads > 0 ? ((currentData.closedWonLeads / currentData.totalLeads) * 100) : 0,
         previousData.totalLeads > 0 ? ((previousData.closedWonLeads / previousData.totalLeads) * 100) : 0
       ]
@@ -655,7 +656,7 @@ export async function GET(req: Request) {
       let valueText = '';
       if (label === 'Revenue Potential') {
         valueText = `PHP${currentNum.toLocaleString()}`;
-      } else if (label === 'Conversion Rate') {
+      } else if (label === 'Conversion Rate(closed won/total)') {
         valueText = `${currentNum.toFixed(1)}%`;
       } else {
         valueText = currentNum.toString();
@@ -699,35 +700,51 @@ export async function GET(req: Request) {
 
     y -= 200;
 
+
+    // Helper function to shorten lead source names
+    const shortenLeadSource = (label: string): string => {
+      if (label.startsWith("Inbound - ")) {
+        return "I-" + label.replace("Inbound - ", "");
+      } else if (label.startsWith("Outbound - ")) {
+        return "O-" + label.replace("Outbound - ", "");
+      }
+      return label;
+    };
     // Lead Source Analysis
     const leadSourceChartData = Object.entries(leadSourceBreakdown)
       .sort(([,a], [,b]) => b - a)
       .slice(0, 6)
       .map(([label, value]) => ({
-        label: label.length > 12 ? label.substring(0, 12) + '...' : label,
+        label: shortenLeadSource(label),
         value,
         color: [0.8, 0.4, 0.2] as [number, number, number]
       }));
 
-    drawBarChart(page, leadSourceChartData, 50, y - 180, 240, 160, font, fontBold, 'Lead Sources');
+      drawBarChart(page, leadSourceChartData, 50, y - 180, 260, 160, font, fontBold, 'Lead Sources');
+
 
     // Enhanced Summary Table with Comparisons
-    const drawComparisonTable = (rows: Array<[string, string | number, string | number]>, startY: number) => {
+    const drawComparisonTable = (
+      rows: Array<[string, string | number, string | number]>,
+      startY: number,
+      startX = 320  // <-- Add this default parameter
+    ) => {
       let tableY = startY;
       
       // Headers
-      page.drawText('Metric', { x: 320, y: tableY, size: 10, font: fontBold });
-      page.drawText('Current', { x: 420, y: tableY, size: 10, font: fontBold });
-      page.drawText('Previous', { x: 490, y: tableY, size: 10, font: fontBold });
+      page.drawText('Metric', { x: startX, y: tableY, size: 10, font: fontBold });
+      page.drawText('Current', { x: startX + 100, y: tableY, size: 10, font: fontBold });
+      page.drawText('Previous', { x: startX + 170, y: tableY, size: 10, font: fontBold });
       tableY -= 16;
       
       rows.forEach(([label, current, previous]) => {
-        page.drawText(String(label), { x: 320, y: tableY, size: 10, font });
-        page.drawText(String(current), { x: 420, y: tableY, size: 10, font });
-        page.drawText(String(previous), { x: 490, y: tableY, size: 10, font });
+        page.drawText(String(label), { x: startX, y: tableY, size: 8, font });
+        page.drawText(String(current), { x: startX + 100, y: tableY, size: 8, font });
+        page.drawText(String(previous), { x: startX + 170, y: tableY, size: 8, font });
         tableY -= 14;
       });
     };
+    
 
     page.drawText('Summary Comparison', { x: 320, y: y - 20, size: 13, font: fontBold, color: rgb(0, 0, 0.6) });
     
@@ -744,7 +761,7 @@ export async function GET(req: Request) {
       ]
     ];
     
-    drawComparisonTable(summaryComparison, y - 45);
+    drawComparisonTable(summaryComparison, y - 45, 320);
 
     // Footer page 1
     page.drawLine({ start: { x: 50, y: 50 }, end: { x: 545, y: 50 }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
@@ -1404,15 +1421,15 @@ if ((currentData.webinars?.length || 0) > 0 || (previousData.webinars?.length ||
       to: [
         'jlb@petrosphere.com.ph',
         'josephbaria89@gmail.com',
-        'rlm@petrosphere.com.ph',
-        'dra@petrosphere.com.ph',
-        'kbg@petrosphere.com.ph',
-        'sales@petrosphere.com.ph',
-        'ceo@petrosphere.com.ph',
-        'admin@petrosphere.com.ph',
-        'ops@petrosphere.com.ph'
+        // 'rlm@petrosphere.com.ph',
+        // 'dra@petrosphere.com.ph',
+        // 'kbg@petrosphere.com.ph',
+        // 'sales@petrosphere.com.ph',
+        // 'ceo@petrosphere.com.ph',
+        // 'admin@petrosphere.com.ph',
+        // 'ops@petrosphere.com.ph'
       ],
-      subject: `Enhanced Monthly Sales & Marketing Report with Comparisons - ${format(today, 'MMM yyyy')}`,
+      subject: `Monthly Sales & Marketing Report with Comparisons - ${format(today, 'MMM yyyy')}`,
       text: `Attached is your comprehensive monthly report with visual analytics, performance insights, and month-over-month comparisons for ${reportMonth} ${reportYear}.
 
 CURRENT MONTH HIGHLIGHTS:
