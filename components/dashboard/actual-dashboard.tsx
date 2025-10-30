@@ -325,7 +325,10 @@ export function ActualDashboardPage() {
   
   
   
-  
+  // Helper to normalize to YYYY-MM-DD string
+function normalizeDateString(dateString: string) {
+  return dateString.split("T")[0]  // e.g. "2024-09-30"
+}
 
   
   useEffect(() => {
@@ -391,42 +394,50 @@ export function ActualDashboardPage() {
   
     allData.forEach(({ lead_source, first_contact }) => {
       if (!first_contact) return
-  
-      const date = new Date(first_contact)
+    
+      // ✅ Normalize to YYYY-MM-DD and parse as UTC to prevent timezone shifts
+      const normalizedDate = first_contact.split("T")[0]
+      const [year, monthNum, day] = normalizedDate.split("-").map(Number)
+
       let xLabel = ''
-  
       switch (interval) {
         case 'weekly': {
-          const firstJan = new Date(date.getFullYear(), 0, 1)
-          const dayOfYear = Math.floor((date.getTime() - firstJan.getTime()) / (1000 * 60 * 60 * 24)) + 1
-          const week = Math.ceil((dayOfYear + firstJan.getDay()) / 7)
+          const d = new Date(Date.UTC(year, monthNum - 1, day))
+          const janFirst = new Date(Date.UTC(year, 0, 1))
+          const dayOfYear = Math.floor((d.getTime() - janFirst.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          const week = Math.ceil(dayOfYear / 7)
           xLabel = `W${week}`
           break
         }
         case 'quarterly': {
-          const quarter = Math.floor(date.getMonth() / 3) + 1
+          const quarter = Math.floor((monthNum - 1) / 3) + 1
           xLabel = `Q${quarter}`
           break
         }
-        case 'annually':
-          xLabel = `${date.getFullYear()}`
+        case 'annually': {
+          xLabel = `${year}`
           break
-        default:
-          xLabel = month === 'all'
-            ? date.toLocaleString('default', { month: 'short' })
-            : String(date.getDate()).padStart(2, '0')
-          break
+        }
+        default: {
+          if (selectedMonth === 'all') {
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            xLabel = monthNames[monthNum - 1]
+          } else {
+            // ✅ directly use the day part (avoids timezone drift)
+            xLabel = String(day).padStart(2, '0')
+          }
+        }
       }
-  
       const originalSource = (lead_source || 'Unknown').trim()
       const normalized = normalizeKey(originalSource)
       uniqueSources.add(normalized)
       displayMap[normalized] = originalSource
-  
+    
       if (!grouped[xLabel]) grouped[xLabel] = {}
       grouped[xLabel][normalized] = (grouped[xLabel][normalized] || 0) + 1
       totals[normalized] = (totals[normalized] || 0) + 1
     })
+    
   
     let xValues: string[] = []
   

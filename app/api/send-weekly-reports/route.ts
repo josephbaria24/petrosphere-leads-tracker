@@ -1421,13 +1421,13 @@ if ((currentData.webinars?.length || 0) > 0 || (previousData.webinars?.length ||
       to: [
         'jlb@petrosphere.com.ph',
         'josephbaria89@gmail.com',
-        // 'rlm@petrosphere.com.ph',
-        // 'dra@petrosphere.com.ph',
-        // 'kbg@petrosphere.com.ph',
-        // 'sales@petrosphere.com.ph',
-        // 'ceo@petrosphere.com.ph',
-        // 'admin@petrosphere.com.ph',
-        // 'ops@petrosphere.com.ph'
+        'rlm@petrosphere.com.ph',
+        'dra@petrosphere.com.ph',
+        'kbg@petrosphere.com.ph',
+        'sales@petrosphere.com.ph',
+        'ceo@petrosphere.com.ph',
+        'admin@petrosphere.com.ph',
+        'ops@petrosphere.com.ph'
       ],
       subject: `Monthly Sales & Marketing Report with Comparisons - ${format(today, 'MMM yyyy')}`,
       text: `Attached is your comprehensive monthly report with visual analytics, performance insights, and month-over-month comparisons for ${reportMonth} ${reportYear}.
@@ -1451,14 +1451,18 @@ This enhanced report includes:
 • Historical trend analysis for informed decision-making
 
 Key insights and recommendations are provided to help drive continued business growth.`,
-      attachments: [
-        {
-          filename: `enhanced_monthly_report_with_comparison_${format(today, 'yyyyMM')}.pdf`,
-          content: Buffer.from(pdfBytes).toString('base64'),
-          type: 'application/pdf',
-          disposition: 'attachment'
-        }
-      ]
+attachments: [
+  {
+    filename: 'report.pdf',
+    content: Buffer.from(pdfBytes).toString('base64'),
+    encoding: 'base64',
+    type: 'application/pdf',
+    disposition: 'attachment'
+  }
+]
+
+
+
     });
 
     return NextResponse.json({ 

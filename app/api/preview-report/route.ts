@@ -1,23 +1,19 @@
-// File: /app/api/preview-report/route.ts
+// app/api/report/preview/route.ts
+import { NextResponse } from "next/server";
+import { generateMonthlyReportPDF } from "@/lib/generateMonthlyReportPDF";
 
-import { NextRequest } from 'next/server';
-import { generateMonthlyReportPDF } from '@/lib/generateMonthlyReportPDF';
-
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const month = searchParams.get('month');
-
+export async function GET(req: Request) {
   try {
-    const pdfBytes = await generateMonthlyReportPDF(month);
+    const pdfBytes = await generateMonthlyReportPDF(req);
 
-    return new Response(pdfBytes, {
+    return new NextResponse(pdfBytes, {
+      status: 200,
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename=preview_monthly_report.pdf`
-      }
+        "Content-Type": "application/pdf",
+        "Content-Disposition": "inline; filename=preview.pdf",
+      },
     });
   } catch (err: any) {
-    console.error('Error generating PDF preview:', err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
