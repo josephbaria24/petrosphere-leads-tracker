@@ -65,7 +65,7 @@ const INITIAL_FORM_STATE = {
   last_contact: null,
 }
 
-const CAPTURED_BY_OPTIONS = ['Ross', 'Randy', 'Michelle', 'Harthwell', 'Sergs', 'Krezel', 'Carmela', 'Other']
+const CAPTURED_BY_OPTIONS = ['Ross', 'Randy', 'Michelle', 'Harthwell', 'Sergs', 'Krezel', 'Carmela', 'Cherrylene', 'Other']
 const SERVICE_MODES = ['Face to Face', 'E-learning', 'Online']
 
 export default function AddNewLeadPage() {
