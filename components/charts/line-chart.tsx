@@ -126,24 +126,26 @@ const CustomTooltip = ({
                     fontSize: '13px', // or '10px', '0.75rem', etc.
                 }}
                 />
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="closed_amount"
-                stroke="#007BFF"
-                strokeWidth={1}
-                name="Closed Amount"
-                dot={{ r: 3 }}
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="won_opportunities"
-                stroke="#e91e63"
-                strokeWidth={1}
-                name="Won Opportunities"
-                dot={{ r: 3 }}
-              />
+          <Line
+  yAxisId="left"
+  type="monotone"
+  dataKey="closed_amount"
+  stroke="#007BFF"         // Blue
+  strokeWidth={2}
+  name="Closed Amount"
+  dot={{ r: 3, fill: "#007BFF" }}
+/>
+
+<Line
+  yAxisId="right"
+  type="monotone"
+  dataKey="won_opportunities"
+  stroke="#9CA3AF"         // Gray
+  strokeWidth={2}
+  name="Potential Revenue"
+  dot={{ r: 3, fill: "#9CA3AF" }}
+/>
+
             </LineChart>
           </ResponsiveContainer>
         </CardContent>

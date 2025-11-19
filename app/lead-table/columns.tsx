@@ -322,14 +322,14 @@ export const getColumns = ({
       const [open, setOpen] = React.useState(false);
       const [tempFilter, setTempFilter] = React.useState<string[]>([]);
   
-      // Sync temp with actual when dropdown opens
       React.useEffect(() => {
         if (open) setTempFilter(capturedByFilter);
-      }, [open]);
+      }, [open, capturedByFilter]);
   
       return (
         <div className="flex items-center gap-2">
           Captured By
+  
           <DropdownMenu open={open} onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm">
@@ -337,45 +337,50 @@ export const getColumns = ({
               </Button>
             </DropdownMenuTrigger>
   
-            <DropdownMenuContent className="max-h-72 overflow-y-auto p-2 space-y-1">
-              <DropdownMenuCheckboxItem
-                checked={tempFilter.length === 0}
-                onSelect={(e) => {
-                  e.preventDefault();
-                  if (tempFilter.length === 0) {
-                    setTempFilter(unique); // deselect all
-                  } else {
-                    setTempFilter([]); // select all
-                  }
-                }}
-              >
-                Select All
-              </DropdownMenuCheckboxItem>
-  
-              {unique.map((value) => (
+            <DropdownMenuContent className="p-0 w-56">
+              
+              {/* Scrollable list */}
+              <div className="max-h-72 overflow-y-auto p-2 space-y-1">
                 <DropdownMenuCheckboxItem
-                  key={value}
-                  checked={tempFilter.includes(value)}
+                  checked={tempFilter.length === 0}
                   onSelect={(e) => {
                     e.preventDefault();
-                    setTempFilter((prev) =>
-                      prev.includes(value)
-                        ? prev.filter((v) => v !== value)
-                        : [...prev, value]
-                    );
+                    if (tempFilter.length === 0) {
+                      setTempFilter(unique); // select all
+                    } else {
+                      setTempFilter([]); // clear all
+                    }
                   }}
                 >
-                  {value}
+                  Select All
                 </DropdownMenuCheckboxItem>
-              ))}
   
-              <div className="pt-2 border-t border-gray-200 flex justify-end">
+                {unique.map((value) => (
+                  <DropdownMenuCheckboxItem
+                    key={value}
+                    checked={tempFilter.includes(value)}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setTempFilter((prev) =>
+                        prev.includes(value)
+                          ? prev.filter((v) => v !== value)
+                          : [...prev, value]
+                      );
+                    }}
+                  >
+                    {value}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </div>
+  
+              {/* Sticky footer */}
+              <div className="sticky bottom-0 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 p-2 z-10">
                 <Button
                   size="sm"
                   className="w-full"
                   onClick={() => {
                     setCapturedByFilter(tempFilter);
-                    setOpen(false); // close dropdown
+                    setOpen(false);
                   }}
                 >
                   Apply
@@ -388,7 +393,6 @@ export const getColumns = ({
     },
     enableSorting: true,
   }
-  
   ,
   {
     accessorKey: "contact_name",

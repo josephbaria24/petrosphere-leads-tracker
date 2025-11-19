@@ -522,7 +522,7 @@ export async function GET(req: Request) {
     }
 
     // Title
-    page.drawText('Monthly Sales & Marketing Report', {
+    page.drawText('Monthly Leads Report', {
       x: 50 + logoDims.width + 20,
       y: 800,
       size: 18,
@@ -1430,7 +1430,7 @@ if ((currentData.webinars?.length || 0) > 0 || (previousData.webinars?.length ||
         'ops@petrosphere.com.ph',
         'ctp@petrosphere.com.ph'
       ],
-      subject: `Monthly Sales & Marketing Report with Comparisons - ${format(today, 'MMM yyyy')}`,
+      subject: `Monthly Leads Report with Comparisons - ${format(today, 'MMM yyyy')}`,
       text: `Attached is your comprehensive monthly report with visual analytics, performance insights, and month-over-month comparisons for ${reportMonth} ${reportYear}.
 
 CURRENT MONTH HIGHLIGHTS:

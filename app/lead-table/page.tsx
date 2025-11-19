@@ -408,12 +408,13 @@ export default function DataTablePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-800">
-                      {[10, 20, 30, 50, 100].map((size) => (
+                      {[10, 20, 30, 50, 100, 500, 1000].map((size) => (
                         <SelectItem key={size} value={String(size)}>
                           {size}
                         </SelectItem>
                       ))}
                     </SelectContent>
+
                   </Select>
                 </div>
 

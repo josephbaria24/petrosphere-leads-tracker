@@ -1709,9 +1709,9 @@ useEffect(() => {
   <div className="flex-1">
     <ClosedWonTrendsChart data={closedWonTrendData} />
   </div>
-  <div className="flex-1">
+  {/* <div className="flex-1">
   <RevenueOpportunitiesTrendsChart data={revenueOpportunitiesData} />
-  </div>
+  </div> */}
 </div>
 
 
