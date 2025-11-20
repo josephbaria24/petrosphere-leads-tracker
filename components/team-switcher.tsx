@@ -1,7 +1,9 @@
+// components/team-switcher.tsx
 "use client"
 
 import * as React from "react"
-import { ChevronsUpDown, Plus } from "lucide-react"
+import { ChevronsUpDown, Plus, Users, Building2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import {
   DropdownMenu,
@@ -21,15 +23,44 @@ import {
 
 export function TeamSwitcher({
   teams,
+  currentTeam,
+  onTeamChange,
 }: {
   teams: {
     name: string
     logo: React.ElementType
     plan: string
+    value: string // 'CRM' or 'PDN'
   }[]
+  currentTeam?: string
+  onTeamChange?: (team: string) => void
 }) {
   const { isMobile } = useSidebar()
-  const [activeTeam, setActiveTeam] = React.useState(teams[0])
+  const router = useRouter()
+  
+  // Find active team based on currentTeam prop or default to first
+  const [activeTeam, setActiveTeam] = React.useState(() => {
+    return teams.find(t => t.value === currentTeam) || teams[0]
+  })
+
+  const handleTeamSwitch = async (team: typeof teams[0]) => {
+    setActiveTeam(team)
+    
+    // Save to localStorage
+    localStorage.setItem('selected-team', team.value)
+    
+    // Call parent callback if provided
+    if (onTeamChange) {
+      onTeamChange(team.value)
+    }
+    
+    // Redirect to appropriate dashboard
+    if (team.value === 'PDN') {
+      router.push('/dashboard/pdn')
+    } else {
+      router.push('/dashboard')
+    }
+  }
 
   if (!activeTeam) {
     return null
@@ -45,7 +76,7 @@ export function TeamSwitcher({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <div className="bg-transparent text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <activeTeam.logo className="size-5" color="#1a2ee8" />
+              <activeTeam.logo />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{activeTeam.name}</span>
@@ -66,18 +97,18 @@ export function TeamSwitcher({
             {teams.map((team, index) => (
               <DropdownMenuItem
                 key={team.name}
-                onClick={() => setActiveTeam(team)}
+                onClick={() => handleTeamSwitch(team)}
                 className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-md border">
-                  <team.logo className="size-3.5 shrink-0" />
+                <team.logo />
                 </div>
                 {team.name}
                 <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2">
+            <DropdownMenuItem className="gap-2 p-2" disabled>
               <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                 <Plus className="size-4" />
               </div>

@@ -37,7 +37,7 @@ export function NavMain({
 }) {
   return (
     <SidebarGroup
-      className="rounded-xl border-1 dark:bg-background border-zinc-200 dark:border-zinc-700 pl-1 py-3 shadow"
+      className="rounded-xl border-1 dark:bg-card border-zinc-200 dark:border-0 pl-1 py-3 shadow"
     >
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
       <SidebarMenu>
@@ -65,7 +65,7 @@ export function NavMain({
                           asChild
                           className={
                             subItem.isActive
-                              ? "text-yellow-500 dark:text-yellow-600  font-extrabold border-1 border-blue-700 dark:border-blue-600"
+                              ? "text-yellow-500 dark:text-yellow-600  font-extrabold border-1 bg-zinc-600 dark:border-blue-600"
                               : "text-zinc-600 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white"
                           }
                         >
@@ -86,7 +86,7 @@ export function NavMain({
                 tooltip={item.title}
                 className={
                   item.isActive
-                    ? "text-yellow-500 dark:text-yellow-600 font-extrabold border-1 border-blue-700 dark:border-blue-600"
+                    ? "text-[#00044a] dark:text-yellow-600 font-extrabold border-0  bg-[#00044a]/20 dark:text-[#ffffff] dark:bg-[#0e16b3]"
                     : "text-zinc-600 font-medium dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white"
                 }
               >
