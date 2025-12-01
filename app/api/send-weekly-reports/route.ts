@@ -1428,7 +1428,8 @@ if ((currentData.webinars?.length || 0) > 0 || (previousData.webinars?.length ||
         'ceo@petrosphere.com.ph',
         'admin@petrosphere.com.ph',
         'ops@petrosphere.com.ph',
-        'ctp@petrosphere.com.ph'
+        'ctp@petrosphere.com.ph',
+        'kdb@petrosphere.com.ph'
       ],
       subject: `Monthly Leads Report with Comparisons - ${format(today, 'MMM yyyy')}`,
       text: `Attached is your comprehensive monthly report with visual analytics, performance insights, and month-over-month comparisons for ${reportMonth} ${reportYear}.
