@@ -1,6 +1,8 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 //actual-dashboard.tsx
 'use client'
 
+import { OverallLeadsLineChart } from '@/components/charts/line-chart-label'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import CountUp from "react-countup"
@@ -49,7 +51,12 @@ import { startOfMonth, endOfMonth } from 'date-fns';
   
 export function ActualDashboardPage() {
 
-  
+  type OverallLeadsData = {
+  label: string
+  totalLeads: number
+  }
+  const [overallLeadsData, setOverallLeadsData] = useState<OverallLeadsData[]>([])
+
 
   const today = new Date();
   const startDate = startOfMonth(today);
@@ -143,7 +150,138 @@ export function ActualDashboardPage() {
   const [newestLeads, setNewestLeads] = useState<{ captured_by: string; contact_name: string; status: string }[]>([])
 
 
+// 3. Add this function to fetch overall leads (add it with your other fetch functions)
+const fetchOverallLeads = async (year: number, month: string, interval: string) => {
+  let startDate: Date
+  let endDate: Date
 
+  if (interval === 'annually') {
+    const minYear = Math.min(...availableYears) || year
+    const maxYear = Math.max(...availableYears) || year
+    startDate = new Date(minYear, 0, 1)
+    endDate = new Date(maxYear + 1, 0, 1)
+  } else {
+    startDate = new Date(year, 0, 1)
+    endDate = new Date(year + 1, 0, 1)
+
+    if (month !== 'all') {
+      const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
+      startDate = new Date(year, monthIndex, 1)
+      endDate = new Date(year, monthIndex + 1, 1)
+    }
+  }
+
+  const limit = 1000
+  let offset = 0
+  let allData: { first_contact: string | null }[] = []
+  let done = false
+
+  while (!done) {
+    const { data, error } = await supabase
+      .from('crm_leads')
+      .select('first_contact')
+      .gte('first_contact', startDate.toISOString())
+      .lte('first_contact', endDate.toISOString())
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      console.error('Error fetching overall leads:', error)
+      return
+    }
+
+    if (!data || data.length < limit) {
+      done = true
+    }
+
+    allData = allData.concat(data)
+    offset += limit
+  }
+
+  const grouped: Record<string, number> = {}
+
+  allData.forEach(({ first_contact }) => {
+    if (!first_contact) return
+
+    const normalizedDate = first_contact.split("T")[0]
+    const [year, monthNum, day] = normalizedDate.split("-").map(Number)
+
+    let xLabel = ''
+    switch (interval) {
+      case 'weekly': {
+        const d = new Date(Date.UTC(year, monthNum - 1, day))
+        const janFirst = new Date(Date.UTC(year, 0, 1))
+        const dayOfYear = Math.floor((d.getTime() - janFirst.getTime()) / (1000 * 60 * 60 * 24)) + 1
+        const week = Math.ceil(dayOfYear / 7)
+        xLabel = `W${week}`
+        break
+      }
+      case 'quarterly': {
+        const quarter = Math.floor((monthNum - 1) / 3) + 1
+        xLabel = `Q${quarter}`
+        break
+      }
+      case 'annually': {
+        xLabel = `${year}`
+        break
+      }
+      default: {
+        if (selectedMonth === 'all') {
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+          xLabel = monthNames[monthNum - 1]
+        } else {
+          const selectedMonthIndex = new Date(`${selectedMonth} 1, ${selectedYear}`).getMonth() + 1
+          if (monthNum !== selectedMonthIndex) {
+            return
+          }
+          xLabel = String(day).padStart(2, '0')
+        }
+      }
+    }
+
+    if (!grouped[xLabel]) grouped[xLabel] = 0
+    grouped[xLabel] += 1
+  })
+
+  let xValues: string[] = []
+
+  switch (interval) {
+    case 'weekly':
+      xValues = Array.from({ length: 52 }, (_, i) => `W${i + 1}`)
+      break
+    case 'quarterly':
+      xValues = ['Q1', 'Q2', 'Q3', 'Q4']
+      break
+    case 'annually':
+      xValues = availableYears.map(String)
+      break
+    default:
+      if (month === 'all') {
+        xValues = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      } else {
+        const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
+        const daysInSelectedMonth = new Date(year, monthIndex + 1, 0).getDate()
+        xValues = Array.from(
+          { length: daysInSelectedMonth },
+          (_, i) => String(i + 1).padStart(2, '0')
+        )
+      }
+      break
+  }
+
+  const formatted: OverallLeadsData[] = xValues.map((label) => ({
+    label,
+    totalLeads: grouped[label] || 0,
+  }))
+
+  setOverallLeadsData(formatted)
+}
+
+
+
+// Add this useEffect after the fetchOverallLeads function
+useEffect(() => {
+  fetchOverallLeads(selectedYear, selectedMonth, selectedInterval)
+}, [selectedYear, selectedMonth, selectedInterval, availableYears])
 
   useEffect(() => {
     const checkLeadInputStatus = async () => {
@@ -392,75 +530,86 @@ function normalizeDateString(dateString: string) {
     const uniqueSources = new Set<string>()
     const displayMap: Record<string, string> = {}
   
-    allData.forEach(({ lead_source, first_contact }) => {
-      if (!first_contact) return
-    
-      // ✅ Normalize to YYYY-MM-DD and parse as UTC to prevent timezone shifts
-      const normalizedDate = first_contact.split("T")[0]
-      const [year, monthNum, day] = normalizedDate.split("-").map(Number)
+     allData.forEach(({ lead_source, first_contact }) => {
+    if (!first_contact) return
+  
+    const normalizedDate = first_contact.split("T")[0]
+    const [year, monthNum, day] = normalizedDate.split("-").map(Number)
 
-      let xLabel = ''
-      switch (interval) {
-        case 'weekly': {
-          const d = new Date(Date.UTC(year, monthNum - 1, day))
-          const janFirst = new Date(Date.UTC(year, 0, 1))
-          const dayOfYear = Math.floor((d.getTime() - janFirst.getTime()) / (1000 * 60 * 60 * 24)) + 1
-          const week = Math.ceil(dayOfYear / 7)
-          xLabel = `W${week}`
-          break
-        }
-        case 'quarterly': {
-          const quarter = Math.floor((monthNum - 1) / 3) + 1
-          xLabel = `Q${quarter}`
-          break
-        }
-        case 'annually': {
-          xLabel = `${year}`
-          break
-        }
-        default: {
-          if (selectedMonth === 'all') {
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-            xLabel = monthNames[monthNum - 1]
-          } else {
-            // ✅ directly use the day part (avoids timezone drift)
-            xLabel = String(day).padStart(2, '0')
+    let xLabel = ''
+    switch (interval) {
+      case 'weekly': {
+        const d = new Date(Date.UTC(year, monthNum - 1, day))
+        const janFirst = new Date(Date.UTC(year, 0, 1))
+        const dayOfYear = Math.floor((d.getTime() - janFirst.getTime()) / (1000 * 60 * 60 * 24)) + 1
+        const week = Math.ceil(dayOfYear / 7)
+        xLabel = `W${week}`
+        break
+      }
+      case 'quarterly': {
+        const quarter = Math.floor((monthNum - 1) / 3) + 1
+        xLabel = `Q${quarter}`
+        break
+      }
+      case 'annually': {
+        xLabel = `${year}`
+        break
+      }
+      default: {
+        if (selectedMonth === 'all') {
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+          xLabel = monthNames[monthNum - 1]
+        } else {
+          // ✅ CRITICAL FIX: Only include days that belong to the selected month
+          const selectedMonthIndex = new Date(`${selectedMonth} 1, ${selectedYear}`).getMonth() + 1
+          
+          // Skip this record if it doesn't belong to the selected month
+          if (monthNum !== selectedMonthIndex) {
+            return // Don't process dates outside the selected month
           }
+          
+          xLabel = String(day).padStart(2, '0')
         }
       }
-      const originalSource = (lead_source || 'Unknown').trim()
-      const normalized = normalizeKey(originalSource)
-      uniqueSources.add(normalized)
-      displayMap[normalized] = originalSource
-    
-      if (!grouped[xLabel]) grouped[xLabel] = {}
-      grouped[xLabel][normalized] = (grouped[xLabel][normalized] || 0) + 1
-      totals[normalized] = (totals[normalized] || 0) + 1
-    })
-    
+    }
+
+    const originalSource = (lead_source || 'Unknown').trim()
+    const normalized = normalizeKey(originalSource)
+    uniqueSources.add(normalized)
+    displayMap[normalized] = originalSource
+  
+    if (!grouped[xLabel]) grouped[xLabel] = {}
+    grouped[xLabel][normalized] = (grouped[xLabel][normalized] || 0) + 1
+    totals[normalized] = (totals[normalized] || 0) + 1
+  })
   
     let xValues: string[] = []
   
     switch (interval) {
-      case 'weekly':
-        xValues = Array.from({ length: 52 }, (_, i) => `W${i + 1}`)
-        break
-      case 'quarterly':
-        xValues = ['Q1', 'Q2', 'Q3', 'Q4']
-        break
-      case 'annually':
-        xValues = availableYears.map(String)
-        break
-      default:
-        xValues = month === 'all'
-          ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-          : Array.from(
-              { length: new Date(year, new Date(`${month} 1, ${year}`).getMonth() + 1, 0).getDate() },
+        case 'weekly':
+          xValues = Array.from({ length: 52 }, (_, i) => `W${i + 1}`)
+          break
+        case 'quarterly':
+          xValues = ['Q1', 'Q2', 'Q3', 'Q4']
+          break
+        case 'annually':
+          xValues = availableYears.map(String)
+          break
+        default:
+          if (month === 'all') {
+            xValues = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+          } else {
+            // ✅ Get the actual number of days in the selected month
+            const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
+            const daysInSelectedMonth = new Date(year, monthIndex + 1, 0).getDate()
+            
+            xValues = Array.from(
+              { length: daysInSelectedMonth },
               (_, i) => String(i + 1).padStart(2, '0')
             )
-        break
-    }
-  
+          }
+          break
+      }
     const sources = Array.from(uniqueSources)
   
     const formatted: AreaData[] = xValues.map((label) => {
@@ -1703,6 +1852,18 @@ useEffect(() => {
 
     </CardContent>
   </Card>
+  </div>
+
+
+
+  {/* NEW: Overall Leads Line Chart */}
+  <div className="py-3">
+    <OverallLeadsLineChart 
+      data={overallLeadsData}
+      selectedYear={selectedYear}
+      selectedMonth={selectedMonth}
+      selectedInterval={selectedInterval}
+    />
   </div>
 
   <div className="pb-3 flex space-x-3 justify-evenly">

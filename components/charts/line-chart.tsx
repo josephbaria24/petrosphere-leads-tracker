@@ -1,3 +1,4 @@
+//components\charts\line-chart.tsx
 import {
     ResponsiveContainer,
     LineChart,

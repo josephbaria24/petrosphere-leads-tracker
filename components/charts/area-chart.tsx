@@ -1,3 +1,4 @@
+
 import {
   AreaChart,
   Area,
@@ -30,6 +31,8 @@ const shortLabelMap: Record<string, string> = {
   Inbound___linkedin: 'I-LinkedIn',
   Inbound___website_inquiry: 'I-Website',
   Inbound___viber: 'I-Viber',
+  Outbound___phone_text: 'O-Phone Text',
+  Outbound___linkedin: 'O-LinkedIn',
   Inbound___office_visit: 'I-Office Visit',
   Inbound___webinar__petros_: 'I-Webinar',
   site_visit: 'Visit',
