@@ -1,4 +1,4 @@
-//app\api\me\avatar\route.ts
+// app/api/me/avatar/route.ts
 import { NextResponse } from "next/server"
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies as getCookies } from "next/headers"
@@ -7,14 +7,14 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function GET() {
-  const cookieStore = getCookies()
-
-  // 💡 Correct: wrap the already-evaluated cookieStore in a function
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+  // ✔ Pass the async function directly (don't await here)
+  const supabase = createRouteHandlerClient({
+    cookies: getCookies  // or: async () => await getCookies()
+  })
 
   const {
     data: { session },
-    error,
+    error
   } = await supabase.auth.getSession()
 
   if (error || !session) {
@@ -27,7 +27,7 @@ export async function GET() {
   }
 
   const res = await fetch("https://graph.microsoft.com/v1.0/me/photo/$value", {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}` }
   })
 
   if (!res.ok) {
@@ -35,11 +35,12 @@ export async function GET() {
   }
 
   const arrayBuf = await res.arrayBuffer()
+
   return new NextResponse(arrayBuf, {
     status: 200,
     headers: {
       "Content-Type": res.headers.get("Content-Type") ?? "image/jpeg",
-      "Cache-Control": "private, max-age=3600",
-    },
+      "Cache-Control": "private, max-age=3600"
+    }
   })
 }
