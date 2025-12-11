@@ -71,9 +71,9 @@ const calculatePercentageChange = (current: number, previous: number): string =>
   if (typeof current !== 'number' || typeof previous !== 'number' || isNaN(current) || isNaN(previous)) {
     return '0%';
   }
-  if (previous === 0) {
-    return current > 0 ? '+∞%' : '0%';
-  }
+    if (previous === 0) {
+     return current > 0 ? 'N/A' : '0%';
+   }
   const change = ((current - previous) / previous) * 100;
   const sign = change >= 0 ? '+' : '';
   return `${sign}${change.toFixed(1)}%`;
