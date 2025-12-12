@@ -102,7 +102,7 @@ export function FloatingDateFilter(props: any) {
               <PopoverTrigger asChild>
                 <motion.button
                   whileTap={{ scale: isDragging ? 1 : 0.8 }}
-                  className="w-14 h-14 rounded-2xl bg-border flex items-center justify-center shadow-xl hover:shadow-2xl transition-shadow"
+                  className="w-14 h-14 rounded-2xl bg-border flex items-center justify-center shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
                   style={{ pointerEvents: isDragging ? 'none' : 'auto' }}
                 >
                   <Image
