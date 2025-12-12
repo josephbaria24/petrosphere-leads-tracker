@@ -26,6 +26,8 @@ import { toast } from 'sonner'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { format, parse } from 'date-fns'
 import { startOfMonth, endOfMonth } from 'date-fns';
+import { FloatingDateFilter } from './floating-date-filter'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 
 
   function generateTimeLabels(interval: string, month: string, year: number, availableYears: number[]): string[] {
@@ -1416,6 +1418,14 @@ useEffect(() => {
   };
 
 
+const handleRefreshFilters = () => {
+  fetchOverallLeads(selectedYear, selectedMonth, selectedInterval)
+  fetchLeadsBySource(selectedYear, selectedMonth, selectedInterval)
+  fetchCapturedByStats(selectedYear, selectedMonth, selectedInterval, rangeIndex)
+  fetchTopServices(selectedYear, selectedMonth, selectedInterval, rangeIndex)
+  toast.success("Dashboard refreshed!");
+}
+
   return (
     <div>
     <SidebarInset>
@@ -1473,80 +1483,7 @@ useEffect(() => {
 
       <div className="flex justify-between pb-3">
         {/* Month Dropdown */}
-       <div className="flex space-x-3 rounded-lg p-2 bg-zinc-100 dark:bg-card ">
-        
        
-        {selectedInterval === "monthly" && (
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[120px] text-sm bg-card border-0 shadow">
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Months</SelectItem>
-              {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map(
-                (month) => (
-                  <SelectItem key={month} value={month}>
-                    {month}
-                  </SelectItem>
-                )
-              )}
-            </SelectContent>
-          </Select>
-        )}
-
-        {/* Year Dropdown */}
-        {selectedInterval !== "annually" && (
-          <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
-            <SelectTrigger className="w-[100px] text-sm bg-card border-0 shadow">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {/* Interval Dropdown */}
-        <Select value={selectedInterval} onValueChange={setSelectedInterval}>
-          <SelectTrigger className="w-[120px] text-sm bg-card border-0 shadow">
-            <SelectValue placeholder="Interval" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="monthly">Monthly</SelectItem>
-            <SelectItem value="quarterly">Quarterly</SelectItem>
-            <SelectItem value="weekly">Weekly</SelectItem>
-            <SelectItem value="annually">Annually</SelectItem>
-          </SelectContent>
-        </Select>
-        {['weekly', 'quarterly', 'annually'].includes(selectedInterval) && (
-        <div className=" justify-start">
-          <Select value={rangeIndex.toString()} onValueChange={(val) => setRangeIndex(parseInt(val))}>
-            <SelectTrigger className="w-[200px] text-sm bg-card border-0 shadow">
-              <SelectValue placeholder="Select Range" />
-            </SelectTrigger>
-            <SelectContent>
-              {timeLabels.map((label, idx) => (
-                <SelectItem key={label} value={idx.toString()}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-
-
-                 {/* Dynamic Date Header
-        <h2 className="text-lg px-1 flex items-center">
-          <span className=" text-lg font-normal">{getDateHeaderLabel()}</span>
-        </h2> */}
-
-        </div>
 
         <div className='flex justify-end'>
         <Popover>
@@ -1895,6 +1832,20 @@ useEffect(() => {
 
 
     </SidebarInset>
+
+    <FloatingDateFilter 
+  selectedYear={selectedYear}
+  setSelectedYear={setSelectedYear}
+  selectedMonth={selectedMonth}
+  setSelectedMonth={setSelectedMonth}
+  selectedInterval={selectedInterval}
+  setSelectedInterval={setSelectedInterval}
+  rangeIndex={rangeIndex}
+  setRangeIndex={setRangeIndex}
+  availableYears={availableYears}
+  timeLabels={timeLabels}
+  onRefresh={handleRefreshFilters}
+/>
   </div>
   )
 }
