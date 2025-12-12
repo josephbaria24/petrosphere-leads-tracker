@@ -31,16 +31,44 @@ export function FloatingDateFilter(props: any) {
   const x = useMotionValue(0)
   const y = useMotionValue(0)
 
-  // Initialize position on mount
+  // Initialize position on mount and handle window resize/zoom
   useEffect(() => {
-    const savedPosition = localStorage.getItem('floatingButtonPosition')
-    if (savedPosition) {
-      const parsed = JSON.parse(savedPosition)
-      setPosition(parsed)
-      setSide(parsed.side || 'right')
-    } else {
-      // Default position: bottom-right
-      setPosition({ x: window.innerWidth - 80, y: window.innerHeight - 80 })
+    const buttonSize = 56
+    
+    const calculatePosition = () => {
+      const windowWidth = window.innerWidth
+      const windowHeight = window.innerHeight
+      
+      const savedPosition = localStorage.getItem('floatingButtonPosition')
+      
+      if (savedPosition) {
+        const parsed = JSON.parse(savedPosition)
+        const savedSide = parsed.side || 'right'
+        
+        // Recalculate position based on saved side and constrain to viewport
+        let newX = savedSide === 'left' ? 20 : windowWidth - buttonSize - 20
+        let newY = Math.max(20, Math.min(windowHeight - buttonSize - 20, parsed.y))
+        
+        setPosition({ x: newX, y: newY })
+        setSide(savedSide)
+      } else {
+        // Default position: bottom-right
+        setPosition({ x: windowWidth - buttonSize - 20, y: windowHeight - buttonSize - 20 })
+        setSide('right')
+      }
+    }
+    
+    calculatePosition()
+    
+    // Handle window resize and zoom
+    const handleResize = () => {
+      calculatePosition()
+    }
+    
+    window.addEventListener('resize', handleResize)
+    
+    return () => {
+      window.removeEventListener('resize', handleResize)
     }
   }, [])
 
@@ -102,7 +130,7 @@ export function FloatingDateFilter(props: any) {
               <PopoverTrigger asChild>
                 <motion.button
                   whileTap={{ scale: isDragging ? 1 : 0.8 }}
-                  className="w-14 h-14 rounded-2xl bg-border border-3 border-accent-foreground flex items-center justify-center shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
+                  className="w-14 h-14 rounded-2xl bg-border border-1 border-accent-foreground flex items-center justify-center shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
                   style={{ pointerEvents: isDragging ? 'none' : 'auto' }}
                 >
                   <Image
