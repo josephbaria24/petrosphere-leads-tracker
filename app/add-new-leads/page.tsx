@@ -17,7 +17,7 @@ import { Separator } from '@/components/ui/separator'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
-import { Check, ChevronDown, User, Building2, Phone, Mail, MapPin, Calendar, DollarSign, FileText, Settings, Search, Plus, Edit3, PersonStandingIcon, UserPlus2 } from "lucide-react"
+import { Check, ChevronDown, User, Building2, Phone, Mail, MapPin, Calendar, DollarSign, FileText, Settings, Search, Plus, Edit3, PersonStandingIcon, UserPlus2, Trash2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import EditLeadModal from '@/components/EditLeadModal'
 import { Badge } from '@/components/ui/badge'
@@ -95,6 +95,8 @@ export default function AddNewLeadPage() {
   const [serviceDetails, setServiceDetails] = useState<Array<{ name: string; mode: string; price: number }>>([])
   const [serviceSearch, setServiceSearch] = useState('')
   const [form, setForm] = useState(INITIAL_FORM_STATE)
+  const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false)
+  const [newServiceName, setNewServiceName] = useState('')
   
   // Use refs to avoid re-renders on intermediate values
   const duplicateCheckTimeoutRef = useRef<NodeJS.Timeout| null>(null)
@@ -116,7 +118,6 @@ export default function AddNewLeadPage() {
     serviceDetails.reduce((sum, s) => sum + s.price, 0), 
     [serviceDetails]
   )
-
   // Optimized form handler that doesn't recreate on every render
   const handleChange = useCallback((field: string, value: string | number) => {
     setForm(prev => {
@@ -188,6 +189,71 @@ export default function AddNewLeadPage() {
     setServiceDetails(prev => 
       prev.map(s => s.name === service ? { ...s, price } : s)
     )
+  }, [])
+
+  const handleAddService = useCallback(async () => {
+    if (!newServiceName.trim()) {
+      toast.error('Please enter a service name')
+      return
+    }
+
+    try {
+      const { error } = await supabase.from('services').insert({
+        name: newServiceName.trim(),
+        price: 0
+      })
+
+      if (error) {
+        toast.error('Failed to add service', { description: error.message })
+        return
+      }
+
+      // Refresh services
+      const { data: services } = await supabase.from('services').select('*')
+      if (services) {
+        setServicePrices(
+          services.reduce((acc, cur) => ({ ...acc, [cur.name]: cur.price }), {})
+        )
+      }
+
+      toast.success('Service added successfully')
+      setNewServiceName('')
+      setIsAddServiceModalOpen(false)
+    } catch (err) {
+      toast.error('Failed to add service')
+    }
+  }, [newServiceName])
+
+  const handleDeleteService = useCallback(async (serviceName: string) => {
+    if (!confirm(`Are you sure you want to delete "${serviceName}"?`)) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('name', serviceName)
+
+      if (error) {
+        toast.error('Failed to delete service', { description: error.message })
+        return
+      }
+
+      // Remove from local state
+      setServicePrices(prev => {
+        const updated = { ...prev }
+        delete updated[serviceName]
+        return updated
+      })
+
+      // Remove from selected services if present
+      setServiceDetails(prev => prev.filter(s => s.name !== serviceName))
+
+      toast.success('Service deleted successfully')
+    } catch (err) {
+      toast.error('Failed to delete service')
+    }
   }, [])
 
   const validateForm = useCallback(() => {
@@ -355,7 +421,6 @@ export default function AddNewLeadPage() {
       </div>
     )
   }
-
   return (
     <div className="min-h-screen rounded-lg bg-card">
       <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -756,23 +821,36 @@ export default function AddNewLeadPage() {
               </div>
               
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="service_search" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Search Services
-                  </Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input
-                      id="service_search"
-                      type="text"
-                      placeholder="Search for services..."
-                      value={serviceSearch}
-                      onChange={(e) => setServiceSearch(e.target.value)}
-                      className="pl-10 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 focus:border-zinc-500 dark:focus:border-zinc-400 transition-colors"
-                    />
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="service_search" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Search Services
+                    </Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        id="service_search"
+                        type="text"
+                        placeholder="Search for services..."
+                        value={serviceSearch}
+                        onChange={(e) => setServiceSearch(e.target.value)}
+                        className="pl-10 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 focus:border-zinc-500 dark:focus:border-zinc-400 transition-colors"
+                      />
+                    </div>
+                  </div>
+                  <div className="pt-7">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsAddServiceModalOpen(true)}
+                      className="h-10 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Service
+                    </Button>
                   </div>
                 </div>
-
                 <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4 space-y-3 max-h-[400px] overflow-y-auto border border-zinc-200 dark:border-zinc-700">
                   {filteredServices.length === 0 ? (
                     <div className="text-center py-8 text-slate-500 dark:text-slate-400">
@@ -783,15 +861,26 @@ export default function AddNewLeadPage() {
                       const selected = serviceDetails.find((s) => s.name === service)
                       return (
                         <div key={service} className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700 space-y-3">
-                          <label className="flex items-center space-x-3 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={!!selected}
-                              onChange={(e) => handleServiceToggle(service, e.target.checked)}
-                              className="w-4 h-4 text-zinc-600 bg-zinc-100 border-zinc-300 rounded focus:ring-zinc-500 dark:focus:ring-zinc-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                            />
-                            <span className="font-medium text-slate-900 dark:text-white">{service}</span>
-                          </label>
+                          <div className="flex items-center justify-between">
+                            <label className="flex items-center space-x-3 cursor-pointer flex-1">
+                              <input
+                                type="checkbox"
+                                checked={!!selected}
+                                onChange={(e) => handleServiceToggle(service, e.target.checked)}
+                                className="w-4 h-4 text-zinc-600 bg-zinc-100 border-zinc-300 rounded focus:ring-zinc-500 dark:focus:ring-zinc-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                              />
+                              <span className="font-medium text-slate-900 dark:text-white">{service}</span>
+                            </label>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteService(service)}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/20"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
 
                           {selected && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-7 pt-2 border-t border-zinc-200 dark:border-zinc-600">
@@ -956,6 +1045,71 @@ export default function AddNewLeadPage() {
           </div>
         )}
       </div>
+
+      {/* Add Service Modal */}
+      {isAddServiceModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md relative overflow-hidden border border-slate-200 dark:border-slate-700">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+            
+            <button
+              onClick={() => {
+                setIsAddServiceModalOpen(false)
+                setNewServiceName('')
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="p-6 pt-8">
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Add New Service</h3>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-service-name" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Service Name
+                  </Label>
+                  <Input
+                    id="new-service-name"
+                    value={newServiceName}
+                    onChange={(e) => setNewServiceName(e.target.value)}
+                    placeholder="Enter service name"
+                    className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddService()
+                      }
+                    }}
+                  />
+                </div>
+                
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    type="button"
+                    onClick={handleAddService}
+                    className="flex-1"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Service
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsAddServiceModalOpen(false)
+                      setNewServiceName('')
+                    }}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
