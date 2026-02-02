@@ -1,6 +1,7 @@
+//components\EditLeadModal.tsx
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,9 +10,10 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DatePicker } from '@/components/date-picker'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase-client'
 import { CheckCircle, Circle, Clock } from 'lucide-react'
 import { toast } from 'sonner'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export type Lead = {
   id: string
@@ -92,6 +94,7 @@ const capturedByOptions = [
 ]
 
 const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead, currentUserName }) => {
+  const supabase = useMemo(() => createClientComponentClient(), [])
   const [edited, setEdited] = useState<Partial<Lead>>({})
   const [services, setServices] = useState<Service[]>([])
   const [leadSources, setLeadSources] = useState<LeadSource[]>([])

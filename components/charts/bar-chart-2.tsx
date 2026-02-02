@@ -6,7 +6,7 @@ import { TooltipProps } from 'recharts'
 import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 import { useEffect, useState } from 'react'
 import { LabelList } from "recharts" 
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase-client'
 import {
   BarChart,
   Bar,

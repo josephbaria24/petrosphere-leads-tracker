@@ -1,28 +1,42 @@
+//components\auth-guard.tsx
 'use client'
 
-import { useSession } from '@supabase/auth-helpers-react'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase-client'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const session = useSession()
   const router = useRouter()
   const [ready, setReady] = useState(false)
-  console.log('Session:', session)
+
   useEffect(() => {
-    // 🟡 Wait for session to be defined before deciding
-    if (session === undefined) return
+    let mounted = true
 
-    if (session === null) {
-      router.replace('/login')
-    } else {
-      setReady(true)
+    const check = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!mounted) return
+
+      if (!session) {
+        router.replace('/login')
+      } else {
+        setReady(true)
+      }
     }
-  }, [session, router])
 
-  // While session is still loading (undefined), show a blank or spinner
-  if (session === undefined || !ready) {
-    return <div className="p-10 text-center">Loading...</div>
-  }
+    check()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "TOKEN_REFRESHED") return
+      if (!session) router.replace('/login')
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [router])
+
+  if (!ready) return <div className="p-10 text-center">Loading...</div>
   return <>{children}</>
 }

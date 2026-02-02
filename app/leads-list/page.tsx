@@ -1,3 +1,4 @@
+//app\leads-list\page.tsx
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
@@ -11,7 +12,7 @@ import {
 } from '@tanstack/react-table'
 import { Skeleton } from '@/components/ui/skeleton'
 
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase-client'
 import {
   Card,
   CardHeader,
@@ -41,7 +42,6 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
-import { useSession } from '@supabase/auth-helpers-react'
 
 
 type Lead = {
@@ -202,50 +202,50 @@ export default function LeadsListPage() {
 
   const [sorting, setSorting] = useState<SortingState>([])
 
-  useEffect(() => {
-    const fetchLeads = async () => {
-      const from = (page - 1) * pageSize
-      const to = from + pageSize - 1
-  
-      const query = supabase
-        .from('crm_leads')
-        .select('*', { count: 'exact' }) // 👈 get total count too
-        .order(sortBy, { ascending: sortAsc })
-        .range(from, to)
-  
-      const { data, count, error } = await query
-  
-      if (error) {
-        console.error('Error fetching leads:', error)
-      } else {
-        const filtered = data.filter((lead) =>
-          lead.contact_name?.toLowerCase().includes(search.toLowerCase()) ||
-          lead.address?.toLowerCase().includes(search.toLowerCase()) ||
-          lead.region?.toLowerCase().includes(search.toLowerCase()) ||
-          lead.lead_source?.toLowerCase().includes(search.toLowerCase()) ||
-          lead.company?.toLowerCase().includes(search.toLowerCase()) ||
-          lead.service_product?.toLowerCase().includes(search.toLowerCase()) ||
-          lead.email?.toLowerCase().includes(search.toLowerCase())
-        )
-  
-        setLeads(filtered)
-        setTotalCount(count || 0)
-  
-        const validIds = new Set(filtered.map(lead => lead.id))
-        setSelectedRowIds(prev => {
-          const updated = new Set<string>()
-          prev.forEach(id => {
-            if (validIds.has(id)) {
-              updated.add(id)
-            }
-          })
-          return updated
-        })
-      }
-    }
-  
-    fetchLeads()
-  }, [search, sortBy, sortAsc, page])
+    // useEffect(() => {
+    //   const fetchLeads = async () => {
+    //     const from = (page - 1) * pageSize
+    //     const to = from + pageSize - 1
+    
+    //     const query = supabase
+    //       .from('crm_leads')
+    //       .select('*', { count: 'exact' }) // 👈 get total count too
+    //       .order(sortBy, { ascending: sortAsc })
+    //       .range(from, to)
+    
+    //     const { data, count, error } = await query
+    
+    //     if (error) {
+    //       console.error('Error fetching leads:', error)
+    //     } else {
+    //       const filtered = data.filter((lead) =>
+    //         lead.contact_name?.toLowerCase().includes(search.toLowerCase()) ||
+    //         lead.address?.toLowerCase().includes(search.toLowerCase()) ||
+    //         lead.region?.toLowerCase().includes(search.toLowerCase()) ||
+    //         lead.lead_source?.toLowerCase().includes(search.toLowerCase()) ||
+    //         lead.company?.toLowerCase().includes(search.toLowerCase()) ||
+    //         lead.service_product?.toLowerCase().includes(search.toLowerCase()) ||
+    //         lead.email?.toLowerCase().includes(search.toLowerCase())
+    //       )
+    
+    //       setLeads(filtered)
+    //       setTotalCount(count || 0)
+    
+    //       const validIds = new Set(filtered.map(lead => lead.id))
+    //       setSelectedRowIds(prev => {
+    //         const updated = new Set<string>()
+    //         prev.forEach(id => {
+    //           if (validIds.has(id)) {
+    //             updated.add(id)
+    //           }
+    //         })
+    //         return updated
+    //       })
+    //     }
+    //   }
+    
+    //   fetchLeads()
+    // }, [search, sortBy, sortAsc, page])
   
 
   // Check if all rows are selected
@@ -344,8 +344,26 @@ export default function LeadsListPage() {
   })
 
   
-  const session = useSession()
-  const currentUserName = session?.user?.user_metadata?.full_name || 'Unknown'
+const [currentUserName, setCurrentUserName] = useState('Unknown')
+
+useEffect(() => {
+  const loadName = async () => {
+    const { data: auth } = await supabase.auth.getUser()
+    const userId = auth?.user?.id
+    if (!userId) return
+
+    const { data: profile } = await supabase
+      .from('public_profiles')
+      .select('full_name')
+      .eq('id', userId)
+      .single()
+
+    if (profile?.full_name) setCurrentUserName(profile.full_name)
+  }
+
+  loadName()
+}, [])
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">

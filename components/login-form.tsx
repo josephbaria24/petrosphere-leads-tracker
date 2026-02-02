@@ -2,7 +2,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -15,8 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
   const router = useRouter()
-  const supabase = createClientComponentClient()
-
+  const supabase = useMemo(() => createClientComponentClient(), [])
+  
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [errorMsg, setErrorMsg] = useState("")
@@ -28,8 +28,6 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
     e.preventDefault()
     setErrorMsg("")
     setLoading(true)
-    
-    await supabase.auth.signOut()
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
@@ -47,7 +45,6 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
       .single()
 
     if (profile?.role === "admin" || profile?.role === "super_admin") {
-      // Check team and redirect accordingly
       if (profile.team === "PDN") {
         router.push("/dashboard/pdn")
       } else {
@@ -63,15 +60,24 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
   // Handle Microsoft SSO login (for CRM users)
   const handleAzureLogin = async () => {
     setLoading(true)
-    await supabase.auth.signInWithOAuth({
-      provider: 'azure',
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "azure",
       options: {
-        redirectTo: process.env.NODE_ENV === 'development'
-          ? 'http://localhost:3000/dashboard'
-          : 'https://crm.petros-global.com/dashboard',
-        scopes: 'openid profile email offline_access User.Read' 
+        redirectTo: `${window.location.origin}/auth/callback`,
+        scopes: "openid profile email offline_access User.Read",
+        queryParams: { 
+          prompt: "select_account" 
+        },
       },
     })
+
+    if (error) {
+      console.error("OAuth error:", error)
+      setErrorMsg("Failed to initiate login")
+      setLoading(false)
+    }
+    // Note: Don't set loading to false here - user is being redirected to Azure
   }
   
   return (

@@ -1,6 +1,8 @@
+//app/social-media-list/page.tsx
 "use client"
 
 import * as React from "react"
+import { useMemo } from "react" // Add this import
 import {
   ColumnFiltersState,
   SortingState,
@@ -14,7 +16,7 @@ import {
 } from "@tanstack/react-table"
 
 import { ChevronDown } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs" // Changed
 import { columns } from "./columns"
 import { Input } from "@/components/ui/input"
 import {
@@ -41,7 +43,6 @@ import {
 } from "@/components/ui/select"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useSession } from "@supabase/auth-helpers-react"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -56,12 +57,17 @@ import type { SocialMedia } from "./columns"
 import EditSocialMediaModal from "@/components/EditSocialMediaModal"
 import { Skeleton } from "@/components/ui/skeleton"
 
+
 export default function SocialMediaTablePage() {
-  const [selectedYear, setSelectedYear] = useState<string>("2025")
-  const yearOptions = Array.from({ length: 10 }, (_, i) => String(2023 + i))
+  const supabase = useMemo(() => createClientComponentClient(), []) // Add this
+  
+  const currentYear = new Date().getFullYear()
+  const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString())
+  
+  const yearOptions = Array.from({ length: 10 }, (_, i) => String(currentYear - 2 + i))
 
   const router = useRouter()
-  const session = useSession()
+  const [session, setSession] = useState<any>(null)
   const [isReady, setIsReady] = useState(false)
 
   const [data, setData] = useState<SocialMedia[]>([])
@@ -76,6 +82,24 @@ export default function SocialMediaTablePage() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [currentUserName, setCurrentUserName] = useState<string>('Unknown')
   const [loading, setLoading] = useState(true)
+
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setSession(session)
+    }
+    
+    checkSession()
+  }, [supabase])
+
+  useEffect(() => {
+    if (session === null && isReady) {
+      router.replace("/login")
+    } else if (session) {
+      setIsReady(true)
+    }
+  }, [session, router, isReady])
 
   useEffect(() => {
     const fetchCurrentUserProfile = async () => {
@@ -103,7 +127,7 @@ export default function SocialMediaTablePage() {
       const { data, error } = await supabase
         .from("social_media_tracker")
         .select("*")
-        .eq("year", selectedYear)
+        .eq("year", Number(selectedYear))
 
       if (error) {
         console.error("Error fetching social media tracker:", error)
@@ -141,13 +165,6 @@ export default function SocialMediaTablePage() {
     fetchData()
   }, [selectedYear])
 
-  useEffect(() => {
-    if (session === null) {
-      router.replace("/login")
-    } else if (session) {
-      setIsReady(true)
-    }
-  }, [session, router])
 
   const table = useReactTable({
     data,
@@ -174,7 +191,6 @@ export default function SocialMediaTablePage() {
     table.setPageSize(pageSize)
   }, [pageSize, table])
 
-  if (!isReady) return <div className="p-10 text-center">Loading...</div>
 
   return (
     <div className="w-full">

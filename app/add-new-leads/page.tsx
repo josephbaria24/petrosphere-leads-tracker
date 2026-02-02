@@ -1,3 +1,5 @@
+//app\add-new-leads\page.tsx
+
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
@@ -9,9 +11,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import EditListModal from '@/components/shared/EditListModal'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase-client'
 import { useRouter } from 'next/navigation'
-import { useSession } from '@supabase/auth-helpers-react'
 import { DatePicker } from '@/components/date-picker'
 import { Separator } from '@/components/ui/separator'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
@@ -70,7 +71,7 @@ const SERVICE_MODES = ['Face to Face', 'E-learning', 'Online']
 
 export default function AddNewLeadPage() {
   const router = useRouter()
-  const session = useSession()
+
   const STATUS_ORDER = [
     "Lead In",
     "Contact Made",
@@ -81,8 +82,6 @@ export default function AddNewLeadPage() {
     "Closed Win",
     "Closed Lost",
   ];
-  
-  const [isReady, setIsReady] = useState(false)
   const [regions, setRegions] = useState<string[]>([])
   const [leadSources, setLeadSources] = useState<string[]>([])
   const [leadStatuses, setLeadStatuses] = useState<string[]>([])
@@ -402,25 +401,7 @@ export default function AddNewLeadPage() {
     initializeData()
   }, [fetchTable])
 
-  // Auth check
-  useEffect(() => {
-    if (session === null) {
-      router.replace('/login')
-    } else if (session) {
-      setIsReady(true)
-    }
-  }, [session, router])
 
-  if (!isReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800">
-        <div className="text-center space-y-4">
-          <div className="w-8 h-8 border-4 border-zinc-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-slate-600 dark:text-slate-400 font-medium">Loading your workspace...</p>
-        </div>
-      </div>
-    )
-  }
   return (
     <div className="min-h-screen rounded-lg bg-card">
       <div className="max-w-7xl mx-auto p-6 space-y-6">

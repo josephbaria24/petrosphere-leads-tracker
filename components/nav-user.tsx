@@ -1,6 +1,9 @@
+//components\nav-user.tsx
 "use client"
 import { useSession } from "@supabase/auth-helpers-react"
 import { useEffect } from "react"
+
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 import {
   BadgeCheck,
@@ -33,7 +36,6 @@ import {
 } from "@/components/ui/sidebar"
 
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
 
 export function NavUser({
   user,
@@ -47,14 +49,9 @@ export function NavUser({
   const session = useSession()
   const { isMobile } = useSidebar()
   const router = useRouter()
-
+  const supabase = createClientComponentClient()
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      console.error("Error signing out:", error.message)
-      return
-    }
-
+    await supabase.auth.signOut()
     router.push("/login")
   }
 

@@ -45,7 +45,7 @@ import {
   XCircle,
 } from "lucide-react"
 import EditLeadModal from "@/components/EditLeadModal"
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase-client"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -71,7 +71,6 @@ import {
 } from "@/components/ui/select"
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession } from '@supabase/auth-helpers-react'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -198,7 +197,6 @@ const FilterHeader = ({
 
 export default function DataTablePage() {
   const router = useRouter()
-  const session = useSession()
   const [loading, setLoading] = useState(true)
 
   // Auth state
@@ -767,14 +765,7 @@ export default function DataTablePage() {
     table.setPageSize(pageSize)
   }, [pageSize, table])
 
-  // Auth check
-  useEffect(() => {
-    if (session === null) {
-      router.replace('/login')
-    } else if (session) {
-      setIsReady(true)
-    }
-  }, [session, router])
+
 
   if (!isReady) {
     return (

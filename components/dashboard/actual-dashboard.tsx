@@ -3,8 +3,9 @@
 'use client'
 
 import { OverallLeadsLineChart } from '@/components/charts/line-chart-label'
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { useEffect, useMemo, useState } from 'react'
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+
 import CountUp from "react-countup"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset } from "@/components/ui/sidebar"
@@ -28,6 +29,7 @@ import { format, parse } from 'date-fns'
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { FloatingDateFilter } from './floating-date-filter'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+
 
 
   function generateTimeLabels(interval: string, month: string, year: number, availableYears: number[]): string[] {
@@ -64,6 +66,9 @@ export function ActualDashboardPage() {
   const startDate = startOfMonth(today);
   const endDate = endOfMonth(today);
 
+const supabase = useMemo(() => createClientComponentClient(), [])
+
+  
   const getDateHeaderLabel = () => {
     if (selectedInterval === 'annually') {
       return `Year: ${timeLabels[rangeIndex] || selectedYear}`
@@ -242,8 +247,11 @@ const fetchOverallLeads = async (year: number, month: string, interval: string) 
 
     if (!grouped[xLabel]) grouped[xLabel] = 0
     grouped[xLabel] += 1
+
   })
 
+
+  
   let xValues: string[] = []
 
   switch (interval) {

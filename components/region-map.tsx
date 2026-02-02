@@ -3,7 +3,7 @@
 import { MapContainer, TileLayer, GeoJSON, Marker, Popup } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase-client"
 import L from "leaflet"
 
 type RegionCount = { region: string; count: number }

@@ -1,4 +1,4 @@
-// app/leads-map/page.tsx
+// app\regional-map\page.tsx
 "use client"
 
 import RegionHeatmap from "@/components/region-map"
@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, TrendingUp, Users, Target, Activity } from "lucide-react"
 import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase-client"
 
 type RegionCount = { region: string; count: number }
 type LeadData = {

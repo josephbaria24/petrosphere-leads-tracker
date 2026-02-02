@@ -1,3 +1,4 @@
+//app\lead-table\page.tsx
 "use client"
 
 import * as React from "react"
@@ -27,7 +28,7 @@ import {
 
 import { ChevronDown, Search, Filter, Users, Eye, EyeOff, Trash2, Database, Settings, ChevronLeft, ChevronRight } from "lucide-react"
 import EditLeadModal from "@/components/EditLeadModal"
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase-client"
 import { getColumns } from "./columns"
 import { Input } from "@/components/ui/input"
 import {
@@ -54,7 +55,6 @@ import {
 } from "@/components/ui/select"
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession } from '@supabase/auth-helpers-react'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Separator } from "@radix-ui/react-separator"
 import { Badge } from "@/components/ui/badge"
@@ -83,11 +83,8 @@ type Lead = {
 
 export default function DataTablePage() {
   const router = useRouter()
-  const session = useSession()
   const [loading, setLoading] = useState(true)
 
-  // Auth state
-  const [isReady, setIsReady] = useState(false)
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string[]>([])
@@ -252,25 +249,7 @@ export default function DataTablePage() {
     table.setPageSize(pageSize)
   }, [pageSize, table])
 
-  // Auth check
-  useEffect(() => {
-    if (session === null) {
-      router.replace('/login')
-    } else if (session) {
-      setIsReady(true)
-    }
-  }, [session, router])
 
-  if (!isReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800">
-        <div className="text-center space-y-4">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-zinc-600 dark:text-zinc-400 font-medium">Loading leads data...</p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen rounded-lg bg-card from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800">

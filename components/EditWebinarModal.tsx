@@ -1,12 +1,14 @@
+//components\EditWebinarModal.tsx
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase-client'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export type Webinar = {
     id: string
@@ -40,6 +42,8 @@ const numericKeys: (keyof Webinar)[] = [
   ]
 
 const EditWebinarModal: React.FC<EditWebinarModalProps> = ({ isOpen, onClose, onSave, webinar, currentUserName }) => {
+    const supabase = useMemo(() => createClientComponentClient(), []) // Add this
+  
   const [edited, setEdited] = useState<Partial<Webinar>>({})
 
   useEffect(() => {
@@ -49,6 +53,8 @@ const EditWebinarModal: React.FC<EditWebinarModalProps> = ({ isOpen, onClose, on
   const handleChange = (key: keyof Webinar, value: string | number | null) => {
     setEdited((prev) => ({ ...prev, [key]: value }))
   }
+
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

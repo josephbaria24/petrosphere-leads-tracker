@@ -1,3 +1,4 @@
+//app\webinar-list\page.tsx
 "use client"
 
 import * as React from "react"
@@ -14,7 +15,7 @@ import {
 } from "@tanstack/react-table"
 
 import { ChevronDown } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase-client"
 import { columns } from "./columns"
 import { Input } from "@/components/ui/input"
 import {
@@ -39,7 +40,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "@supabase/auth-helpers-react"
 import {
@@ -55,10 +56,13 @@ import { Separator } from "@radix-ui/react-separator"
 import type { Webinar } from "./columns"
 import EditWebinarModal from "@/components/EditWebinarModal"
 import { Skeleton } from "@/components/ui/skeleton"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 export default function WebinarTablePage() {
-  const [selectedYear, setSelectedYear] = useState<string>("2025") // default year
-  const yearOptions = Array.from({ length: 10 }, (_, i) => String(2023 + i)) // 2023–2032
+  const supabase = useMemo(() => createClientComponentClient(), []) // Add this
+  
+  const [selectedYear, setSelectedYear] = useState<string>("2025")
+  const yearOptions = Array.from({ length: 10 }, (_, i) => String(2023 + i))
 
   const router = useRouter()
   const session = useSession()
