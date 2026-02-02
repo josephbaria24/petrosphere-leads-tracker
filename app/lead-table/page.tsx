@@ -25,6 +25,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
+import { getCachedData, setCachedData, clearCache } from "@/lib/cache-utils"
 
 import { ChevronDown, Search, Filter, Users, Eye, EyeOff, Trash2, Database, Settings, ChevronLeft, ChevronRight } from "lucide-react"
 import EditLeadModal from "@/components/EditLeadModal"
@@ -129,43 +130,63 @@ export default function DataTablePage() {
   
     fetchCurrentUserProfile();
   }, []);
-
-  React.useEffect(() => {
-    const fetchAllLeads = async () => {
-      setLoading(true)
-      const allLeads: Lead[] = []
-      let from = 0
-      const limit = 1000
-      let done = false
-
-      while (!done) {
-        const { data, error } = await supabase
-          .from("crm_leads")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .range(from, from + limit - 1)
-
-        if (error) {
-          console.error("Error fetching leads:", error)
-          break
-        }
-
-        if (data?.length) {
-          allLeads.push(...data)
-          from += limit
-        }
-
-        if (!data || data.length < limit) {
-          done = true
-        }
-      }
-
-      setData(allLeads)
-      setLoading(false)
+React.useEffect(() => {
+  const fetchAllLeads = async () => {
+    // Check cache first
+    const cacheKey = 'all_leads';
+    const cached = getCachedData<Lead[]>(cacheKey);
+    
+    if (cached) {
+      console.log('Using cached leads data');
+      setData(cached);
+      setLoading(false);
+      return;
     }
 
-    fetchAllLeads()
-  }, [])
+    setLoading(true);
+    const allLeads: Lead[] = [];
+    let from = 0;
+    const limit = 1000;
+    let done = false;
+
+    while (!done) {
+      const { data, error } = await supabase
+        .from("crm_leads")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(from, from + limit - 1);
+
+      if (error) {
+        console.error("Error fetching leads:", error);
+        break;
+      }
+
+      if (data?.length) {
+        allLeads.push(...data);
+        from += limit;
+      }
+
+      if (!data || data.length < limit) {
+        done = true;
+      }
+    }
+
+    // Cache the results
+    setCachedData(cacheKey, allLeads);
+    setData(allLeads);
+    setLoading(false);
+  };
+
+  fetchAllLeads();
+}, []); // Only run once on mount
+
+
+const refreshData = async () => {
+  clearCache('all_leads');
+  setLoading(true);
+  // Re-fetch will happen because cache is cleared
+  window.location.reload();
+};
 
   // Apply filters
   const filteredData = React.useMemo(() => {

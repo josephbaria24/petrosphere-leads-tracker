@@ -29,7 +29,7 @@ import { format, parse } from 'date-fns'
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { FloatingDateFilter } from './floating-date-filter'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
-
+import { getCachedData, setCachedData, clearCache } from "@/lib/cache-utils"
 
 
   function generateTimeLabels(interval: string, month: string, year: number, availableYears: number[]): string[] {
@@ -51,6 +51,8 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
       }
     }
   }
+  
+
   
   
 export function ActualDashboardPage() {
@@ -95,7 +97,6 @@ const supabase = useMemo(() => createClientComponentClient(), [])
     return `${selectedMonth} ${selectedYear}`
   }
   
-
 
   const router = useRouter()
 
@@ -149,7 +150,64 @@ const supabase = useMemo(() => createClientComponentClient(), [])
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthName)
   const [selectedInterval, setSelectedInterval] = useState<string>('monthly')
   
+  const [isPreloading, setIsPreloading] = useState(false);
+const [cachedFilters, setCachedFilters] = useState<Set<string>>(new Set());
+
+// Add this helper function
+const generateCacheKey = (year: number, month: string, interval: string, rangeIndex: number) => {
+  return `stats_${year}_${month}_${interval}_${rangeIndex}`;
+};
+
+// ✅ ADD THIS FUNCTION HERE (right after generateCacheKey):
+const preloadAllFilters = async () => {
+  if (isPreloading) return;
   
+  setIsPreloading(true);
+  console.log('Starting filter pre-cache...');
+  
+  const intervals = ['monthly', 'weekly', 'quarterly', 'annually'];
+  const months = ['all', ...monthNames];
+  
+  for (const interval of intervals) {
+    for (const month of months) {
+      if (interval === 'annually' && month !== 'all') continue;
+      
+      const cacheKey = generateCacheKey(selectedYear, month, interval, 0);
+      
+      // Skip if already cached
+      if (cachedFilters.has(cacheKey)) continue;
+      
+      // Fetch and cache this combination
+      await fetchOverallLeadsWithCache(selectedYear, month, interval);
+      
+      // For functions that need cacheKey check
+      const sourceCacheKey = `leads_by_source_${selectedYear}_${month}_${interval}`;
+      if (!getCachedData(sourceCacheKey)) {
+        await fetchLeadsBySource(selectedYear, month, interval);
+      }
+      
+      const serviceCacheKey = `top_services_${selectedYear}_${month}_${interval}_0`;
+      if (!getCachedData(serviceCacheKey)) {
+        await fetchTopServices(selectedYear, month, interval, 0);
+      }
+      
+      const capturedCacheKey = `captured_by_${selectedYear}_${month}_${interval}_0`;
+      if (!getCachedData(capturedCacheKey)) {
+        await fetchCapturedByStats(selectedYear, month, interval, 0);
+      }
+      
+      setCachedFilters(prev => new Set([...prev, cacheKey]));
+      
+      // Small delay to prevent overwhelming the database
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+  
+  setIsPreloading(false);
+  console.log('Filter pre-cache complete!');
+  toast.success('All filters pre-loaded successfully!');
+};
+
 
   const [, setLeadSourceTotals] = useState<Record<string, number>>({})
   const [capturedByData, setCapturedByData] = useState<{ name: string; value: number }[]>([])
@@ -157,31 +215,41 @@ const supabase = useMemo(() => createClientComponentClient(), [])
   const [newestLeads, setNewestLeads] = useState<{ captured_by: string; contact_name: string; status: string }[]>([])
 
 
-// 3. Add this function to fetch overall leads (add it with your other fetch functions)
-const fetchOverallLeads = async (year: number, month: string, interval: string) => {
-  let startDate: Date
-  let endDate: Date
+// CACHED VERSION: Wrap fetchOverallLeads
+const fetchOverallLeadsWithCache = async (year: number, month: string, interval: string) => {
+  const cacheKey = `overall_leads_${year}_${month}_${interval}`;
+  const cached = getCachedData<OverallLeadsData[]>(cacheKey);
+  
+  if (cached) {
+    console.log('✅ Using cached overall leads');
+    setOverallLeadsData(cached);
+    return;
+  }
+
+  // Original logic
+  let startDate: Date;
+  let endDate: Date;
 
   if (interval === 'annually') {
-    const minYear = Math.min(...availableYears) || year
-    const maxYear = Math.max(...availableYears) || year
-    startDate = new Date(minYear, 0, 1)
-    endDate = new Date(maxYear + 1, 0, 1)
+    const minYear = Math.min(...availableYears) || year;
+    const maxYear = Math.max(...availableYears) || year;
+    startDate = new Date(minYear, 0, 1);
+    endDate = new Date(maxYear + 1, 0, 1);
   } else {
-    startDate = new Date(year, 0, 1)
-    endDate = new Date(year + 1, 0, 1)
+    startDate = new Date(year, 0, 1);
+    endDate = new Date(year + 1, 0, 1);
 
     if (month !== 'all') {
-      const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
-      startDate = new Date(year, monthIndex, 1)
-      endDate = new Date(year, monthIndex + 1, 1)
+      const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
+      startDate = new Date(year, monthIndex, 1);
+      endDate = new Date(year, monthIndex + 1, 1);
     }
   }
 
-  const limit = 1000
-  let offset = 0
-  let allData: { first_contact: string | null }[] = []
-  let done = false
+  const limit = 1000;
+  let offset = 0;
+  let allData: { first_contact: string | null }[] = [];
+  let done = false;
 
   while (!done) {
     const { data, error } = await supabase
@@ -189,108 +257,107 @@ const fetchOverallLeads = async (year: number, month: string, interval: string) 
       .select('first_contact')
       .gte('first_contact', startDate.toISOString())
       .lte('first_contact', endDate.toISOString())
-      .range(offset, offset + limit - 1)
+      .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error('Error fetching overall leads:', error)
-      return
+      console.error('Error fetching overall leads:', error);
+      return;
     }
 
     if (!data || data.length < limit) {
-      done = true
+      done = true;
     }
 
-    allData = allData.concat(data)
-    offset += limit
+    allData = allData.concat(data);
+    offset += limit;
   }
 
-  const grouped: Record<string, number> = {}
+  const grouped: Record<string, number> = {};
 
   allData.forEach(({ first_contact }) => {
-    if (!first_contact) return
+    if (!first_contact) return;
 
-    const normalizedDate = first_contact.split("T")[0]
-    const [year, monthNum, day] = normalizedDate.split("-").map(Number)
+    const normalizedDate = first_contact.split("T")[0];
+    const [year, monthNum, day] = normalizedDate.split("-").map(Number);
 
-    let xLabel = ''
+    let xLabel = '';
     switch (interval) {
       case 'weekly': {
-        const d = new Date(Date.UTC(year, monthNum - 1, day))
-        const janFirst = new Date(Date.UTC(year, 0, 1))
-        const dayOfYear = Math.floor((d.getTime() - janFirst.getTime()) / (1000 * 60 * 60 * 24)) + 1
-        const week = Math.ceil(dayOfYear / 7)
-        xLabel = `W${week}`
-        break
+        const d = new Date(Date.UTC(year, monthNum - 1, day));
+        const janFirst = new Date(Date.UTC(year, 0, 1));
+        const dayOfYear = Math.floor((d.getTime() - janFirst.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const week = Math.ceil(dayOfYear / 7);
+        xLabel = `W${week}`;
+        break;
       }
       case 'quarterly': {
-        const quarter = Math.floor((monthNum - 1) / 3) + 1
-        xLabel = `Q${quarter}`
-        break
+        const quarter = Math.floor((monthNum - 1) / 3) + 1;
+        xLabel = `Q${quarter}`;
+        break;
       }
       case 'annually': {
-        xLabel = `${year}`
-        break
+        xLabel = `${year}`;
+        break;
       }
       default: {
         if (selectedMonth === 'all') {
-          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-          xLabel = monthNames[monthNum - 1]
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          xLabel = monthNames[monthNum - 1];
         } else {
-          const selectedMonthIndex = new Date(`${selectedMonth} 1, ${selectedYear}`).getMonth() + 1
+          const selectedMonthIndex = new Date(`${selectedMonth} 1, ${selectedYear}`).getMonth() + 1;
           if (monthNum !== selectedMonthIndex) {
-            return
+            return;
           }
-          xLabel = String(day).padStart(2, '0')
+          xLabel = String(day).padStart(2, '0');
         }
       }
     }
 
-    if (!grouped[xLabel]) grouped[xLabel] = 0
-    grouped[xLabel] += 1
+    if (!grouped[xLabel]) grouped[xLabel] = 0;
+    grouped[xLabel] += 1;
+  });
 
-  })
-
-
-  
-  let xValues: string[] = []
+  let xValues: string[] = [];
 
   switch (interval) {
     case 'weekly':
-      xValues = Array.from({ length: 52 }, (_, i) => `W${i + 1}`)
-      break
+      xValues = Array.from({ length: 52 }, (_, i) => `W${i + 1}`);
+      break;
     case 'quarterly':
-      xValues = ['Q1', 'Q2', 'Q3', 'Q4']
-      break
+      xValues = ['Q1', 'Q2', 'Q3', 'Q4'];
+      break;
     case 'annually':
-      xValues = availableYears.map(String)
-      break
+      xValues = availableYears.map(String);
+      break;
     default:
       if (month === 'all') {
-        xValues = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        xValues = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       } else {
-        const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
-        const daysInSelectedMonth = new Date(year, monthIndex + 1, 0).getDate()
+        const monthIndex = new Date(`${month} 1, ${year}`).getMonth();
+        const daysInSelectedMonth = new Date(year, monthIndex + 1, 0).getDate();
         xValues = Array.from(
           { length: daysInSelectedMonth },
           (_, i) => String(i + 1).padStart(2, '0')
-        )
+        );
       }
-      break
+      break;
   }
 
   const formatted: OverallLeadsData[] = xValues.map((label) => ({
     label,
     totalLeads: grouped[label] || 0,
-  }))
+  }));
 
-  setOverallLeadsData(formatted)
-}
+  // Cache the result
+  setCachedData(cacheKey, formatted);
+  setOverallLeadsData(formatted);
+};
 
 
 
 // Add this useEffect after the fetchOverallLeads function
 useEffect(() => {
-  fetchOverallLeads(selectedYear, selectedMonth, selectedInterval)
+  fetchOverallLeadsWithCache(selectedYear, selectedMonth, selectedInterval)
 }, [selectedYear, selectedMonth, selectedInterval, availableYears])
 
   useEffect(() => {
@@ -469,6 +536,9 @@ useEffect(() => {
     const result = Object.entries(counts).map(([name, value]) => ({ name, value }));
     setCapturedByData(result);
     setTotalCapturedByCount(result.reduce((sum, item) => sum + item.value, 0));
+    // ✅ ADD THIS: Cache the results
+  const cacheKey = `captured_by_${year}_${month}_${interval}_${rangeIndex}`;
+  setCachedData(cacheKey, result);
   };
   
   
@@ -633,9 +703,79 @@ function normalizeDateString(dateString: string) {
     setLeadAreaChartData(formatted)
     setLeadSourceTotals(totals)
     setLeadSourceDisplayMap(displayMap)
+      // ✅ ADD THIS: Cache the results
+    const cacheKey = `leads_by_source_${year}_${month}_${interval}`;
+    setCachedData(cacheKey, formatted);
   }
   
 
+
+  // CACHED VERSION: Wrap fetchLeadsBySource
+const fetchLeadsBySourceWithCache = async (year: number, month: string, interval: string) => {
+  const cacheKey = `leads_by_source_${year}_${month}_${interval}`;
+  const cached = getCachedData<AreaData[]>(cacheKey);
+  
+  if (cached) {
+    console.log('✅ Using cached leads by source');
+    setLeadAreaChartData(cached);
+    return;
+  }
+
+  // Call original function
+  await fetchLeadsBySource(year, month, interval);
+  
+  // Cache after fetching (the original sets leadAreaChartData)
+  // We'll need to get it from state, so let's cache in the original function instead
+};
+
+
+// CACHED VERSION: Wrap fetchTopServices
+const fetchTopServicesWithCache = async (year: number, month: string, interval: string, rangeIndex: number) => {
+  const cacheKey = `top_services_${year}_${month}_${interval}_${rangeIndex}`;
+  const cached = getCachedData<BarData[]>(cacheKey);
+  
+  if (cached) {
+    console.log('✅ Using cached top services');
+    setServiceChartData(cached);
+    return;
+  }
+
+  // Call original function
+  await fetchTopServices(year, month, interval, rangeIndex);
+};
+
+
+// CACHED VERSION: Wrap fetchCapturedByStats
+const fetchCapturedByStatsWithCache = async (year: number, month: string, interval: string, rangeIndex: number) => {
+  const cacheKey = `captured_by_${year}_${month}_${interval}_${rangeIndex}`;
+  const cached = getCachedData<{ name: string; value: number }[]>(cacheKey);
+  
+  if (cached) {
+    console.log('✅ Using cached captured by stats');
+    setCapturedByData(cached);
+    return;
+  }
+
+  // Call original function
+  await fetchCapturedByStats(year, month, interval, rangeIndex);
+};
+
+
+
+// CACHED VERSION: Wrap fetchStats
+const fetchStatsWithCache = async (year: number, month: string, interval: string, rangeIndex: number) => {
+  const cacheKey = `stats_${year}_${month}_${interval}_${rangeIndex}`;
+  const cached = getCachedData<typeof stats>(cacheKey);
+  
+  if (cached) {
+    console.log('✅ Using cached stats');
+    setStats(cached);
+    return;
+  }
+
+  // The original fetchStats is defined inline in useEffect - we'll need to extract it
+  // For now, just call the inline version
+};
   const timeLabels = generateTimeLabels(selectedInterval, selectedMonth, selectedYear, availableYears)
 
   // Fetch top services/products for the selected year
@@ -719,6 +859,9 @@ function normalizeDateString(dateString: string) {
       .sort((a, b) => b.count - a.count)
   
     setServiceChartData(chartData)
+      // ✅ ADD THIS: Cache the results
+  const cacheKey = `top_services_${year}_${month}_${interval}_${rangeIndex}`;
+  setCachedData(cacheKey, chartData);
   }
   
 
@@ -728,11 +871,18 @@ function normalizeDateString(dateString: string) {
   
   
 
+// WITH THIS:
 useEffect(() => {
-  fetchLeadsBySource(selectedYear, selectedMonth, selectedInterval)
-}, [selectedYear, selectedMonth, selectedInterval, fetchLeadsBySource])
-
-
+  const cacheKey = `leads_by_source_${selectedYear}_${selectedMonth}_${selectedInterval}`;
+  const cached = getCachedData<AreaData[]>(cacheKey);
+  
+  if (cached) {
+    console.log('✅ Using cached leads by source');
+    setLeadAreaChartData(cached);
+  } else {
+    fetchLeadsBySource(selectedYear, selectedMonth, selectedInterval);
+  }
+}, [selectedYear, selectedMonth, selectedInterval])
 
 
 
@@ -762,6 +912,43 @@ useEffect(() => {
     init()
   }, [])
 
+
+  useEffect(() => {
+  const init = async () => {
+    const { data, error } = await supabase
+      .from('crm_leads')
+      .select('first_contact')
+
+    if (error) return console.error(error)
+
+    const years = new Set<number>()
+    data?.forEach(({ first_contact }) => {
+      if (first_contact) {
+        const y = new Date(first_contact).getFullYear()
+        years.add(y)
+      }
+    })
+
+    const sorted = Array.from(years).sort((a, b) => b - a)
+    setAvailableYears(sorted)
+    setRangeIndex(0)
+  }
+
+  init()
+}, [])
+
+// ✅ ADD THIS useEffect RIGHT HERE (after the init useEffect):
+// Trigger pre-loading after initial data loads
+useEffect(() => {
+  if (availableYears.length > 0 && !isPreloading && cachedFilters.size === 0) {
+    // Wait 2 seconds after initial load, then start pre-caching
+    const timer = setTimeout(() => {
+      preloadAllFilters();
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }
+}, [availableYears.length]);
 
 
   function getTrend(current: number, previous: number): { trend: 'up' | 'down'; change: string } {
@@ -1427,10 +1614,16 @@ useEffect(() => {
 
 
 const handleRefreshFilters = () => {
-  fetchOverallLeads(selectedYear, selectedMonth, selectedInterval)
-  fetchLeadsBySource(selectedYear, selectedMonth, selectedInterval)
-  fetchCapturedByStats(selectedYear, selectedMonth, selectedInterval, rangeIndex)
-  fetchTopServices(selectedYear, selectedMonth, selectedInterval, rangeIndex)
+  // Clear all cache first
+  clearCache();
+  setCachedFilters(new Set());
+  
+  // Then re-fetch
+  fetchOverallLeadsWithCache(selectedYear, selectedMonth, selectedInterval);
+  fetchLeadsBySource(selectedYear, selectedMonth, selectedInterval);
+  fetchCapturedByStats(selectedYear, selectedMonth, selectedInterval, rangeIndex);
+  fetchTopServices(selectedYear, selectedMonth, selectedInterval, rangeIndex);
+  
   toast.success("Dashboard refreshed!");
 }
 
@@ -1467,7 +1660,13 @@ const handleRefreshFilters = () => {
           )}
         </div>
       </div>
-
+        {/* ✅ ADD THIS RIGHT HERE (after the greeting div closes): */}
+        {isPreloading && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground pb-2 pl-4">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Pre-loading filters in background... ({cachedFilters.size} cached)
+          </div>
+        )}
       
       <div className="px-0 pb-2">
         <div className="text-sm font-semibold text-muted-foreground mb-1">
