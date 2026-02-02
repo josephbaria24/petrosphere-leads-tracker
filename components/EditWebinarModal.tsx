@@ -1,4 +1,3 @@
-//components\EditWebinarModal.tsx
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
@@ -34,6 +33,7 @@ interface EditWebinarModalProps {
   webinar: Webinar
   currentUserName: string
 }
+
 const numericKeys: (keyof Webinar)[] = [
     "registration_page_views",
     "registered_participants",
@@ -41,10 +41,16 @@ const numericKeys: (keyof Webinar)[] = [
     "event_rating",
   ]
 
-const EditWebinarModal: React.FC<EditWebinarModalProps> = ({ isOpen, onClose, onSave, webinar, currentUserName }) => {
-    const supabase = useMemo(() => createClientComponentClient(), []) // Add this
-  
+const EditWebinarModal: React.FC<EditWebinarModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  webinar, 
+  currentUserName 
+}) => {
+  const supabase = useMemo(() => createClientComponentClient(), [])
   const [edited, setEdited] = useState<Partial<Webinar>>({})
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (webinar) setEdited({ ...webinar })
@@ -54,39 +60,102 @@ const EditWebinarModal: React.FC<EditWebinarModalProps> = ({ isOpen, onClose, on
     setEdited((prev) => ({ ...prev, [key]: value }))
   }
 
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      const isPlaceholder = edited.id?.toString().startsWith("placeholder-")
 
+      if (isPlaceholder) {
+        // CREATE: Remove id and created_at before inserting
+        const { id, created_at, ...dataToInsert } = edited
+        
+        const { error } = await supabase
+          .from("webinar_tracker")
+          .insert(dataToInsert)
+
+        if (error) throw error
+
+        await supabase.from('activity_logs').insert({
+          user_name: currentUserName,
+          action: 'created',
+          entity_type: 'webinar',
+        })
+
+      } else {
+        // UPDATE: Keep the id for the update query
+        const { id, created_at, ...dataToUpdate } = edited
+        
+        const { error } = await supabase
+          .from("webinar_tracker")
+          .update(dataToUpdate)
+          .eq("id", id)
+
+        if (error) throw error
+
+        await supabase.from('activity_logs').insert({
+          user_name: currentUserName,
+          action: 'edited',
+          entity_type: 'webinar',
+        })
+      }
+
+      // Call the onSave callback
+      await onSave(edited)
+      
+      onClose()
+      
+      // Refresh the page to show new data
+      window.location.reload()
+      
+    } catch (error) {
+      console.error('Error saving:', error)
+      // Optionally show error toast here
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="space-y-4 max-w-4xl rounded-xl max-h-[90vh] overflow-y-auto">
-        <DialogTitle>Edit Webinar</DialogTitle>
+        <DialogTitle>
+          {edited.id?.toString().startsWith("placeholder-") ? "Create" : "Edit"} Webinar Entry
+        </DialogTitle>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Object.entries(edited)
             .filter(([key]) => key !== 'id' && key !== 'created_at')
-            .map(([key, value]) => (
-              <div key={key}>
-                <Label className="text-sm font-medium capitalize block mb-1">
-                  {key.replace(/_/g, ' ')}
-                </Label>
-                {(key === 'presenters' || key === 'webinar_title') ? (
-                  <Textarea
-                  value={value ?? ""}
-                    onChange={(e) => handleChange(key as keyof Webinar, e.target.value)}
-                  />
-                ) : (key === 'event_rating') ? (
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="5"
-                    value={value ?? ""}
-                    onChange={(e) =>
-                        handleChange(key as keyof Webinar, e.target.value ? parseFloat(e.target.value) : null)
-                      }
-                      
-                      
-                  />
-                ) : numericKeys.includes(key as keyof Webinar) ? (
+            .map(([key, value]) => {
+              // Check if field should be disabled (month/year are read-only)
+              const isDisabled = key === 'month' || key === 'year'
+              
+              return (
+                <div key={key}>
+                  <Label className="text-sm font-medium capitalize block mb-1">
+                    {key.replace(/_/g, ' ')}
+                  </Label>
+                  {(key === 'presenters' || key === 'webinar_title') ? (
+                    <Textarea
+                      value={value ?? ""}
+                      onChange={(e) => handleChange(key as keyof Webinar, e.target.value)}
+                    />
+                 ) : (key === 'event_rating') ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="5"  // ✅ This limits it to 5.00
+                        value={value ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value ? parseFloat(e.target.value) : null
+                          // ✅ Add extra validation to ensure it doesn't exceed 5
+                          if (val !== null && val > 5) {
+                            handleChange(key as keyof Webinar, 5)
+                          } else {
+                            handleChange(key as keyof Webinar, val)
+                          }
+                        }}
+                      />
+                  ) : numericKeys.includes(key as keyof Webinar) ? (
                     <Input
                       type="number"
                       value={value ?? ""}
@@ -101,30 +170,20 @@ const EditWebinarModal: React.FC<EditWebinarModalProps> = ({ isOpen, onClose, on
                     <Input
                       value={value ?? ""}
                       onChange={(e) => handleChange(key as keyof Webinar, e.target.value)}
+                      disabled={isDisabled}
                     />
-                  )
-                  }
-                      
-              </div>
-            ))}
+                  )}
+                </div>
+              )
+            })}
         </div>
 
-        <div className="flex justify-end pt-2">
-          <Button
-            onClick={async () => {
-              await onSave(edited)
-
-              // ✅ Log to activity_logs
-              await supabase.from('activity_logs').insert({
-                user_name: currentUserName,
-                action: 'edited',
-                entity_type: 'webinar',
-              })
-
-              onClose()
-            }}
-          >
-            Save Changes
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </DialogContent>

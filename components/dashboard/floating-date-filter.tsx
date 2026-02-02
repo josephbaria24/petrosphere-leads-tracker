@@ -137,8 +137,8 @@ export function FloatingDateFilter(props: any) {
                   <Image
                     src="/icons/calendar.svg"
                     alt="Calendar"
-                    width={40}
-                    height={40}
+                    width={30}
+                    height={30}
                     className="w-7 h-7 dark:brightness-0 dark:invert pointer-events-none"
                   />
                 </motion.button>

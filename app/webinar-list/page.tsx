@@ -61,7 +61,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 export default function WebinarTablePage() {
   const supabase = useMemo(() => createClientComponentClient(), []) // Add this
   
-  const [selectedYear, setSelectedYear] = useState<string>("2025")
+const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
   const yearOptions = Array.from({ length: 10 }, (_, i) => String(2023 + i))
 
   const router = useRouter()
