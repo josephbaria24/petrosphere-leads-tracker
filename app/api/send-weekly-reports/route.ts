@@ -1,3 +1,4 @@
+//app\api\send-weekly-reports\route.ts
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -63,7 +64,7 @@ interface MonthlyData {
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+  process.env.SUPABASE_SERVICE_ROLE_KEY! as string
 );
 
 // Helper function to calculate percentage change
@@ -421,14 +422,14 @@ export async function GET(req: Request) {
     const today = month ? new Date(`${month}-01`) : new Date();
     const monthStart = startOfMonth(today);
     const monthEnd = endOfMonth(today);
-    const reportMonth = format(today, 'MMMM');
-    const reportYear = format(today, 'yyyy');
+    const reportMonth = format(today, 'MMM'); // Short name: "Jan"
+const reportYear = format(today, 'yyyy');
 
     // Calculate previous month
     const previousMonth = subMonths(today, 1);
     const previousMonthStart = startOfMonth(previousMonth);
     const previousMonthEnd = endOfMonth(previousMonth);
-    const previousReportMonth = format(previousMonth, 'MMMM');
+    const previousReportMonth = format(previousMonth, 'MMM');
     const previousReportYear = format(previousMonth, 'yyyy');
 
     // Fetch current month data
@@ -437,9 +438,9 @@ export async function GET(req: Request) {
     // Fetch previous month data
     const previousData = await fetchMonthlyData(previousMonthStart, previousMonthEnd, previousReportMonth, previousReportYear);
 
-    if (currentData.totalLeads === 0) {
-      return NextResponse.json({ message: 'No new leads found for the month.' });
-    }
+    // if (currentData.totalLeads === 0) {
+    //   return NextResponse.json({ message: 'No new leads found for the month.' });
+    // }
 
     // Prepare chart data for current month
     const statusBreakdown = currentData.leads.reduce<Record<string, number>>((acc, lead) => {
@@ -1410,89 +1411,22 @@ if ((currentData.webinars?.length || 0) > 0 || (previousData.webinars?.length ||
     detailPage.drawText('Confidential – For Internal Use Only', { x: 50, y: 35, size: 9, font, color: rgb(0.5, 0.5, 0.5) });
     detailPage.drawText('Page 5', { x: 520, y: 35, size: 9, font, color: rgb(0.5, 0.5, 0.5) });
 
-    // Generate and send PDF
-    const pdfBytes = await pdfDoc.save();
+// Generate PDF
+// Generate PDF
+const pdfBytes = await pdfDoc.save();
 
-    // Enhanced Email with comparison insights
-    const leadGrowthText = currentData.totalLeads > previousData.totalLeads ? 'increased' : currentData.totalLeads < previousData.totalLeads ? 'decreased' : 'remained stable';
-    const revenueGrowthText = currentData.potentialIncome > previousData.potentialIncome ? 'increased' : currentData.potentialIncome < previousData.potentialIncome ? 'decreased' : 'remained stable';
-    
-    await sendEmail({
-      to: [
-        'jlb@petrosphere.com.ph',
-        'josephbaria89@gmail.com',
-        'rlm@petrosphere.com.ph',
-        'dra@petrosphere.com.ph',
-        'kbg@petrosphere.com.ph',
-        'sales@petrosphere.com.ph',
-        'ceo@petrosphere.com.ph',
-        'admin@petrosphere.com.ph',
-        'ops@petrosphere.com.ph',
-        'ctp@petrosphere.com.ph',
-        'kdb@petrosphere.com.ph'
-      ],
-      subject: `Monthly Leads Report with Comparisons - ${format(today, 'MMM yyyy')}`,
-      text: `Attached is your comprehensive monthly report with visual analytics, performance insights, and month-over-month comparisons for ${reportMonth} ${reportYear}.
+// Convert Uint8Array to Buffer for NextResponse
+const buffer = Buffer.from(pdfBytes);
 
-CURRENT MONTH HIGHLIGHTS:
-• Total Leads: ${currentData.totalLeads}
-• Closed Won: ${currentData.closedWonLeads}
-• Pipeline Value: PHP${currentData.potentialIncome.toLocaleString()}
-• Conversion Rate: ${currentData.totalLeads > 0 ? ((currentData.closedWonLeads / currentData.totalLeads) * 100).toFixed(1) : 0}%
-
-MONTH-OVER-MONTH COMPARISON:
-• Lead Generation: ${leadGrowthText} by ${calculatePercentageChange(currentData.totalLeads, previousData.totalLeads)}
-• Pipeline Value: ${revenueGrowthText} by ${calculatePercentageChange(currentData.potentialIncome, previousData.potentialIncome)}
-• Conversion Rate: ${calculatePercentageChange(currentData.totalLeads > 0 ? ((currentData.closedWonLeads / currentData.totalLeads) * 100) : 0, previousData.totalLeads > 0 ? ((previousData.closedWonLeads / previousData.totalLeads) * 100) : 0)} change
-
-This enhanced report includes:
-• Visual charts and performance trends
-• Month-over-month comparisons across all metrics
-• Social media and webinar performance analysis
-• Actionable insights and strategic recommendations
-• Historical trend analysis for informed decision-making
-
-Key insights and recommendations are provided to help drive continued business growth.`,
-attachments: [
-  {
-    filename: 'report.pdf',
-    content: Buffer.from(pdfBytes).toString('base64'),
-    encoding: 'base64',
-    type: 'application/pdf',
-    disposition: 'attachment'
-  }
-]
-
-
-
-    });
-
-    return NextResponse.json({ 
-      message: 'Enhanced Monthly PDF Report with month-over-month comparisons sent successfully',
-      summary: {
-        currentMonth: {
-          totalLeads: currentData.totalLeads,
-          closedWon: currentData.closedWonLeads,
-          potentialRevenue: currentData.potentialIncome,
-          conversionRate: `${currentData.totalLeads > 0 ? ((currentData.closedWonLeads / currentData.totalLeads) * 100).toFixed(1) : 0}%`
-        },
-        previousMonth: {
-          totalLeads: previousData.totalLeads,
-          closedWon: previousData.closedWonLeads,
-          potentialRevenue: previousData.potentialIncome,
-          conversionRate: `${previousData.totalLeads > 0 ? ((previousData.closedWonLeads / previousData.totalLeads) * 100).toFixed(1) : 0}%`
-        },
-        monthOverMonthChanges: {
-          totalLeads: calculatePercentageChange(currentData.totalLeads, previousData.totalLeads),
-          closedWon: calculatePercentageChange(currentData.closedWonLeads, previousData.closedWonLeads),
-          potentialRevenue: calculatePercentageChange(currentData.potentialIncome, previousData.potentialIncome),
-          conversionRate: calculatePercentageChange(
-            currentData.totalLeads > 0 ? ((currentData.closedWonLeads / currentData.totalLeads) * 100) : 0,
-            previousData.totalLeads > 0 ? ((previousData.closedWonLeads / previousData.totalLeads) * 100) : 0
-          )
-        }
-      }
-    });
+// Return PDF as downloadable response
+return new NextResponse(buffer, {
+  status: 200,
+  headers: {
+    'Content-Type': 'application/pdf',
+    'Content-Disposition': `attachment; filename="Monthly_Report_${format(today, 'MMM_yyyy')}.pdf"`,
+    'Content-Length': buffer.length.toString(),
+  },
+});
   } catch (err: any) {
     console.error('PDF Report Generation Error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

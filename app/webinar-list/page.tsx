@@ -66,7 +66,6 @@ const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear(
 
   const router = useRouter()
   const session = useSession()
-  const [isReady, setIsReady] = useState(false)
 
   const [data, setData] = useState<Webinar[]>([])
   const [globalFilter, setGlobalFilter] = useState("")
@@ -80,25 +79,7 @@ const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear(
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [currentUserName, setCurrentUserName] = useState<string>('Unknown')
   const [loading, setLoading] = useState(true)
-  useEffect(() => {
-    const fetchCurrentUserProfile = async () => {
-      const { data: authData } = await supabase.auth.getUser()
-      const userId = authData?.user?.id
-      if (!userId) return
 
-      const { data: profile } = await supabase
-        .from('public_profiles')
-        .select('full_name')
-        .eq('id', userId)
-        .single()
-
-      if (profile?.full_name) {
-        setCurrentUserName(profile.full_name)
-      }
-    }
-
-    fetchCurrentUserProfile()
-  }, [])
 
   useEffect(() => {
     const fetchWebinars = async () => {
@@ -146,13 +127,6 @@ const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear(
   }, [selectedYear])
   
 
-  useEffect(() => {
-    if (session === null) {
-      router.replace("/login")
-    } else if (session) {
-      setIsReady(true)
-    }
-  }, [session, router])
 
   const table = useReactTable({
     data,
@@ -179,7 +153,6 @@ const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear(
     table.setPageSize(pageSize)
   }, [pageSize, table])
 
-  if (!isReady) return <div className="p-10 text-center">Loading...</div>
 
   return (
     <div className="w-full">

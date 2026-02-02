@@ -1589,30 +1589,51 @@ useEffect(() => {
   }, []);
   
   
-  const handleGenerate = async (month: string) => {
+const handleGenerate = async (month: string) => {
   setLoading(true);
   
-  
   try {
-  const res = await fetch(`/api/send-weekly-reports?month=${month}`);
-  const json = await res.json();
-  
-  
-  if (!res.ok) throw new Error(json?.error || "Failed to send report");
-  
-  
-  toast.success("Report sent successfully!");
-  setTimeout(() => {
-  router.push("/reports/success");
-  }, 1000);
-  } catch (err) {
-  toast.error("Something went wrong.");
+    const res = await fetch(`/api/send-weekly-reports?month=${month}`);
+    
+    // Check if it's JSON (error response)
+    const contentType = res.headers.get('content-type');
+    
+    if (contentType?.includes('application/json')) {
+      const json = await res.json();
+      throw new Error(json?.error || json?.message || "Failed to generate report");
+    }
+    
+    if (!res.ok) {
+      throw new Error("Failed to generate report");
+    }
+    
+    // Get the PDF blob
+    const blob = await res.blob();
+    
+    console.log('Blob type:', blob.type, 'Blob size:', blob.size);
+    
+    // Create download link
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Monthly_Report_${month.replace('-', '_')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }, 100);
+    
+    toast.success("Report downloaded successfully!");
+  } catch (err: any) {
+    console.error('Download error:', err);
+    toast.error(err?.message || "Failed to generate report");
   } finally {
-  setLoading(false);
+    setLoading(false);
   }
-  };
-
-
+};
 const handleRefreshFilters = () => {
   // Clear all cache first
   clearCache();

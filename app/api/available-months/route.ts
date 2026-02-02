@@ -1,3 +1,4 @@
+//app\api\available-months\route.ts
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { format, subMonths } from "date-fns"
