@@ -422,15 +422,15 @@ export async function GET(req: Request) {
     const today = month ? new Date(`${month}-01`) : new Date();
     const monthStart = startOfMonth(today);
     const monthEnd = endOfMonth(today);
-    const reportMonth = format(today, 'MMM'); // Short name: "Jan"
+    const reportMonth = format(today, 'MMMM'); // Short name: "Jan"
 const reportYear = format(today, 'yyyy');
 
-    // Calculate previous month
-    const previousMonth = subMonths(today, 1);
-    const previousMonthStart = startOfMonth(previousMonth);
-    const previousMonthEnd = endOfMonth(previousMonth);
-    const previousReportMonth = format(previousMonth, 'MMM');
-    const previousReportYear = format(previousMonth, 'yyyy');
+   // ✅ FIX: Calculate previous month (handles cross-year correctly)
+  const previousMonth = subMonths(today, 1); // This automatically handles year boundaries!
+  const previousMonthStart = startOfMonth(previousMonth);
+  const previousMonthEnd = endOfMonth(previousMonth);
+  const previousReportMonth = format(previousMonth, 'MMMM'); // "Dec"
+  const previousReportYear = format(previousMonth, 'yyyy'); // "2025" when current is Jan 2026
 
     // Fetch current month data
     const currentData = await fetchMonthlyData(monthStart, monthEnd, reportMonth, reportYear);
