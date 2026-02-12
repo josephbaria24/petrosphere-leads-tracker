@@ -32,7 +32,7 @@ function useDebounce<T>(value: T, delay: number): T {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
     }
-    
+
     timeoutRef.current = setTimeout(() => {
       setDebouncedValue(value)
     }, delay)
@@ -85,6 +85,7 @@ export default function AddNewLeadPage() {
   const [regions, setRegions] = useState<string[]>([])
   const [leadSources, setLeadSources] = useState<string[]>([])
   const [leadStatuses, setLeadStatuses] = useState<string[]>([])
+  const [capturedByOptions, setCapturedByOptions] = useState<string[]>([])
   const [servicePrices, setServicePrices] = useState<Record<string, number>>({})
   const [editingDropdown, setEditingDropdown] = useState<string | null>(null)
   const [isRegionOpen, setIsRegionOpen] = useState(false)
@@ -96,10 +97,10 @@ export default function AddNewLeadPage() {
   const [form, setForm] = useState(INITIAL_FORM_STATE)
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false)
   const [newServiceName, setNewServiceName] = useState('')
-  
+
   // Use refs to avoid re-renders on intermediate values
-  const duplicateCheckTimeoutRef = useRef<NodeJS.Timeout| null>(null)
-  
+  const duplicateCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   // Only debounce service search, not form fields for instant feedback
   const debouncedServiceSearch = useDebounce(serviceSearch, 200)
 
@@ -113,8 +114,8 @@ export default function AddNewLeadPage() {
   }, [servicePrices, debouncedServiceSearch])
 
   // Memoized total price
-  const totalServicePrice = useMemo(() => 
-    serviceDetails.reduce((sum, s) => sum + s.price, 0), 
+  const totalServicePrice = useMemo(() =>
+    serviceDetails.reduce((sum, s) => sum + s.price, 0),
     [serviceDetails]
   )
   // Optimized form handler that doesn't recreate on every render
@@ -161,7 +162,7 @@ export default function AddNewLeadPage() {
     if (duplicateCheckTimeoutRef.current) {
       clearTimeout(duplicateCheckTimeoutRef.current)
     }
-    
+
     duplicateCheckTimeoutRef.current = setTimeout(() => {
       checkDuplicateLeadAsync(name, email)
     }, 800)
@@ -179,13 +180,13 @@ export default function AddNewLeadPage() {
   }, [])
 
   const handleServiceModeChange = useCallback((service: string, mode: string) => {
-    setServiceDetails(prev => 
+    setServiceDetails(prev =>
       prev.map(s => s.name === service ? { ...s, mode } : s)
     )
   }, [])
 
   const handleServicePriceChange = useCallback((service: string, price: number) => {
-    setServiceDetails(prev => 
+    setServiceDetails(prev =>
       prev.map(s => s.name === service ? { ...s, price } : s)
     )
   }, [])
@@ -285,7 +286,7 @@ export default function AddNewLeadPage() {
 
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
-      
+
       if (!user || userError) {
         toast.error("User session error")
         return
@@ -317,7 +318,7 @@ export default function AddNewLeadPage() {
         toast.error('Submission Failed', { description: error.message })
         return
       }
- // ✅ Auto-insert into proposals_tracker if applicable
+      // ✅ Auto-insert into proposals_tracker if applicable
       if (form.status.toLowerCase() === "proposal sent") {
         const { error: proposalError } = await supabase.from('proposals_tracker').insert([{
           company_organization: fullCompany,
@@ -330,7 +331,7 @@ export default function AddNewLeadPage() {
           person_in_charge: firstName,
           user_id: user.id,
         }]);
-  
+
         if (proposalError) {
           toast.warning("Lead saved, but proposal tracker update failed", {
             description: proposalError.message,
@@ -354,13 +355,13 @@ export default function AddNewLeadPage() {
     }
   }, [form, serviceDetails, totalServicePrice, validateForm])
 
-  const fetchTable = useCallback(async (table: 'regions' | 'lead_sources' | 'lead_statuses') => {
+  const fetchTable = useCallback(async (table: 'regions' | 'lead_sources' | 'lead_statuses' | 'captured_by_settings') => {
     try {
       const { data, error } = await supabase.from(table).select('name')
       if (error) throw error
-  
+
       let names = data.map(d => d.name)
-  
+
       if (table === 'lead_statuses') {
         // Sort according to STATUS_ORDER
         names = STATUS_ORDER.filter(s => names.includes(s)).concat(
@@ -371,12 +372,14 @@ export default function AddNewLeadPage() {
         setRegions(names)
       } else if (table === 'lead_sources') {
         setLeadSources(names)
+      } else if (table === 'captured_by_settings') {
+        setCapturedByOptions(names)
       }
     } catch (err) {
       console.warn(`Failed to fetch ${table}:`, err)
     }
   }, [])
-  
+
   // Initial data fetch
   useEffect(() => {
     const initializeData = async () => {
@@ -384,6 +387,7 @@ export default function AddNewLeadPage() {
         fetchTable('regions'),
         fetchTable('lead_sources'),
         fetchTable('lead_statuses'),
+        fetchTable('captured_by_settings'),
       ])
 
       try {
@@ -412,8 +416,8 @@ export default function AddNewLeadPage() {
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem>
-                    <BreadcrumbLink 
-                      href="/dashboard" 
+                    <BreadcrumbLink
+                      href="/dashboard"
                       className="text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium"
                     >
                       Manage Lead
@@ -433,10 +437,10 @@ export default function AddNewLeadPage() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-                  Add New Lead
+                    Add New Lead
                   </h1>
                   <p className="text-zinc-600 dark:text-zinc-400">
-                  Fill out the form below to add a new lead to your CRM system
+                    Fill out the form below to add a new lead to your CRM system
                   </p>
                 </div>
               </div>
@@ -444,13 +448,13 @@ export default function AddNewLeadPage() {
             </div>
           </div>
         </div>
-        
+
         {/* Main Form Card */}
         <Card className="border-0 shadow-xl bg-white/95 dark:bg-background backdrop-blur-sm">
           <CardHeader className="pb-0">
             <div className="flex items-center space-x-3">
               <div className="">
-              <UserPlus2 className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                <UserPlus2 className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
               </div>
               <div>
                 <CardTitle className="text-xl font-semibold text-slate-900 dark:text-white">
@@ -462,7 +466,7 @@ export default function AddNewLeadPage() {
               </div>
             </div>
           </CardHeader>
-          
+
           <CardContent className="space-y-8">
             {/* Duplicate Lead Modal */}
             {duplicateLead && (
@@ -489,14 +493,14 @@ export default function AddNewLeadPage() {
                 currentUserName={form.captured_by || "Unknown"}
               />
             )}
-            
+
             {/* Contact Information Section */}
             <div className="space-y-6">
               <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
                 <User className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Contact Details</h3>
               </div>
-              
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="contact_name" className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -511,7 +515,7 @@ export default function AddNewLeadPage() {
                     placeholder="Enter contact name"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
                     <Mail className="w-4 h-4" />
@@ -527,28 +531,28 @@ export default function AddNewLeadPage() {
                     placeholder="contact@example.com"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="phone" className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
                     <Phone className="w-4 h-4" />
                     <span>Phone Number <span className="text-red-500">*</span></span>
                   </Label>
-                  <Input 
-                    id="phone" 
-                    value={form.phone} 
+                  <Input
+                    id="phone"
+                    value={form.phone}
                     onChange={(e) => handleChange('phone', e.target.value)}
                     className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
                     placeholder="+63 xxx xxx xxxx"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="mobile" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     Mobile Number <span className="text-red-500">*</span>
                   </Label>
-                  <Input 
-                    id="mobile" 
-                    value={form.mobile} 
+                  <Input
+                    id="mobile"
+                    value={form.mobile}
                     onChange={(e) => handleChange('mobile', e.target.value)}
                     className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
                     placeholder="+63 9xx xxx xxxx"
@@ -563,21 +567,21 @@ export default function AddNewLeadPage() {
                 <Building2 className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Company Information</h3>
               </div>
-              
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="company" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     Company Name <span className="text-red-500">*</span>
                   </Label>
-                  <Input 
-                    id="company" 
-                    value={form.company} 
+                  <Input
+                    id="company"
+                    value={form.company}
                     onChange={(e) => handleChange('company', e.target.value)}
                     className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
                     placeholder="Company name"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="address" className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
                     <MapPin className="w-4 h-4" />
@@ -603,7 +607,7 @@ export default function AddNewLeadPage() {
                     onOpenChange={setIsRegionOpen}
                     onValueChange={(val) => handleChange('region', val)}
                   >
-                    <SelectTrigger 
+                    <SelectTrigger
                       id="region"
                       className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
                     >
@@ -613,8 +617,8 @@ export default function AddNewLeadPage() {
                       <div className="flex justify-end p-2">
                       </div>
                       {regions.map((region) => (
-                        <SelectItem 
-                          key={region} 
+                        <SelectItem
+                          key={region}
                           value={region}
                         >
                           {region}
@@ -623,7 +627,7 @@ export default function AddNewLeadPage() {
                     </SelectContent>
                   </Select>
                 </div>
-               
+
                 <div className="space-y-2">
                   <Label htmlFor="lead_source" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     Lead Source <span className="text-red-500">*</span>
@@ -641,8 +645,8 @@ export default function AddNewLeadPage() {
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0 bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600">
                       <Command className="bg-transparent">
-                        <CommandInput 
-                          placeholder="Search lead source..." 
+                        <CommandInput
+                          placeholder="Search lead source..."
                           className="border-0 focus:ring-0 bg-transparent"
                         />
                         <CommandEmpty>No source found.</CommandEmpty>
@@ -676,7 +680,7 @@ export default function AddNewLeadPage() {
                 <Calendar className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Timeline & Status</h3>
               </div>
-              
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="first_contact" className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -685,10 +689,10 @@ export default function AddNewLeadPage() {
                   <DatePicker
                     value={form.first_contact ? new Date(form.first_contact) : undefined}
                     onChange={(date) => handleChange('first_contact', date?.toISOString() || '')}
-                    
+
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="last_contact" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     Last Contact <span className="text-red-500">*</span>
@@ -704,7 +708,7 @@ export default function AddNewLeadPage() {
                     Current Status <span className="text-red-500">*</span>
                   </Label>
                   <Select onValueChange={(val) => handleChange('status', val)}>
-                    <SelectTrigger 
+                    <SelectTrigger
                       id="status"
                       className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
                     >
@@ -712,8 +716,8 @@ export default function AddNewLeadPage() {
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-zinc-800 border-slate-300 dark:border-slate-600">
                       {leadStatuses.map(stage => (
-                        <SelectItem 
-                          key={stage} 
+                        <SelectItem
+                          key={stage}
                           value={stage}
                           className="focus:bg-zinc-50 dark:focus:bg-zinc-900/20"
                         >
@@ -725,40 +729,49 @@ export default function AddNewLeadPage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Captured By Section */}
             <div className="space-y-6">
               <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
                 <Settings className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Assignment</h3>
               </div>
-              
+
               <div className="space-y-4">
-                <div className="space-y-2">
+                <div className="flex items-center justify-between">
                   <Label htmlFor="captured_by" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     Captured By <span className="text-red-500">*</span>
                   </Label>
-                  <Select onValueChange={(val) => handleChange('captured_by', val)}>
-                    <SelectTrigger 
-                      id="captured_by"
-                      className=" justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                    >
-                      <SelectValue placeholder="Select team member" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-zinc-800 border-slate-300 dark:border-slate-600">
-                      {CAPTURED_BY_OPTIONS.map(person => (
-                        <SelectItem 
-                          key={person} 
-                          value={person}
-                          className="focus:bg-zinc-50 dark:focus:bg-zinc-900/20"
-                        >
-                          {person}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingDropdown('captured_by_settings')}
+                    className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </Button>
                 </div>
-                
+                <Select onValueChange={(val) => handleChange('captured_by', val)}>
+                  <SelectTrigger
+                    id="captured_by"
+                    className=" justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                  >
+                    <SelectValue placeholder="Select team member" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-zinc-800 border-slate-300 dark:border-slate-600">
+                    {capturedByOptions.map(person => (
+                      <SelectItem
+                        key={person}
+                        value={person}
+                        className="focus:bg-zinc-50 dark:focus:bg-zinc-900/20"
+                      >
+                        {person}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     Or manually enter name
@@ -779,28 +792,28 @@ export default function AddNewLeadPage() {
                 <FileText className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Additional Information</h3>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="notes" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Notes & Comments
                 </Label>
-                <Textarea 
-                  id="notes" 
-                  value={form.notes} 
+                <Textarea
+                  id="notes"
+                  value={form.notes}
                   onChange={(e) => handleChange('notes', e.target.value)}
                   className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 focus:border-zinc-500 dark:focus:border-zinc-400 transition-colors min-h-[120px] resize-none"
                   placeholder="Add any additional notes or comments about this lead..."
                 />
               </div>
             </div>
-            
+
             {/* Services Section */}
             <div className="space-y-6">
               <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
                 <DollarSign className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Services & Pricing</h3>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="flex-1 space-y-2">
@@ -878,8 +891,8 @@ export default function AddNewLeadPage() {
                                   </SelectTrigger>
                                   <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600">
                                     {SERVICE_MODES.map(mode => (
-                                      <SelectItem 
-                                        key={mode} 
+                                      <SelectItem
+                                        key={mode}
                                         value={mode}
                                         className="focus:bg-zinc-50 dark:focus:bg-zinc-900/20"
                                       >
@@ -916,7 +929,7 @@ export default function AddNewLeadPage() {
                       <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       <h4 className="font-semibold text-blue-900 dark:text-blue-100">Selected Services</h4>
                     </div>
-                    
+
                     <div className="space-y-2 mb-4">
                       {serviceDetails.map((s) => (
                         <div key={s.name} className="flex items-center justify-between py-2 px-3 bg-white dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700">
@@ -932,7 +945,7 @@ export default function AddNewLeadPage() {
                         </div>
                       ))}
                     </div>
-                    
+
                     <div className="flex justify-between items-center pt-3 border-t border-zinc-200 dark:border-zinc-700">
                       <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Total Amount:</span>
                       <span className="text-xl font-bold text-blue-900 dark:text-blue-100">₱{totalServicePrice.toFixed(2)}</span>
@@ -944,9 +957,9 @@ export default function AddNewLeadPage() {
 
             {/* Submit Button */}
             <div className="pt-6 border-t border-zinc-200 dark:border-zinc-700">
-              <Button 
+              <Button
                 onClick={handleSubmit}
-               
+
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Add Lead
@@ -957,32 +970,34 @@ export default function AddNewLeadPage() {
 
         {/* Edit Modal */}
         {editingDropdown && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md relative overflow-hidden border border-slate-200 dark:border-slate-700">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-              
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-[2px] flex justify-center items-center z-50 p-4">
+            <div className="bg-card rounded-xl shadow-2xl w-full max-w-md relative overflow-hidden border-0">
+
               <button
                 onClick={() => setEditingDropdown(null)}
                 className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-medium transition-colors z-10"
               >
                 ✕
               </button>
-              
+
               <div className="max-h-[90vh] overflow-y-auto p-6 pt-12">
                 <EditListModal
                   title={
                     editingDropdown === 'regions' ? 'Manage Regions' :
-                    editingDropdown === 'leadSources' ? 'Manage Lead Sources' : 'Manage Lead Statuses'
+                      editingDropdown === 'leadSources' ? 'Manage Lead Sources' :
+                        editingDropdown === 'captured_by_settings' ? 'Manage Team Members' : 'Manage Lead Statuses'
                   }
                   values={
                     editingDropdown === 'regions' ? regions :
-                    editingDropdown === 'leadSources' ? leadSources : leadStatuses
+                      editingDropdown === 'leadSources' ? leadSources :
+                        editingDropdown === 'captured_by_settings' ? capturedByOptions : leadStatuses
                   }
                   onAdd={async (val) => {
                     if (!val) return
-                    const table = 
+                    const table =
                       editingDropdown === 'regions' ? 'regions' :
-                      editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
+                        editingDropdown === 'leadSources' ? 'lead_sources' :
+                          editingDropdown === 'captured_by_settings' ? 'captured_by_settings' : 'lead_statuses'
 
                     const { error } = await supabase.from(table).insert({ name: val })
                     if (error) {
@@ -994,9 +1009,9 @@ export default function AddNewLeadPage() {
                   }}
                   onEdit={async (oldVal, newVal) => {
                     if (!newVal) return
-                    const table = 
+                    const table =
                       editingDropdown === 'regions' ? 'regions' :
-                      editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
+                        editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
 
                     const { error } = await supabase.from(table).update({ name: newVal }).eq('name', oldVal)
                     if (error) {
@@ -1007,9 +1022,9 @@ export default function AddNewLeadPage() {
                     }
                   }}
                   onDelete={async (val) => {
-                    const table = 
+                    const table =
                       editingDropdown === 'regions' ? 'regions' :
-                      editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
+                        editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
 
                     const { error } = await supabase.from(table).delete().eq('name', val)
                     if (error) {
@@ -1029,10 +1044,9 @@ export default function AddNewLeadPage() {
 
       {/* Add Service Modal */}
       {isAddServiceModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex justify-center items-center z-50 p-4">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md relative overflow-hidden border border-slate-200 dark:border-slate-700">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-            
+
             <button
               onClick={() => {
                 setIsAddServiceModalOpen(false)
@@ -1042,10 +1056,10 @@ export default function AddNewLeadPage() {
             >
               <X className="w-5 h-5" />
             </button>
-            
+
             <div className="p-6 pt-8">
               <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Add New Service</h3>
-              
+
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="new-service-name" className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -1064,7 +1078,7 @@ export default function AddNewLeadPage() {
                     }}
                   />
                 </div>
-                
+
                 <div className="flex gap-3 pt-4">
                   <Button
                     type="button"

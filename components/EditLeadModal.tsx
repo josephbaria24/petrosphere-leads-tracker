@@ -11,7 +11,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DatePicker } from '@/components/date-picker'
 import { supabase } from '@/lib/supabase-client'
-import { CheckCircle, Circle, Clock } from 'lucide-react'
+import { CheckCircle, Circle, Clock, Settings, Plus, Trash2, X } from 'lucide-react'
+import EditListModal from '@/components/shared/EditListModal'
 import { toast } from 'sonner'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
@@ -63,7 +64,7 @@ interface EditModalProps {
 }
 
 const leadStages = [
-  'Lead In', 'Contact Made', 'Needs Defined', 'Proposal Sent','Negotiation Started','For Follow up',
+  'Lead In', 'Contact Made', 'Needs Defined', 'Proposal Sent', 'Negotiation Started', 'For Follow up',
   'Closed Win', 'Closed Lost'
 ]
 
@@ -89,9 +90,7 @@ export type LeadSource = {
   name: string
   created_at?: string
 }
-const capturedByOptions = [
-  'Ross','Randy', 'Michelle', 'Harthwell','Sergs', 'Krezel', 'Carmela','Other'
-]
+// Hardcoded capturedByOptions removed for dynamic fetching
 
 const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead, currentUserName }) => {
   const supabase = useMemo(() => createClientComponentClient(), [])
@@ -99,9 +98,12 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
   const [services, setServices] = useState<Service[]>([])
   const [leadSources, setLeadSources] = useState<LeadSource[]>([])
   const [leadHistory, setLeadHistory] = useState<LeadHistory[]>([])
+  const [capturedByOptions, setCapturedByOptions] = useState<string[]>([])
   const [loadingServices, setLoadingServices] = useState(false)
   const [loadingSources, setLoadingSources] = useState(false)
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [loadingCapturedBy, setLoadingCapturedBy] = useState(false)
+  const [editingDropdown, setEditingDropdown] = useState<string | null>(null)
 
   useEffect(() => {
     if (lead) setEdited({ ...lead })
@@ -111,13 +113,13 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
   useEffect(() => {
     const fetchServices = async () => {
       if (!isOpen) return
-      
+
       setLoadingServices(true)
       try {
         const { data, error } = await supabase
-        .from('services')
-        .select('id, name, price, created_at')
-        .order('name')
+          .from('services')
+          .select('id, name, price, created_at')
+          .order('name')
 
         if (error) throw error
         setServices(data || [])
@@ -132,34 +134,34 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
     fetchServices()
   }, [isOpen])
 
-    // Fetch lead sources dynamically
-    useEffect(() => {
-      const fetchSources = async () => {
-        if (!isOpen) return
-        setLoadingSources(true)
-        try {
-          const { data, error } = await supabase
-            .from('lead_sources')
-            .select('id, name, created_at')
-            .order('name')
-          if (error) throw error
-          setLeadSources(data || [])
-        } catch (error) {
-          console.error('Error fetching lead sources:', error)
-          setLeadSources([])
-        } finally {
-          setLoadingSources(false)
-        }
+  // Fetch lead sources dynamically
+  useEffect(() => {
+    const fetchSources = async () => {
+      if (!isOpen) return
+      setLoadingSources(true)
+      try {
+        const { data, error } = await supabase
+          .from('lead_sources')
+          .select('id, name, created_at')
+          .order('name')
+        if (error) throw error
+        setLeadSources(data || [])
+      } catch (error) {
+        console.error('Error fetching lead sources:', error)
+        setLeadSources([])
+      } finally {
+        setLoadingSources(false)
       }
-      fetchSources()
-    }, [isOpen])
+    }
+    fetchSources()
+  }, [isOpen])
 
 
   // Fetch lead history
   useEffect(() => {
     const fetchLeadHistory = async () => {
       if (!isOpen || !lead?.id) return
-      
+
       setLoadingHistory(true)
       try {
         const { data, error } = await supabase
@@ -182,10 +184,44 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
     fetchLeadHistory()
   }, [isOpen, lead?.id])
 
+  // Fetch captured_by_settings dynamically
+  useEffect(() => {
+    const fetchCapturedBy = async () => {
+      if (!isOpen) return
+      setLoadingCapturedBy(true)
+      try {
+        const { data, error } = await supabase
+          .from('captured_by_settings')
+          .select('name')
+          .order('name')
+        if (error) throw error
+        setCapturedByOptions((data || []).map(d => d.name))
+      } catch (error) {
+        console.error('Error fetching captured by options:', error)
+      } finally {
+        setLoadingCapturedBy(false)
+      }
+    }
+    fetchCapturedBy()
+  }, [isOpen])
+
+  const fetchTable = async (table: string) => {
+    try {
+      const { data, error } = await supabase.from(table).select('name')
+      if (error) throw error
+      const names = data.map(d => d.name)
+      if (table === 'captured_by_settings') {
+        setCapturedByOptions(names)
+      }
+    } catch (err) {
+      console.warn(`Failed to fetch ${table}:`, err)
+    }
+  }
+
   const handleChange = (key: keyof Lead, value: string | number | undefined) => {
     setEdited(prev => ({ ...prev, [key]: value }))
   }
-  
+
 
   const handleStatusChange = (newStatus: string) => {
     setEdited(prev => ({ ...prev, status: newStatus }))
@@ -197,17 +233,17 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
     const getStatusIndex = (status: string) => {
       return leadStages.findIndex(stage => stage === status)
     }
-  
+
     const currentIndex = currentStatus ? getStatusIndex(currentStatus) : -1
     const mainStages = leadStages.slice(0, -2) // Exclude 'Closed Win' and 'Closed Lost'
-  
+
     return (
       <div className="relative w-full py-8 px-4">
         {/* Main horizontal timeline */}
         <div className="flex items-center relative">
           {/* Progress background line */}
           <div className="absolute top-1/2 left-15 right-8 h-0.5 bg-gray-200 -translate-y-1/2"></div>
-  
+
           {/* Progress fill line */}
           <div
             className="absolute top-1/2 left-15 h-0.5 bg-blue-500 -translate-y-1/2 transition-all duration-1000 ease-in-out"
@@ -215,19 +251,19 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
               width: currentIndex >= 0 && currentIndex < mainStages.length
                 ? `${(currentIndex / (mainStages.length - 1)) * (100 - 80 / mainStages.length)}%`
                 : currentStatus === "Closed Win" || currentStatus === "Closed Lost"
-                ? `${(100 - 80 / mainStages.length)}%`
-                : "0%",
+                  ? `${(100 - 80 / mainStages.length)}%`
+                  : "0%",
             }}
           ></div>
-  
+
           {/* Main timeline stages */}
           {mainStages.map((stage, index) => {
             const isActive = index === currentIndex
             const isCompleted = index < currentIndex ||
               (currentStatus === "Closed Win" || currentStatus === "Closed Lost") && index === mainStages.length - 1
-  
+
             const labelOnTop = index % 2 === 0 // alternate
-  
+
             return (
               <div
                 key={stage}
@@ -241,26 +277,24 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
                 {/* Label above if even index */}
                 {labelOnTop && (
                   <span
-                    className={`mb-2 text-xs font-medium text-center ${
-                      isActive
-                        ? "text-blue-600"
-                        : isCompleted
+                    className={`mb-2 text-xs font-medium text-center ${isActive
+                      ? "text-blue-600"
+                      : isCompleted
                         ? "text-green-600"
                         : "text-gray-500"
-                    }`}
+                      }`}
                   >
                     {stage}
                   </span>
                 )}
-  
+
                 {/* Circle with conditional margin */}
                 <div
                   className={`flex items-center justify-center w-6 h-6 rounded-full transition-all duration-300 shadow-sm
                     ${labelOnTop ? "mb-6" : "mt-6"}
-                    ${
-                      isCompleted
-                        ? "bg-blue-500 text-white border-2 border-blue-500"
-                        : isActive
+                    ${isCompleted
+                      ? "bg-blue-500 text-white border-2 border-blue-500"
+                      : isActive
                         ? "bg-blue-500 text-white border-2 border-blue-500"
                         : "bg-white border-2 border-gray-500 text-white group-hover:border-blue-400"
                     }`}
@@ -273,17 +307,16 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
                     <Circle className="w-4 h-4" />
                   )}
                 </div>
-  
+
                 {/* Label below if odd index */}
                 {!labelOnTop && (
                   <span
-                    className={`mt-2 text-xs font-medium text-center ${
-                      isActive
-                        ? "text-blue-600"
-                        : isCompleted
+                    className={`mt-2 text-xs font-medium text-center ${isActive
+                      ? "text-blue-600"
+                      : isCompleted
                         ? "text-green-600"
                         : "text-gray-500"
-                    }`}
+                      }`}
                   >
                     {stage}
                   </span>
@@ -291,7 +324,7 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
               </div>
             )
           })}
-  
+
           {/* Branch point for Closed Win/Lost */}
           <div className="relative flex flex-col items-center">
             {/* Closed Win (top branch) */}
@@ -301,26 +334,24 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
             >
               <div
                 className={`flex items-center justify-center w-6 h-6 rounded-full transition-all duration-300 shadow-sm
-                  ${
-                    currentStatus === "Closed Win"
-                      ? "bg-green-500 text-white border-2 border-green-500"
-                      : "bg-white border-2 border-gray-300 text-gray-400 group-hover:border-green-400"
+                  ${currentStatus === "Closed Win"
+                    ? "bg-green-500 text-white border-2 border-green-500"
+                    : "bg-white border-2 border-gray-300 text-gray-400 group-hover:border-green-400"
                   }`}
               >
                 <CheckCircle className="w-4 h-4" />
               </div>
               <span
                 className={`mt-1 text-xs font-medium text-center
-                  ${
-                    currentStatus === "Closed Win"
-                      ? "text-green-600"
-                      : "text-gray-500 group-hover:text-green-600"
+                  ${currentStatus === "Closed Win"
+                    ? "text-green-600"
+                    : "text-gray-500 group-hover:text-green-600"
                   }`}
               >
                 Closed Win
               </span>
             </div>
-  
+
             {/* Closed Lost (bottom branch) */}
             <div
               onClick={() => handleStatusChange("Closed Lost")}
@@ -328,20 +359,18 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
             >
               <div
                 className={`flex items-center justify-center w-6 h-6 rounded-full transition-all duration-300 shadow-sm
-                  ${
-                    currentStatus === "Closed Lost"
-                      ? "bg-red-500 text-white border-2 border-red-500"
-                      : "bg-white border-2 border-gray-300 text-gray-400 group-hover:border-red-400"
+                  ${currentStatus === "Closed Lost"
+                    ? "bg-red-500 text-white border-2 border-red-500"
+                    : "bg-white border-2 border-gray-300 text-gray-400 group-hover:border-red-400"
                   }`}
               >
                 <Circle className="w-4 h-4" />
               </div>
               <span
                 className={`mt-1 text-xs font-medium text-center
-                  ${
-                    currentStatus === "Closed Lost"
-                      ? "text-red-600"
-                      : "text-gray-500 group-hover:text-red-600"
+                  ${currentStatus === "Closed Lost"
+                    ? "text-red-600"
+                    : "text-gray-500 group-hover:text-red-600"
                   }`}
               >
                 Closed Lost
@@ -352,7 +381,7 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
       </div>
     )
   }
-  
+
 
 
   const renderField = (key: keyof Lead, value: string | number | undefined) => {
@@ -388,26 +417,26 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
             </SelectContent>
           </Select>
         )
-        case 'service_price':
-          return (
-            <Input
-              type="number"
-              value={value ?? ''}
-              onChange={(e) => {
-                const val = e.target.value
-                if (
-                  edited.service_price !== undefined &&
-                  !Number.isInteger(edited.service_price)
-                ) {
-                  toast.error("Service price must be an integer!")
-                  return
-                }
-                
-                handleChange(key, val === '' ? undefined : Number(val))
-              }}
-            />
-          )
-        
+      case 'service_price':
+        return (
+          <Input
+            type="number"
+            value={value ?? ''}
+            onChange={(e) => {
+              const val = e.target.value
+              if (
+                edited.service_price !== undefined &&
+                !Number.isInteger(edited.service_price)
+              ) {
+                toast.error("Service price must be an integer!")
+                return
+              }
+
+              handleChange(key, val === '' ? undefined : Number(val))
+            }}
+          />
+        )
+
       case 'lead_source':
         return (
           <Select value={typeof value === 'string' ? value : ''} onValueChange={(val) => handleChange(key, val)}>
@@ -423,7 +452,7 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
             </SelectContent>
           </Select>
         )
-        case 'mode_of_service':
+      case 'mode_of_service':
         return (
           <Select
             value={typeof value === 'string' ? value : ''}
@@ -444,22 +473,32 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
 
       case 'captured_by':
         return (
-          <>
-            <Select value={typeof value === 'string' ? value : ''} onValueChange={(val) => handleChange(key, val)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select user" />
-              </SelectTrigger>
-              <SelectContent>
-                {capturedByOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Select value={typeof value === 'string' ? value : ''} onValueChange={(val) => handleChange(key, val)}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder={loadingCapturedBy ? "Loading..." : "Select user"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {capturedByOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditingDropdown('captured_by_settings')}
+                className="ml-2 h-9 w-9 p-0"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            </div>
             <Input
               className="mt-1"
               placeholder="Or type name"
               value={value || ''}
               onChange={(e) => handleChange(key, e.target.value)}
             />
-          </>
+          </div>
         )
       case 'first_contact':
       case 'last_contact':
@@ -492,7 +531,7 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
       setEdited({ ...lead, mode_of_service: lead.mode_of_service ?? '' })
     }
   }, [lead])
-  
+
 
   const formatHistoryValue = (value: string | null) => {
     if (!value) return 'N/A'
@@ -516,7 +555,7 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
       const changes = Object.entries(edited).filter(([key, value]) => {
         return normalize(value) !== normalize(lead[key as keyof Lead])
       })
-      
+
       if (changes.length > 0) {
         const { data: { user } } = await supabase.auth.getUser()
         const displayName =
@@ -527,11 +566,11 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
         // Prepare history entries with proper data sanitization
         const historyEntries = changes.map(([field, newValue]) => {
           const oldValue = lead[field as keyof Lead]
-          
+
           // Convert date values to readable format for history
           const formatValueForHistory = (value: any) => {
             if (value === undefined || value === null) return null
-            
+
             // Handle date fields specifically
             if ((field === 'first_contact' || field === 'last_contact') && value) {
               try {
@@ -541,10 +580,10 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
                 return String(value)
               }
             }
-            
+
             return String(value)
           }
-          
+
           return {
             lead_id: lead.id,
             field_changed: field,
@@ -560,9 +599,9 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
         for (const entry of historyEntries) {
           try {
             console.log("Trying to insert history entry:", entry)
-        
+
             const { data, error } = await supabase.from('lead_history').insert(historyEntries)
-        
+
             if (error) {
               console.error(`Error inserting history for field ${entry.field_changed}:`, error)
             } else {
@@ -572,7 +611,7 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
             console.error(`Exception inserting history for field ${entry.field_changed}:`, insertError, entry)
           }
         }
-        
+
       }
 
       // Sync proposal tracker based on new status
@@ -627,8 +666,8 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
           console.error('Error updating proposal status:', updateStatusError)
         }
       }
-    // ✅ Show success toast
-    toast.success("Lead updated successfully")
+      // ✅ Show success toast
+      toast.success("Lead updated successfully")
 
       onClose()
     } catch (error) {
@@ -641,7 +680,7 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-<DialogContent className="w-[60vw] rounded-xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="w-[60vw] rounded-xl max-h-[90vh] overflow-hidden">
 
         <DialogTitle>Edit Lead - {lead?.contact_name}</DialogTitle>
 
@@ -714,13 +753,13 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
                         <div>
                           <span className="font-medium text-red-600">From:</span>
                           <div className="bg-red-50 dark:bg-red-950 p-2 rounded mt-1">
-                          {formatHistoryValue(entry.old_value ?? null)}
+                            {formatHistoryValue(entry.old_value ?? null)}
                           </div>
                         </div>
                         <div>
                           <span className="font-medium text-green-600">To:</span>
                           <div className="bg-green-50  dark:bg-green-950 p-2 rounded mt-1">
-                          {formatHistoryValue(entry.new_value ?? null)}
+                            {formatHistoryValue(entry.new_value ?? null)}
                           </div>
                         </div>
                       </div>
@@ -732,6 +771,57 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      {/* Edit List Modal for Captured By */}
+      {editingDropdown === 'captured_by_settings' && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex justify-center items-center z-[60] p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md relative overflow-hidden border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => setEditingDropdown(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-medium transition-colors z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="max-h-[90vh] overflow-y-auto p-6 pt-12">
+              <EditListModal
+                title="Manage Team Members"
+                values={capturedByOptions}
+                onAdd={async (val) => {
+                  if (!val) return
+                  const { error } = await supabase.from('captured_by_settings').insert({ name: val })
+                  if (error) {
+                    toast.error('Failed to add member', { description: error.message })
+                  } else {
+                    await fetchTable('captured_by_settings')
+                    toast.success('Member added successfully')
+                  }
+                }}
+                onEdit={async (oldVal, newVal) => {
+                  if (!newVal) return
+                  const { error } = await supabase.from('captured_by_settings').update({ name: newVal }).eq('name', oldVal)
+                  if (error) {
+                    toast.error('Failed to update member', { description: error.message })
+                  } else {
+                    await fetchTable('captured_by_settings')
+                    toast.success('Member updated successfully')
+                  }
+                }}
+                onDelete={async (val) => {
+                  const { error } = await supabase.from('captured_by_settings').delete().eq('name', val)
+                  if (error) {
+                    toast.error('Failed to delete member', { description: error.message })
+                  } else {
+                    await fetchTable('captured_by_settings')
+                    toast.success('Member deleted successfully')
+                  }
+                }}
+                onSave={() => setEditingDropdown(null)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </Dialog>
   )
 }
