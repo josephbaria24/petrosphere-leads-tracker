@@ -25,9 +25,8 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
-import { getCachedData, setCachedData, clearCache } from "@/lib/cache-utils"
 
-import { ChevronDown, Search, Filter, Users, Eye, EyeOff, Trash2, Database, Settings, ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronDown, Search, Filter, Users, Eye, EyeOff, Trash2, Database, Settings, ChevronLeft, ChevronRight, RefreshCw, Loader2 } from "lucide-react"
 import EditLeadModal from "@/components/EditLeadModal"
 import { supabase } from "@/lib/supabase-client"
 import { getColumns } from "./columns"
@@ -60,6 +59,20 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Separator } from "@radix-ui/react-separator"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { toast } from "sonner"
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+}
 
 type Lead = {
   id: string
@@ -94,11 +107,20 @@ export default function DataTablePage() {
   const [serviceFilter, setServiceFilter] = useState<string[]>([])
   const [modeOfServiceFilter, setModeOfServiceFilter] = useState<string[]>([])
   const [leadSourceFilter, setLeadSourceFilter] = useState<string[]>([])
-  
+
   // Table state
   const [data, setData] = React.useState<Lead[]>([])
+  const [pageCount, setPageCount] = useState(0)
+  const [totalRows, setTotalRows] = useState(0)
+
   const [globalFilter, setGlobalFilter] = React.useState("")
-  const [pageSize, setPageSize] = React.useState(10)
+  const debouncedGlobalFilter = useDebounce(globalFilter, 300)
+
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  })
+
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "created_at", desc: true },
   ])
@@ -110,133 +132,158 @@ export default function DataTablePage() {
   const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null)
   const [editModalOpen, setEditModalOpen] = React.useState(false)
   const [currentUserName, setCurrentUserName] = useState<string>('Unknown')
+  const [deleteConfirmation, setDeleteConfirmation] = useState("")
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     const fetchCurrentUserProfile = async () => {
       const { data: authData } = await supabase.auth.getUser();
       const userId = authData?.user?.id;
       if (!userId) return;
-  
+
       const { data: profile } = await supabase
         .from('public_profiles')
         .select('full_name')
         .eq('id', userId)
         .single();
-  
+
       if (profile?.full_name) {
         setCurrentUserName(profile.full_name);
       }
     };
-  
+
     fetchCurrentUserProfile();
   }, []);
-React.useEffect(() => {
-  const fetchAllLeads = async () => {
-    // Check cache first
-    const cacheKey = 'all_leads';
-    const cached = getCachedData<Lead[]>(cacheKey);
-    
-    if (cached) {
-      console.log('Using cached leads data');
-      setData(cached);
-      setLoading(false);
-      return;
-    }
 
-    setLoading(true);
-    const allLeads: Lead[] = [];
-    let from = 0;
-    const limit = 1000;
-    let done = false;
+  const fetchLeads = async () => {
+    setLoading(true)
+    try {
+      let query = supabase
+        .from('crm_leads')
+        .select('*', { count: 'exact' })
 
-    while (!done) {
-      const { data, error } = await supabase
-        .from("crm_leads")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .range(from, from + limit - 1);
-
-      if (error) {
-        console.error("Error fetching leads:", error);
-        break;
+      // Global Filter (Search)
+      if (debouncedGlobalFilter) {
+        query = query.or(`contact_name.ilike.%${debouncedGlobalFilter}%,company.ilike.%${debouncedGlobalFilter}%,email.ilike.%${debouncedGlobalFilter}%,phone.ilike.%${debouncedGlobalFilter}%`)
       }
 
-      if (data?.length) {
-        allLeads.push(...data);
-        from += limit;
+      // Column Filters
+      // Note: We are using specific state variables for filters for now (statusFilter etc)
+      // but if we move to pure table filters we would iterate columnFilters.
+      if (statusFilter.length > 0) query = query.in('status', statusFilter)
+      if (capturedByFilter.length > 0) query = query.in('captured_by', capturedByFilter)
+      if (regionFilter.length > 0) query = query.in('region', regionFilter)
+      if (serviceFilter.length > 0) query = query.in('service_product', serviceFilter)
+      if (modeOfServiceFilter.length > 0) query = query.in('mode_of_service', modeOfServiceFilter)
+      if (leadSourceFilter.length > 0) query = query.in('lead_source', leadSourceFilter)
+
+      // Sorting
+      if (sorting.length > 0) {
+        const { id, desc } = sorting[0]
+        query = query.order(id, { ascending: !desc })
+      } else {
+        query = query.order('created_at', { ascending: false })
       }
 
-      if (!data || data.length < limit) {
-        done = true;
-      }
+      // Pagination
+      const from = pagination.pageIndex * pagination.pageSize
+      const to = from + pagination.pageSize - 1
+      query = query.range(from, to)
+
+      const { data, count, error } = await query
+
+      if (error) throw error
+
+      setData(data || [])
+      setTotalRows(count || 0)
+      setPageCount(Math.ceil((count || 0) / pagination.pageSize))
+
+    } catch (error) {
+      console.error('Error fetching leads:', error)
+    } finally {
+      setLoading(false)
     }
+  }
 
-    // Cache the results
-    setCachedData(cacheKey, allLeads);
-    setData(allLeads);
-    setLoading(false);
-  };
-
-  fetchAllLeads();
-}, []); // Only run once on mount
-
-
-const refreshData = async () => {
-  clearCache('all_leads');
-  setLoading(true);
-  // Re-fetch will happen because cache is cleared
-  window.location.reload();
-};
-
-  // Apply filters
-  const filteredData = React.useMemo(() => {
-    let result = data
-
-    if (statusFilter.length > 0) {
-      result = result.filter((row) =>
-        statusFilter.includes(row.status || "(Blanks)")
-      )
-    }
-
-    if (capturedByFilter.length > 0) {
-      result = result.filter((row) =>
-        capturedByFilter.includes(row.captured_by || "(Blanks)")
-      )
-    }
-    if (regionFilter.length > 0) {
-      result = result.filter((row) =>
-        regionFilter.includes(row.region || "(Blanks)")
-      );
-    }
-    if (serviceFilter.length > 0) {
-      result = result.filter((row) =>
-        serviceFilter.includes(row.service_product || "(Blanks)")
-      );
-    }
-    if (modeOfServiceFilter.length > 0) {
-      result = result.filter((row) =>
-        modeOfServiceFilter.includes(row.mode_of_service || "(Blanks)")
-      );
-    }
-    if (leadSourceFilter.length > 0) {
-      result = result.filter((row) =>
-        leadSourceFilter.includes(row.lead_source || "(Blanks)")
-      );
-    }
-
-    return result;
+  // Initial Fetch & Refetch on dependencies
+  useEffect(() => {
+    fetchLeads()
   }, [
-    data,
+    pagination.pageIndex,
+    pagination.pageSize,
+    sorting,
+    debouncedGlobalFilter,
     statusFilter,
     capturedByFilter,
     regionFilter,
     serviceFilter,
     modeOfServiceFilter,
-    leadSourceFilter,
-  ]);
+    leadSourceFilter
+  ])
+
+  // Real-time subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('table-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'crm_leads',
+        },
+        (payload) => {
+          // On any change, refetch to keep table strictly in sync with server state
+          // For a more optimized approach, we could manually update 'data' state for some events
+          fetchLeads()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [
+    // Re-subscribe if filter criteria changes to ensure we are watching relevant slice? 
+    // Actually we just want to know if *any* lead changed, then re-run our fetch query.
+    // So we don't strictly need dependencies here unless we want to debounce re-fetches.
+    pagination.pageIndex,
+    pagination.pageSize,
+    sorting,
+    globalFilter
+  ])
+
+
+  const refreshData = () => {
+    fetchLeads()
+  }
+
+
+
+  const deleteSelectedLeads = async () => {
+    setIsDeleting(true)
+    try {
+      const { error } = await supabase
+        .from('crm_leads')
+        .delete()
+        .in('id', selectedIds)
+
+      if (error) throw error
+
+      toast.success(`Successfully deleted ${selectedIds.length} leads`)
+      setDeleteConfirmation("")
+      setRowSelection({})
+      fetchLeads()
+    } catch (error) {
+      console.error('Error deleting leads:', error)
+      toast.error('Failed to delete leads')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const table = useReactTable({
-    data: filteredData,
+    data,
     columns: getColumns({
       capturedByFilter, setCapturedByFilter,
       statusFilter, setStatusFilter,
@@ -245,18 +292,20 @@ const refreshData = async () => {
       modeOfServiceFilter, setModeOfServiceFilter,
       leadSourceFilter, setLeadSourceFilter
     }),
-    
+    pageCount,
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       rowSelection,
       globalFilter,
+      pagination,
     },
+    onPaginationChange: setPagination,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
@@ -266,9 +315,7 @@ const refreshData = async () => {
 
   const selectedIds = table.getFilteredSelectedRowModel().rows.map(row => row.original.id)
 
-  React.useEffect(() => {
-    table.setPageSize(pageSize)
-  }, [pageSize, table])
+
 
 
 
@@ -282,8 +329,8 @@ const refreshData = async () => {
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem>
-                    <BreadcrumbLink 
-                      href="/dashboard" 
+                    <BreadcrumbLink
+                      href="/dashboard"
                       className="text-zinc-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium"
                     >
                       Manage Lead
@@ -311,12 +358,12 @@ const refreshData = async () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Stats Cards */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-lg border border-blue-200/50 dark:border-blue-700/50">
                 <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                  {filteredData.length}
+                  {totalRows}
                 </div>
                 <div className="text-sm text-blue-600 dark:text-blue-400">
                   Total Leads
@@ -368,8 +415,8 @@ const refreshData = async () => {
                 {/* Column Visibility */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                     >
@@ -378,8 +425,8 @@ const refreshData = async () => {
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent 
-                    align="end" 
+                  <DropdownMenuContent
+                    align="end"
                     className="w-48 bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600"
                   >
                     {table.getAllColumns()
@@ -403,7 +450,10 @@ const refreshData = async () => {
                 {/* Page Size */}
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Rows:</span>
-                  <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+                  <Select
+                    value={String(pagination.pageSize)}
+                    onValueChange={(value) => table.setPageSize(Number(value))}
+                  >
                     <SelectTrigger className="w-20 h-9 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600">
                       <SelectValue />
                     </SelectTrigger>
@@ -418,12 +468,22 @@ const refreshData = async () => {
                   </Select>
                 </div>
 
+                {/* Refresh Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refreshData}
+                  className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
+
                 {/* Delete Selected */}
                 {selectedIds.length > 0 && (
-                  <AlertDialog>
+                  <AlertDialog onOpenChange={() => setDeleteConfirmation("")}>
                     <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="destructive" 
+                      <Button
+                        variant="destructive"
                         size="sm"
                         className="bg-red-600 hover:bg-red-700 text-white"
                       >
@@ -434,16 +494,46 @@ const refreshData = async () => {
                     <AlertDialogContent className="bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600">
                       <AlertDialogHeader>
                         <AlertDialogTitle className="text-zinc-900 dark:text-white">
-                          Action Restricted
+                          Are you absolutely sure?
                         </AlertDialogTitle>
-                        <AlertDialogDescription className="text-zinc-600 dark:text-zinc-400">
-                          Deleting leads is restricted for data integrity. Please contact your IT administrator if you need to remove entries.
+                        <AlertDialogDescription asChild>
+                          <div className="text-zinc-600 dark:text-zinc-400 space-y-3">
+                            <p>
+                              This action cannot be undone. This will permanently delete
+                              <span className="font-semibold text-red-600 dark:text-red-400"> {selectedIds.length} </span>
+                              selected leads.
+                            </p>
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">
+                                Type <span className="font-mono bg-zinc-100 dark:bg-zinc-900 px-1 py-0.5 rounded">Delete this lead</span> to confirm:
+                              </p>
+                              <Input
+                                value={deleteConfirmation}
+                                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                                className="bg-white dark:bg-zinc-900"
+                                placeholder="Delete this lead"
+                              />
+                            </div>
+                          </div>
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-700">
-                          Close
+                        <AlertDialogCancel
+                          disabled={isDeleting}
+                          className="bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+                        >
+                          Cancel
                         </AlertDialogCancel>
+                        <AlertDialogAction
+                          disabled={deleteConfirmation !== "Delete this lead" || isDeleting}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            deleteSelectedLeads()
+                          }}
+                          className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isDeleting ? "Deleting..." : "Delete"}
+                        </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -458,7 +548,7 @@ const refreshData = async () => {
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-900">
                       {headerGroup.headers.map((header) => (
-                        <TableHead 
+                        <TableHead
                           key={header.id}
                           className="text-zinc-700 dark:text-zinc-300 font-semibold border-0 last:border-r-0"
                         >
@@ -497,7 +587,7 @@ const refreshData = async () => {
                         }}
                       >
                         {row.getVisibleCells().map((cell) => (
-                          <TableCell 
+                          <TableCell
                             key={cell.id}
                             className="text-zinc-700 dark:text-zinc-300 border-0 border-zinc-100 dark:border-zinc-800 last:border-r-0"
                           >
@@ -527,7 +617,7 @@ const refreshData = async () => {
             {/* Pagination */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
               <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                Showing {table.getRowModel().rows.length} of {table.getFilteredRowModel().rows.length} results
+                Showing {table.getRowModel().rows.length} of {totalRows} results
                 {table.getFilteredSelectedRowModel().rows.length > 0 && (
                   <Badge variant="secondary" className="ml-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
                     {table.getFilteredSelectedRowModel().rows.length} selected
@@ -546,11 +636,11 @@ const refreshData = async () => {
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Previous
                 </Button>
-                
+
                 <div className="flex items-center gap-1 text-sm text-zinc-600 dark:text-zinc-400">
                   Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
                 </div>
-                
+
                 <Button
                   variant="outline"
                   size="sm"
