@@ -130,16 +130,16 @@ export function FloatingDateFilter(props: any) {
             <TooltipTrigger asChild>
               <PopoverTrigger asChild>
                 <motion.button
-                  whileTap={{ scale: isDragging ? 1 : 0.8 }}
-                  className="w-14 h-14 rounded-2xl bg-border border-1 border-accent-foreground flex items-center justify-center shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
+                  whileTap={{ scale: isDragging ? 0.9 : 0.9 }}
+                  className="w-12 h-12 rounded-2xl bg-blue-700 border-0 border-accent-foreground flex items-center justify-center shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
                   style={{ pointerEvents: isDragging ? 'none' : 'auto' }}
                 >
                   <Image
                     src="/icons/calendar.svg"
                     alt="Calendar"
-                    width={30}
-                    height={30}
-                    className="w-7 h-7 dark:brightness-0 dark:invert pointer-events-none"
+                    width={25}
+                    height={25}
+                    className="w-6 h-6 dark:brightness-0 invert dark:invert pointer-events-none"
                   />
                 </motion.button>
               </PopoverTrigger>
