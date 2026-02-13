@@ -7,10 +7,9 @@ import {
   ColumnFiltersState,
   SortingState,
   VisibilityState,
+  getPaginationRowModel,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   useReactTable,
   flexRender,
 } from "@tanstack/react-table"
@@ -110,17 +109,25 @@ export default function DataTablePage() {
 
   // Table state
   const [data, setData] = React.useState<Lead[]>([])
-  const [pageCount, setPageCount] = useState(0)
-  const [totalRows, setTotalRows] = useState(0)
+
+  // Cursor Pagination State
+  // cursors: Stack of 'start' cursors for previous pages.
+  // Each cursor is { created_at: string, id: string } or null (for first page)
+  const [cursors, setCursors] = useState<Array<{ created_at: string, id: string } | null>>([])
+
+  // currentCursor: The cursor used to fetch the CURRENT page. 
+  // null = First Page.
+  const [currentCursor, setCurrentCursor] = useState<{ created_at: string, id: string } | null>(null)
+
+  // For "Next" button availability, ideally we fetch pageSize + 1 to know if there's more.
+  const [hasMore, setHasMore] = useState(false)
 
   const [globalFilter, setGlobalFilter] = React.useState("")
   const debouncedGlobalFilter = useDebounce(globalFilter, 300)
 
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  })
+  const [pageSize, setPageSize] = useState(50)
 
+  // We enforce sorting by Created At for cursor pagination
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "created_at", desc: true },
   ])
@@ -155,12 +162,23 @@ export default function DataTablePage() {
     fetchCurrentUserProfile();
   }, []);
 
-  const fetchLeads = async () => {
+  const fetchLeads = async (cursor: { created_at: string, id: string } | null = currentCursor) => {
     setLoading(true)
     try {
+      // We fetch pageSize + 1 to check if there is a next page
       let query = supabase
         .from('crm_leads')
-        .select('*', { count: 'exact' })
+        .select('*')
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(pageSize + 1)
+
+      // Apply Cursor Filter
+      if (cursor) {
+        // (created_at, id) < (cursor.created_at, cursor.id)
+        // Logic: created_at < cursor.created_at OR (created_at = cursor.created_at AND id < cursor.id)
+        query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`)
+      }
 
       // Global Filter (Search)
       if (debouncedGlobalFilter) {
@@ -168,8 +186,6 @@ export default function DataTablePage() {
       }
 
       // Column Filters
-      // Note: We are using specific state variables for filters for now (statusFilter etc)
-      // but if we move to pure table filters we would iterate columnFilters.
       if (statusFilter.length > 0) query = query.in('status', statusFilter)
       if (capturedByFilter.length > 0) query = query.in('captured_by', capturedByFilter)
       if (regionFilter.length > 0) query = query.in('region', regionFilter)
@@ -177,49 +193,77 @@ export default function DataTablePage() {
       if (modeOfServiceFilter.length > 0) query = query.in('mode_of_service', modeOfServiceFilter)
       if (leadSourceFilter.length > 0) query = query.in('lead_source', leadSourceFilter)
 
-      // Sorting
-      if (sorting.length > 0) {
-        const { id, desc } = sorting[0]
-        query = query.order(id, { ascending: !desc })
-      } else {
-        query = query.order('created_at', { ascending: false })
-      }
-
-      // Pagination
-      const from = pagination.pageIndex * pagination.pageSize
-      const to = from + pagination.pageSize - 1
-      query = query.range(from, to)
-
-      const { data, count, error } = await query
+      const { data: fetchedData, error } = await query
 
       if (error) throw error
 
-      setData(data || [])
-      setTotalRows(count || 0)
-      setPageCount(Math.ceil((count || 0) / pagination.pageSize))
+      if (fetchedData) {
+        // Check if we have more than pageSize
+        const hasNextPage = fetchedData.length > pageSize
+        setHasMore(hasNextPage)
+
+        // If we fetched an extra row, remove it from the display data
+        const displayData = hasNextPage ? fetchedData.slice(0, pageSize) : fetchedData
+        setData(displayData)
+      } else {
+        setData([])
+        setHasMore(false)
+      }
 
     } catch (error) {
       console.error('Error fetching leads:', error)
+      toast.error("Failed to fetch leads")
     } finally {
       setLoading(false)
     }
   }
 
-  // Initial Fetch & Refetch on dependencies
+  // Effect to refetch when filters/sort change (Reset to first page)
   useEffect(() => {
-    fetchLeads()
+    // Reset cursor stack
+    setCursors([])
+    setCurrentCursor(null)
+    // Fetch first page
+    fetchLeads(null)
   }, [
-    pagination.pageIndex,
-    pagination.pageSize,
-    sorting,
     debouncedGlobalFilter,
     statusFilter,
     capturedByFilter,
     regionFilter,
     serviceFilter,
     modeOfServiceFilter,
-    leadSourceFilter
+    leadSourceFilter,
+    pageSize // Refetch if page size changes
   ])
+
+  const handleNextPage = () => {
+    if (!hasMore || data.length === 0) return
+
+    const lastItem = data[data.length - 1]
+    if (!lastItem.created_at) return // Should not happen with valid data
+
+    const nextCursor = { created_at: lastItem.created_at, id: lastItem.id }
+
+    // Push CURRENT start cursor to stack
+    setCursors(prev => [...prev, currentCursor])
+    // Set NEW cursor
+    setCurrentCursor(nextCursor)
+    // Fetch
+    fetchLeads(nextCursor)
+  }
+
+  const handlePreviousPage = () => {
+    if (cursors.length === 0) return
+
+    // Pop the last cursor from stack
+    const newCursors = [...cursors]
+    const prevCursor = newCursors.pop() || null // This is the start cursor of the previous page
+
+    setCursors(newCursors)
+    setCurrentCursor(prevCursor)
+    fetchLeads(prevCursor)
+  }
+
 
   // Real-time subscription
   useEffect(() => {
@@ -235,7 +279,7 @@ export default function DataTablePage() {
         (payload) => {
           // On any change, refetch to keep table strictly in sync with server state
           // For a more optimized approach, we could manually update 'data' state for some events
-          fetchLeads()
+          fetchLeads(currentCursor)
         }
       )
       .subscribe()
@@ -247,15 +291,16 @@ export default function DataTablePage() {
     // Re-subscribe if filter criteria changes to ensure we are watching relevant slice? 
     // Actually we just want to know if *any* lead changed, then re-run our fetch query.
     // So we don't strictly need dependencies here unless we want to debounce re-fetches.
-    pagination.pageIndex,
-    pagination.pageSize,
-    sorting,
-    globalFilter
+    // So we don't strictly need dependencies here unless we want to debounce re-fetches.
+    currentCursor, pageSize, debouncedGlobalFilter, statusFilter, capturedByFilter, regionFilter, serviceFilter, modeOfServiceFilter, leadSourceFilter
   ])
 
 
   const refreshData = () => {
-    fetchLeads()
+    // Reset to first page
+    setCursors([])
+    setCurrentCursor(null)
+    fetchLeads(null)
   }
 
 
@@ -273,7 +318,10 @@ export default function DataTablePage() {
       toast.success(`Successfully deleted ${selectedIds.length} leads`)
       setDeleteConfirmation("")
       setRowSelection({})
-      fetchLeads()
+
+      // If deleting wipes out the current page, we might want to go back?
+      // For simplicity, just refetch current cursor
+      fetchLeads(currentCursor)
     } catch (error) {
       console.error('Error deleting leads:', error)
       toast.error('Failed to delete leads')
@@ -292,10 +340,10 @@ export default function DataTablePage() {
       modeOfServiceFilter, setModeOfServiceFilter,
       leadSourceFilter, setLeadSourceFilter
     }),
-    pageCount,
     manualPagination: true,
     manualSorting: true,
     manualFiltering: true,
+    // pageCount: -1, // Infinite/Cursor
     getCoreRowModel: getCoreRowModel(),
     state: {
       sorting,
@@ -303,9 +351,7 @@ export default function DataTablePage() {
       columnVisibility,
       rowSelection,
       globalFilter,
-      pagination,
     },
-    onPaginationChange: setPagination,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
@@ -363,10 +409,10 @@ export default function DataTablePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-lg border border-blue-200/50 dark:border-blue-700/50">
                 <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                  {totalRows}
+                  {data.length} <span className="text-sm font-normal opacity-70">(Showing)</span>
                 </div>
                 <div className="text-sm text-blue-600 dark:text-blue-400">
-                  Total Leads
+                  Leads on Page
                 </div>
               </div>
               <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-4 rounded-lg border border-green-200/50 dark:border-green-700/50">
@@ -451,14 +497,14 @@ export default function DataTablePage() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Rows:</span>
                   <Select
-                    value={String(pagination.pageSize)}
-                    onValueChange={(value) => table.setPageSize(Number(value))}
+                    value={String(pageSize)}
+                    onValueChange={(value) => setPageSize(Number(value))}
                   >
                     <SelectTrigger className="w-20 h-9 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-800">
-                      {[10, 20, 30, 50, 100, 500, 1000].map((size) => (
+                      {[50, 100, 200, 500].map((size) => (
                         <SelectItem key={size} value={String(size)}>
                           {size}
                         </SelectItem>
@@ -617,7 +663,7 @@ export default function DataTablePage() {
             {/* Pagination */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
               <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                Showing {table.getRowModel().rows.length} of {totalRows} results
+                Showing {table.getRowModel().rows.length} results
                 {table.getFilteredSelectedRowModel().rows.length > 0 && (
                   <Badge variant="secondary" className="ml-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
                     {table.getFilteredSelectedRowModel().rows.length} selected
@@ -629,23 +675,19 @@ export default function DataTablePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
+                  onClick={handlePreviousPage}
+                  disabled={cursors.length === 0 || loading}
                   className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Previous
                 </Button>
 
-                <div className="flex items-center gap-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-                </div>
-
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
+                  onClick={handleNextPage}
+                  disabled={!hasMore || loading}
                   className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
                 >
                   Next

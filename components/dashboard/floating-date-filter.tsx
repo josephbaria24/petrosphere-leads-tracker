@@ -35,21 +35,21 @@ export function FloatingDateFilter(props: any) {
   // Initialize position on mount and handle window resize/zoom
   useEffect(() => {
     const buttonSize = 56
-    
+
     const calculatePosition = () => {
       const windowWidth = window.innerWidth
       const windowHeight = window.innerHeight
-      
+
       const savedPosition = localStorage.getItem('floatingButtonPosition')
-      
+
       if (savedPosition) {
         const parsed = JSON.parse(savedPosition)
         const savedSide = parsed.side || 'right'
-        
+
         // Recalculate position based on saved side and constrain to viewport
         let newX = savedSide === 'left' ? 20 : windowWidth - buttonSize - 20
         let newY = Math.max(20, Math.min(windowHeight - buttonSize - 20, parsed.y))
-        
+
         setPosition({ x: newX, y: newY })
         setSide(savedSide)
       } else {
@@ -58,16 +58,16 @@ export function FloatingDateFilter(props: any) {
         setSide('right')
       }
     }
-    
+
     calculatePosition()
-    
+
     // Handle window resize and zoom
     const handleResize = () => {
       calculatePosition()
     }
-    
+
     window.addEventListener('resize', handleResize)
-    
+
     return () => {
       window.removeEventListener('resize', handleResize)
     }
@@ -75,32 +75,32 @@ export function FloatingDateFilter(props: any) {
 
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     setIsDragging(false)
-    
+
     const windowWidth = window.innerWidth
     const windowHeight = window.innerHeight
     const buttonSize = 56 // 14 * 4 (w-14 h-14)
-    
+
     // Get final position
     let finalX = position.x + info.offset.x
     let finalY = position.y + info.offset.y
-    
+
     // Constrain Y within viewport
     finalY = Math.max(20, Math.min(windowHeight - buttonSize - 20, finalY))
-    
+
     // Snap to nearest side (left or right)
     const snapThreshold = windowWidth / 2
     const newSide = finalX < snapThreshold ? 'left' : 'right'
-    
+
     // Snap X to the side with padding
     finalX = newSide === 'left' ? 20 : windowWidth - buttonSize - 20
-    
+
     const newPosition = { x: finalX, y: finalY, side: newSide }
     setPosition(newPosition)
     setSide(newSide)
-    
+
     // Save to localStorage
     localStorage.setItem('floatingButtonPosition', JSON.stringify(newPosition))
-    
+
     // Reset motion values
     x.set(0)
     y.set(0)
@@ -152,8 +152,8 @@ export function FloatingDateFilter(props: any) {
         </TooltipProvider>
 
         {/* Animated Popover */}
-        <PopoverContent 
-          asChild 
+        <PopoverContent
+          asChild
           side={side === 'left' ? 'right' : 'left'}
           align="end"
         >
@@ -177,6 +177,7 @@ export function FloatingDateFilter(props: any) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="monthly">Monthly</SelectItem>
                   <SelectItem value="quarterly">Quarterly</SelectItem>
                   <SelectItem value="weekly">Weekly</SelectItem>
@@ -186,7 +187,7 @@ export function FloatingDateFilter(props: any) {
             </div>
 
             {/* Year */}
-            {selectedInterval !== "annually" && (
+            {selectedInterval !== "annually" && selectedInterval !== "all" && (
               <div>
                 <label className="text-sm font-medium">Year</label>
                 <Select
@@ -208,7 +209,7 @@ export function FloatingDateFilter(props: any) {
             )}
 
             {/* Month */}
-            {selectedInterval === "monthly" && (
+            {selectedInterval === "monthly" && selectedInterval !== "all" && (
               <div>
                 <label className="text-sm font-medium">Month</label>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
@@ -217,7 +218,7 @@ export function FloatingDateFilter(props: any) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Months</SelectItem>
-                    {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+                    {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                       .map((m: string) => (
                         <SelectItem key={m} value={m}>{m}</SelectItem>
                       ))}
@@ -227,7 +228,7 @@ export function FloatingDateFilter(props: any) {
             )}
 
             {/* Range */}
-            {["weekly","quarterly","annually"].includes(selectedInterval) && (
+            {["weekly", "quarterly", "annually"].includes(selectedInterval) && selectedInterval !== "all" && (
               <div>
                 <label className="text-sm font-medium">Range</label>
                 <Select
@@ -249,7 +250,7 @@ export function FloatingDateFilter(props: any) {
             )}
 
             {/* Refresh */}
-            <Button 
+            <Button
               className="w-full flex items-center justify-center gap-2"
               onClick={onRefresh}
             >
