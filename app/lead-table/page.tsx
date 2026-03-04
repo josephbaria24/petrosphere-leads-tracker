@@ -106,6 +106,7 @@ export default function DataTablePage() {
   const [serviceFilter, setServiceFilter] = useState<string[]>([])
   const [modeOfServiceFilter, setModeOfServiceFilter] = useState<string[]>([])
   const [leadSourceFilter, setLeadSourceFilter] = useState<string[]>([])
+  const [firstContactFilter, setFirstContactFilter] = useState<string[]>([])
 
   // Table state
   const [data, setData] = React.useState<Lead[]>([])
@@ -142,6 +143,15 @@ export default function DataTablePage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("")
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Filter Options State
+  const [statusOptions, setStatusOptions] = useState<string[]>([])
+  const [capturedByOptions, setCapturedByOptions] = useState<string[]>([])
+  const [regionOptions, setRegionOptions] = useState<string[]>([])
+  const [serviceOptions, setServiceOptions] = useState<string[]>([])
+  const [modeOfServiceOptions, setModeOfServiceOptions] = useState<string[]>([])
+  const [leadSourceOptions, setLeadSourceOptions] = useState<string[]>([])
+  const [firstContactOptions, setFirstContactOptions] = useState<string[]>([])
+
   useEffect(() => {
     const fetchCurrentUserProfile = async () => {
       const { data: authData } = await supabase.auth.getUser();
@@ -161,6 +171,63 @@ export default function DataTablePage() {
 
     fetchCurrentUserProfile();
   }, []);
+
+  // Fetch unique options for filters
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      try {
+        const [
+          { data: statuses },
+          { data: regions },
+          { data: sources },
+          { data: capturedBy },
+          { data: services },
+        ] = await Promise.all([
+          supabase.from('lead_statuses').select('name').order('name'),
+          supabase.from('regions').select('name').order('name'),
+          supabase.from('lead_sources').select('name').order('name'),
+          supabase.from('captured_by_settings').select('name').order('name'),
+          supabase.from('services').select('name').order('name'),
+        ])
+
+        if (statuses) setStatusOptions(statuses.map(s => s.name))
+        if (regions) setRegionOptions(regions.map(r => r.name))
+        if (sources) setLeadSourceOptions(sources.map(s => s.name))
+        if (capturedBy) setCapturedByOptions(capturedBy.map(c => c.name))
+        if (services) setServiceOptions(services.map(s => s.name))
+
+        // Mode of service is usually static but we can also get unique from data if needed
+        // For now using the static ones from add-new-leads
+        setModeOfServiceOptions(['Face to Face', 'E-learning', 'Online'])
+
+        // Fetch First Contact months and years
+        const { data: contactDates } = await supabase
+          .from('crm_leads')
+          .select('first_contact')
+          .not('first_contact', 'is', null)
+
+        if (contactDates) {
+          const uniqueMonths = new Set<string>()
+          contactDates.forEach(d => {
+            const date = new Date(d.first_contact)
+            if (!isNaN(date.getTime())) {
+              const monthLabel = date.toLocaleString('default', { month: 'long', year: 'numeric' })
+              uniqueMonths.add(monthLabel)
+            }
+          })
+          // Sort months chronologically
+          const sortedMonths = Array.from(uniqueMonths).sort((a, b) => {
+            return new Date(b).getTime() - new Date(a).getTime() // Newest first
+          })
+          setFirstContactOptions(sortedMonths)
+        }
+
+      } catch (err) {
+        console.error('Failed to fetch filter options:', err)
+      }
+    }
+    fetchFilterOptions()
+  }, [])
 
   const fetchLeads = async (cursor: { created_at: string, id: string } | null = currentCursor) => {
     setLoading(true)
@@ -192,6 +259,19 @@ export default function DataTablePage() {
       if (serviceFilter.length > 0) query = query.in('service_product', serviceFilter)
       if (modeOfServiceFilter.length > 0) query = query.in('mode_of_service', modeOfServiceFilter)
       if (leadSourceFilter.length > 0) query = query.in('lead_source', leadSourceFilter)
+
+      // First Contact Filter by Month/Year
+      if (firstContactFilter.length > 0) {
+        const filters = firstContactFilter.map(label => {
+          const date = new Date(label);
+          const year = date.getFullYear();
+          const month = date.getMonth();
+          const startDate = new Date(year, month, 1).toISOString().split('T')[0];
+          const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+          return `and(first_contact.gte.${startDate},first_contact.lte.${endDate})`;
+        });
+        query = query.or(filters.join(','));
+      }
 
       const { data: fetchedData, error } = await query
 
@@ -233,6 +313,7 @@ export default function DataTablePage() {
     serviceFilter,
     modeOfServiceFilter,
     leadSourceFilter,
+    firstContactFilter,
     pageSize // Refetch if page size changes
   ])
 
@@ -292,7 +373,7 @@ export default function DataTablePage() {
     // Actually we just want to know if *any* lead changed, then re-run our fetch query.
     // So we don't strictly need dependencies here unless we want to debounce re-fetches.
     // So we don't strictly need dependencies here unless we want to debounce re-fetches.
-    currentCursor, pageSize, debouncedGlobalFilter, statusFilter, capturedByFilter, regionFilter, serviceFilter, modeOfServiceFilter, leadSourceFilter
+    currentCursor, pageSize, debouncedGlobalFilter, statusFilter, capturedByFilter, regionFilter, serviceFilter, modeOfServiceFilter, leadSourceFilter, firstContactFilter
   ])
 
 
@@ -333,12 +414,13 @@ export default function DataTablePage() {
   const table = useReactTable({
     data,
     columns: getColumns({
-      capturedByFilter, setCapturedByFilter,
-      statusFilter, setStatusFilter,
-      regionFilter, setRegionFilter,
-      serviceFilter, setServiceFilter,
-      modeOfServiceFilter, setModeOfServiceFilter,
-      leadSourceFilter, setLeadSourceFilter
+      capturedByFilter, setCapturedByFilter, capturedByOptions,
+      statusFilter, setStatusFilter, statusOptions,
+      regionFilter, setRegionFilter, regionOptions,
+      serviceFilter, setServiceFilter, serviceOptions,
+      modeOfServiceFilter, setModeOfServiceFilter, modeOfServiceOptions,
+      leadSourceFilter, setLeadSourceFilter, leadSourceOptions,
+      firstContactFilter, setFirstContactFilter, firstContactOptions
     }),
     manualPagination: true,
     manualSorting: true,

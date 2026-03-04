@@ -22,6 +22,7 @@ import { Check, ChevronDown, User, Building2, Phone, Mail, MapPin, Calendar, Dol
 import { cn } from "@/lib/utils"
 import EditLeadModal from '@/components/EditLeadModal'
 import { Badge } from '@/components/ui/badge'
+import { ExcelActions } from '@/components/leads/ExcelActions'
 
 // Optimized debounce hook with ref
 function useDebounce<T>(value: T, delay: number): T {
@@ -444,7 +445,9 @@ export default function AddNewLeadPage() {
                   </p>
                 </div>
               </div>
-
+            </div>
+            <div className="flex items-center gap-3">
+              <ExcelActions onImportSuccess={() => router.refresh()} />
             </div>
           </div>
         </div>
