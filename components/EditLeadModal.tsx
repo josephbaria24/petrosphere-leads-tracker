@@ -15,6 +15,7 @@ import { CheckCircle, Circle, Clock, Settings, Plus, Trash2, X } from 'lucide-re
 import EditListModal from '@/components/shared/EditListModal'
 import { toast } from 'sonner'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { formatLocalDate } from '@/lib/utils'
 
 export type Lead = {
   id: string
@@ -505,7 +506,7 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
         return (
           <DatePicker
             value={value ? new Date(value) : undefined}
-            onChange={(date) => handleChange(key, date?.toISOString() || '')}
+            onChange={(date) => handleChange(key, date ? formatLocalDate(date) : '')}
           />
         )
       case 'notes':

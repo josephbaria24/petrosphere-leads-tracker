@@ -43,33 +43,131 @@ export function ExcelActions({ onImportSuccess }: { onImportSuccess?: () => void
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [previewData, setPreviewData] = useState<any[] | null>(null)
 
-    const downloadTemplate = () => {
-        const templateData = [
-            {
-                'Contact Name': 'John Doe',
-                'Email': 'john@example.com',
-                'Phone': '1234567890',
-                'Mobile': '09123456789',
-                'Company': 'Example Corp',
-                'Address': '123 Street, City',
-                'Region': 'NCR',
-                'Lead Source': 'Website',
-                'First Contact': '2024-01-01',
-                'Last Contact': '2024-01-02',
-                'Status': 'Lead In',
-                'Captured By': 'Ross',
-                'Notes': 'Sample note',
-                'Service Product': 'Osh Technical',
-                'Service Price': 5000,
-                'Mode of Service': 'Online'
-            }
-        ]
+    const downloadTemplate = async () => {
+        try {
+            const ExcelJS = (await import('exceljs')).default;
+            const saveAs = (await import('file-saver')).saveAs;
 
-        const ws = XLSX.utils.json_to_sheet(templateData)
-        const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, ws, 'Template')
-        XLSX.writeFile(wb, 'Leads_Template.xlsx')
-        toast.success('Template downloaded')
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Leads');
+            const listSheet = workbook.addWorksheet('Lists', { state: 'hidden' });
+
+            // Setup Lists Sheet
+            const regionList = [
+                'N/A', 'Region I - Ilocos Region', 'Region II - Cagayan Valley',
+                'Region III - Central Luzon', 'Region IV-A - CALABARZON',
+                'Region IV-B - MIMAROPA Region', 'Region V - Bicol Region',
+                'Region VI - Western Visayas', 'Region VII - Central Visayas',
+                'Region VIII - Eastern Visayas', 'Region IX - Zamboanga Peninsula',
+                'Region X - Northern Mindanao', 'Region XI - Davao Region',
+                'Region XII - SOCCSKSARGEN', 'Region XIII - Caraga',
+                'NCR - National Capital Region', 'CAR - Cordillera Administrative Region',
+                'BARMM - Bangsamoro Autonomous Region in Muslim Mindanao',
+                'NIR - Negros Island Region'
+            ];
+
+            const statusList = [
+                'Lead In', 'Contact Made', 'Needs Defined', 'Proposal Sent',
+                'Negotiation Started', 'For Follow up', 'Closed Win', 'Closed Lost'
+            ];
+
+            const capturedByList = [
+                'Ross', 'Randy', 'Michelle', 'Harthwell', 'Sergs', 'Krezel',
+                'Carmela', 'Cherrylene', 'Kim', 'Clowie', 'Jacob', 'Mary'
+            ];
+
+            const modeList = ['Online', 'Face to Face', 'Hybrid'];
+
+            // Fetch dynamic lists
+            const { data: sources } = await supabase.from('lead_sources').select('name');
+            const { data: services } = await supabase.from('services').select('name');
+            const sourceList = sources?.map(s => s.name) || ['Website', 'Facebook', 'Referral'];
+            const serviceList = services?.map(s => s.name) || ['Osh Technical', 'First Aid', 'HSE'];
+
+            // Populate listSheet
+            const populateList = (colIndex: number, list: string[]) => {
+                list.forEach((item, i) => {
+                    listSheet.getCell(i + 1, colIndex).value = item;
+                });
+                return `Lists!$${listSheet.getColumn(colIndex).letter}$1:$${listSheet.getColumn(colIndex).letter}$${list.length}`;
+            };
+
+            const regionRange = populateList(1, regionList);
+            const sourceRange = populateList(2, sourceList);
+            const statusRange = populateList(3, statusList);
+            const personRange = populateList(4, capturedByList);
+            const serviceRange = populateList(5, serviceList);
+            const modeRange = populateList(6, modeList);
+
+            // Setup Leads Sheet
+            worksheet.columns = [
+                { header: 'Contact Name', key: 'contact_name', width: 25 },
+                { header: 'Email', key: 'email', width: 25 },
+                { header: 'Phone', key: 'phone', width: 15 },
+                { header: 'Mobile', key: 'mobile', width: 15 },
+                { header: 'Company', key: 'company', width: 25 },
+                { header: 'Address', key: 'address', width: 30 },
+                { header: 'Region', key: 'region', width: 25 },
+                { header: 'Lead Source', key: 'lead_source', width: 20 },
+                { header: 'First Contact', key: 'first_contact', width: 15 },
+                { header: 'Last Contact', key: 'last_contact', width: 15 },
+                { header: 'Status', key: 'status', width: 15 },
+                { header: 'Captured By', key: 'captured_by', width: 15 },
+                { header: 'Notes', key: 'notes', width: 30 },
+                { header: 'Service Product', key: 'service_product', width: 25 },
+                { header: 'Service Price', key: 'service_price', width: 15 },
+                { header: 'Mode of Service', key: 'mode_of_service', width: 15 }
+            ];
+
+            // Sample Data
+            worksheet.addRow({
+                'contact_name': 'John Doe',
+                'email': 'john@example.com',
+                'phone': '1234567890',
+                'mobile': '09123456789',
+                'company': 'Example Corp',
+                'address': '123 Street, City',
+                'region': 'NCR - National Capital Region',
+                'lead_source': 'Website',
+                'first_contact': '2024-01-01',
+                'last_contact': '2024-01-02',
+                'status': 'Lead In',
+                'captured_by': 'Ross',
+                'notes': 'Sample note',
+                'service_product': 'Osh Technical',
+                'service_price': 5000,
+                'mode_of_service': 'Online'
+            });
+
+            // Data Validation Configuration
+            const validations = [
+                { col: 'G', formula: regionRange },
+                { col: 'H', formula: sourceRange },
+                { col: 'K', formula: statusRange },
+                { col: 'L', formula: personRange },
+                { col: 'N', formula: serviceRange },
+                { col: 'P', formula: modeRange }
+            ];
+
+            // Apply validation to rows 2 through 100
+            for (let i = 2; i <= 100; i++) {
+                validations.forEach(v => {
+                    const cell = worksheet.getCell(`${v.col}${i}`);
+                    cell.dataValidation = {
+                        type: 'list',
+                        allowBlank: true,
+                        formulae: [v.formula]
+                    };
+                });
+            }
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            saveAs(new Blob([buffer]), 'Leads_Template.xlsx');
+            toast.success('Template downloaded with dropdowns');
+        } catch (err: any) {
+            console.error('Template download error:', err);
+            toast.error('Failed to generate template');
+        }
     }
 
     const exportLeads = async () => {

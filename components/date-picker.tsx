@@ -98,6 +98,22 @@ interface DatePickerProps {
               }}
               
             />
+            <div className="p-3 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                onClick={() => {
+                  const today = new Date()
+                  setInputValue(formatDate(today))
+                  onChange?.(today)
+                  setMonth(today)
+                  setOpen(false)
+                }}
+              >
+                Today
+              </Button>
+            </div>
           </PopoverContent>
         </Popover>
       </div>

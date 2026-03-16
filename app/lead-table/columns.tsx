@@ -512,6 +512,10 @@ export const getColumns = ({
         </div>
       ),
       enableSorting: true,
+      cell: ({ row }) => {
+        const date = row.getValue("last_contact")
+        return date ? new Date(date as string).toLocaleDateString() : "—"
+      },
     },
     {
       accessorKey: "service_product",
