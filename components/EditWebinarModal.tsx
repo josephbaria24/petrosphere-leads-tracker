@@ -69,9 +69,11 @@ const EditWebinarModal: React.FC<EditWebinarModalProps> = ({
         // CREATE: Remove id and created_at before inserting
         const { id, created_at, ...dataToInsert } = edited
         
-        const { error } = await supabase
+        const { error, data: insertedData } = await supabase
           .from("webinar_tracker")
           .insert(dataToInsert)
+          .select()
+          .single()
 
         if (error) throw error
 
@@ -80,15 +82,19 @@ const EditWebinarModal: React.FC<EditWebinarModalProps> = ({
           action: 'created',
           entity_type: 'webinar',
         })
+        
+        await onSave(insertedData)
 
       } else {
         // UPDATE: Keep the id for the update query
         const { id, created_at, ...dataToUpdate } = edited
         
-        const { error } = await supabase
+        const { error, data: updatedData } = await supabase
           .from("webinar_tracker")
           .update(dataToUpdate)
           .eq("id", id)
+          .select()
+          .single()
 
         if (error) throw error
 
@@ -97,15 +103,11 @@ const EditWebinarModal: React.FC<EditWebinarModalProps> = ({
           action: 'edited',
           entity_type: 'webinar',
         })
+        
+        await onSave(updatedData)
       }
 
-      // Call the onSave callback
-      await onSave(edited)
-      
       onClose()
-      
-      // Refresh the page to show new data
-      window.location.reload()
       
     } catch (error) {
       console.error('Error saving:', error)

@@ -326,75 +326,14 @@ const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear(
           onClose={() => setEditModalOpen(false)}
           webinar={selectedWebinar}
           currentUserName={currentUserName}
-          onSave={async (updated: Partial<Webinar>) => {
-            // ✅ INSERT for placeholder rows
-            if (!updated.id || updated.id.toString().startsWith("placeholder-")) {
-              const { data: existing } = await supabase
-                .from('webinar_tracker')
-                .select('id')
-                .order('id', { ascending: false })
-                .limit(1)
-          
-              const nextId = (existing?.[0]?.id ?? 0) + 1
-          
-              const newEntry = {
-                id: nextId,
-                month: updated.month,
-                year: parseInt(selectedYear),
-                webinar_title: updated.webinar_title?.trim() || null,
-                presenters: updated.presenters?.trim() || null,
-                registration_page_views: updated.registration_page_views ?? null,
-                registered_participants: updated.registered_participants ?? null,
-                attended_participants: updated.attended_participants ?? null,
-                duration_planned: updated.duration_planned?.trim() || null,
-                actual_run_time: updated.actual_run_time?.trim() || null,
-                average_attendance_time: updated.average_attendance_time?.trim() || null,
-                event_rating: updated.event_rating ?? null,
-              }
-          
-              const { error: insertError } = await supabase
-                .from("webinar_tracker")
-                .insert(newEntry)
-          
-              if (insertError) {
-                console.error("Insert failed:", insertError)
-                return
-              }
-          
-              setEditModalOpen(false)
-              setSelectedWebinar(null)
-              return
-            }
-          
-            // ✅ UPDATE for existing rows
-            const sanitizedUpdate = {
-              webinar_title: updated.webinar_title?.trim() || null,
-              presenters: updated.presenters?.trim() || null,
-              registration_page_views: updated.registration_page_views ?? null,
-              registered_participants: updated.registered_participants ?? null,
-              attended_participants: updated.attended_participants ?? null,
-              duration_planned: updated.duration_planned?.trim() || null,
-              actual_run_time: updated.actual_run_time?.trim() || null,
-              average_attendance_time: updated.average_attendance_time?.trim() || null,
-              event_rating: updated.event_rating ?? null,
-            }
-          
-            const { error } = await supabase
-              .from("webinar_tracker")
-              .update(sanitizedUpdate)
-              .eq("id", updated.id)
-          
-            if (!error) {
-              setData(prev =>
-                prev.map((w) =>
-                  w.id === updated.id ? { ...w, ...sanitizedUpdate } : w
-                )
+          onSave={async (savedData: Partial<Webinar>) => {
+            setData(prev =>
+              prev.map((w) =>
+                w.id === selectedWebinar?.id ? { ...w, ...savedData } as Webinar : w
               )
-              setEditModalOpen(false)
-              setSelectedWebinar(null)
-            } else {
-              console.error("Update failed:", error)
-            }
+            )
+            setEditModalOpen(false)
+            setSelectedWebinar(null)
           }}          
         />
       )}
