@@ -19,7 +19,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { Check, ChevronDown, User, Building2, Phone, Mail, MapPin, Calendar, DollarSign, FileText, Settings, Search, Plus, Edit3, PersonStandingIcon, UserPlus2, Trash2, X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, formatLocalDate } from "@/lib/utils"
 import EditLeadModal from '@/components/EditLeadModal'
 import { Badge } from '@/components/ui/badge'
 import { ExcelActions } from '@/components/leads/ExcelActions'
@@ -691,7 +691,7 @@ export default function AddNewLeadPage() {
                   </Label>
                   <DatePicker
                     value={form.first_contact ? new Date(form.first_contact) : undefined}
-                    onChange={(date) => handleChange('first_contact', date?.toISOString() || '')}
+                    onChange={(date) => handleChange('first_contact', date ? formatLocalDate(date) : '')}
 
                   />
                 </div>
@@ -702,7 +702,7 @@ export default function AddNewLeadPage() {
                   </Label>
                   <DatePicker
                     value={form.last_contact ? new Date(form.last_contact) : undefined}
-                    onChange={(date) => handleChange('last_contact', date?.toISOString() || '')}
+                    onChange={(date) => handleChange('last_contact', date ? formatLocalDate(date) : '')}
                   />
                 </div>
 
