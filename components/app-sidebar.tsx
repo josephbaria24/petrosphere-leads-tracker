@@ -122,6 +122,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarFooter>
         <NavUserWrapper user={{ name: userName, email: userEmail, avatar: session?.user?.user_metadata?.avatar_url ?? null }} />
+        <div className="text-xs text-center text-muted-foreground pb-2">
+          Developed by PetroCore<span className="text-red-500 font-semibold">X</span>
+        </div>
       </SidebarFooter>
 
       <SidebarRail />
