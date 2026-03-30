@@ -169,7 +169,7 @@ export default function CRMBarChart({
       while (!done) {
         const { data, error } = await supabase
           .from('crm_leads')
-          .select('captured_by, status, first_contact')
+          .select('captured_by, status, first_contact, created_at')
           .gte('first_contact', startDate.toISOString())
           .lt('first_contact', endDate.toISOString())
           .range(from, to)

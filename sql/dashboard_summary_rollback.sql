@@ -1,37 +1,35 @@
--- ============================================================
--- dashboard_summary RPC  (v3 – timeout fix + scan narrowing)
--- Run this in Supabase SQL Editor
--- Run the INDEXES section at the bottom FIRST if not already done.
--- ============================================================
+-- ROLLBACK SCRIPT FOR dashboard_summary RPC
+-- This script reverts the dashboard_summary function and indexes to their original state.
+
+DROP FUNCTION IF EXISTS public.dashboard_summary(date, date, date, date, date, date, text);
 
 CREATE OR REPLACE FUNCTION public.dashboard_summary(
-  p_start        date,
-  p_end          date,
-  p_prev_start   date,
-  p_prev_end     date,
-  p_chart_start  date,
-  p_chart_end    date,
-  p_bucket       text DEFAULT 'month'
+  p_start date,
+  p_end date,
+  p_prev_start date,
+  p_prev_end date,
+  p_chart_start date,
+  p_chart_end date,
+  p_bucket text DEFAULT 'month'
 )
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-SET statement_timeout = '60s'
 AS $$
 DECLARE
-  v_total_leads     bigint;
-  v_kpis            jsonb;
-  v_newest          jsonb;
-  v_captured_by     jsonb;
-  v_top_services    jsonb;
-  v_overall_series  jsonb;
-  v_lead_source     jsonb;
-  v_lead_in         jsonb;
-  v_closed_won      jsonb;
-  v_closed_lost     jsonb;
-  v_range_start     date;
-  v_range_end       date;
+  v_kpis jsonb;
+  v_newest jsonb;
+  v_captured_by jsonb;
+  v_top_services jsonb;
+  v_overall_series jsonb;
+  v_lead_source jsonb;
+  v_lead_in jsonb;
+  v_closed_won jsonb;
+  v_closed_lost jsonb;
+  v_total_leads bigint;
+  v_range_start date;
+  v_range_end date;
 BEGIN
   -- Broadest date range (union of current + previous period)
   v_range_start := LEAST(p_start, p_prev_start);
@@ -94,12 +92,12 @@ BEGIN
       'captured_by',  captured_by,
       'contact_name', contact_name,
       'status',       status,
-      'created_at',   first_contact
+      'created_at',   created_at
     ))
     FROM (
-      SELECT captured_by, contact_name, status, first_contact
+      SELECT captured_by, contact_name, status, created_at
       FROM crm_leads
-      ORDER BY first_contact DESC NULLS LAST
+      ORDER BY created_at DESC NULLS LAST
       LIMIT 4
     ) sub
   ), '[]'::jsonb) INTO v_newest;
@@ -125,15 +123,15 @@ BEGIN
   ---------------------------------------------------------------
   SELECT coalesce((
     SELECT jsonb_agg(jsonb_build_object(
-      'service_product', service_product, 'count', count))
+      'service_product', service_product, 'count', cnt))
     FROM (
       SELECT upper(btrim(service_product)) AS service_product,
-             count(*)::int AS count
+             count(*)::int AS cnt
       FROM crm_leads
       WHERE service_product IS NOT NULL
         AND first_contact >= p_start AND first_contact < p_end
       GROUP BY upper(btrim(service_product))
-      ORDER BY count DESC
+      ORDER BY cnt DESC
       LIMIT 20
     ) sub
   ), '[]'::jsonb) INTO v_top_services;
@@ -173,7 +171,7 @@ BEGIN
   ---------------------------------------------------------------
   SELECT coalesce((
     SELECT jsonb_agg(jsonb_build_object(
-      'label', label, 'source', source, 'count', count))
+      'label', label, 'source', source, 'count', cnt))
     FROM (
       SELECT
         CASE p_bucket
@@ -190,8 +188,8 @@ BEGIN
           WHEN 'quarter' THEN extract(quarter FROM first_contact)
           WHEN 'year'    THEN extract(year FROM first_contact)
         END AS sk,
-        COALESCE(btrim(lead_source), 'Unknown') AS source,
-        count(*)::int AS count
+        coalesce(btrim(lead_source), 'Unknown') AS source,
+        count(*)::int AS cnt
       FROM crm_leads
       WHERE first_contact >= p_chart_start AND first_contact < p_chart_end
       GROUP BY 1, 2, 3
@@ -267,30 +265,3 @@ BEGIN
   );
 END;
 $$;
-
--- Grant access
-GRANT EXECUTE ON FUNCTION public.dashboard_summary TO authenticated;
-
-
--- =============================================================
--- INDEXES (safe to re-run, uses IF NOT EXISTS)
--- =============================================================
-CREATE INDEX IF NOT EXISTS idx_crm_leads_first_contact
-  ON crm_leads (first_contact);
-
-CREATE INDEX IF NOT EXISTS idx_crm_leads_status_first_contact
-  ON crm_leads (lower(status), first_contact);
-
-CREATE INDEX IF NOT EXISTS idx_crm_leads_first_contact_desc
-  ON crm_leads (first_contact DESC NULLS LAST);
-
-CREATE INDEX IF NOT EXISTS idx_crm_leads_captured_by_first_contact
-  ON crm_leads (captured_by, first_contact)
-  WHERE captured_by IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS idx_crm_leads_service_product_first_contact
-  ON crm_leads (service_product, first_contact)
-  WHERE service_product IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS idx_crm_leads_lead_source_first_contact
-  ON crm_leads (lead_source, first_contact);

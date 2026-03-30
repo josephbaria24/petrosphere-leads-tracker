@@ -363,9 +363,9 @@ export function ActualDashboardPage() {
       if (error) return console.error(error)
 
       const years = new Set<number>()
-      data?.forEach(({ first_contact }) => {
-        if (first_contact) {
-          const y = new Date(first_contact).getFullYear()
+      data?.forEach((row: any) => {
+        if (row.first_contact) {
+          const y = new Date(row.first_contact).getFullYear()
           years.add(y)
         }
       })
@@ -461,7 +461,8 @@ export function ActualDashboardPage() {
       const nk = normalizeKey(source)
       uniqueSources.add(nk)
       if (!grouped[label]) grouped[label] = {}
-      grouped[label][nk] = count
+      // FIX: Sum counts instead of overwriting to handle normalization collisions
+      grouped[label][nk] = (grouped[label][nk] || 0) + count
     })
 
     const sources = Array.from(uniqueSources)
@@ -530,18 +531,27 @@ export function ActualDashboardPage() {
         .or('status.neq.Lead In,status.neq.Closed Lost,status.neq.In Progress')
         .range(from, to)
 
-      if (error) { console.error('Error fetching leads:', error); return [] }
+      if (error) { 
+        console.error('Error fetching leads:', error); 
+        return [] 
+      }
       if (!data || data.length === 0) break
 
       allData = allData.concat(data)
-      if (data.length < pageSize) { done = true } else { from += pageSize; to += pageSize }
+      if (data.length < pageSize) { 
+        done = true 
+      } else { 
+        from += pageSize; 
+        to += pageSize 
+      }
     }
 
     const trends: Record<string, { closed_amount: number; won_opportunities: number }> = {}
 
-    allData.forEach((lead) => {
-      if (!lead.first_contact) return
-      const date = new Date(lead.first_contact)
+    allData.forEach((lead: any) => {
+      const dateStr = lead.first_contact
+      if (!dateStr) return
+      const date = new Date(dateStr)
       const label = date.toLocaleString('default', { month: 'short', year: 'numeric' })
       if (!trends[label]) { trends[label] = { closed_amount: 0, won_opportunities: 0 } }
       if (typeof lead.service_price === 'number') { trends[label].closed_amount += lead.service_price }
