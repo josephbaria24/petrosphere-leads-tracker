@@ -36,9 +36,7 @@ export function NavMain({
   }[]
 }) {
   return (
-    <SidebarGroup
-      className="rounded-xl border-1 dark:bg-card border-zinc-200 dark:border-0 pl-1 py-3 shadow"
-    >
+    <SidebarGroup className="px-2 py-2">
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) =>

@@ -12,15 +12,16 @@ import { SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatCard } from '@/components/dashboard/stat-card'
 import { ServiceBarChart } from '@/components/charts/bar-chart'
+import { PHRegionalDotMap } from '@/components/charts/ph-regional-dot-map'
 import { LeadSourceAreaChart } from '@/components/charts/area-chart'
-import { ChartPieCapturedBy } from '../charts/pie-chart'
-import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Printer, ArrowUpRight, Trophy, Hourglass, Users, Loader2, Send } from 'lucide-react'
+import { CapturedByRanking } from '@/components/charts/captured-by-ranking'
+import SalesPipelineByOwners from '@/components/charts/sales-pipeline-by-owners'
+import { UserPlus, MessageCircle, FileText, Handshake, BadgeCheck, XCircle, Loader, CheckCircle, Printer, ArrowUpRight, ArrowDownRight, Trophy, Hourglass, Users, Loader2, Send } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { useRouter } from 'next/navigation'
-import CRMBarChart from '../charts/bar-chart-2'
-import ClosedWonTrendsChart from '../charts/line-chart'
+import ClosedWonTrendsChart, { type ClosedWonTrend } from '../charts/line-chart'
 import RevenueOpportunitiesTrendsChart from '../charts/line-chart-2'
 import Image from 'next/image'
 import { toast } from 'sonner'
@@ -29,6 +30,8 @@ import { format, parse } from 'date-fns'
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { FloatingDateFilter } from './floating-date-filter'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { NewLeadsWeeklyBar } from '@/components/charts/new-leads-weekly-bar'
+import { SuccessfulDealsGauge } from '@/components/charts/successful-deals-gauge'
 
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -229,10 +232,12 @@ export function ActualDashboardPage() {
     [leadSource: string]: string | number
   }
 
-  type ClosedWonTrend = {
-    closed_amount: number
-    won_opportunities: number
-    month: string
+
+  type NewestLead = {
+    captured_by: string
+    contact_name: string
+    status: string
+    created_at: string | null
   }
 
   const [leadAreaChartData, setLeadAreaChartData] = useState<AreaData[]>([])
@@ -247,7 +252,14 @@ export function ActualDashboardPage() {
   const [selectedInterval, setSelectedInterval] = useState<string>('monthly')
 
   const [capturedByData, setCapturedByData] = useState<{ name: string; value: number }[]>([])
-  const [newestLeads, setNewestLeads] = useState<{ captured_by: string; contact_name: string; status: string }[]>([])
+  const [newestLeads, setNewestLeads] = useState<NewestLead[]>([])
+  const [weeklyNewLeads, setWeeklyNewLeads] = useState<{ day: string; count: number }[]>([
+    { day: 'Mon', count: 0 },
+    { day: 'Tue', count: 0 },
+    { day: 'Wed', count: 0 },
+    { day: 'Thu', count: 0 },
+    { day: 'Fri', count: 0 },
+  ])
 
   const timeLabels = generateTimeLabels(selectedInterval, selectedMonth, selectedYear, availableYears)
 
@@ -417,6 +429,53 @@ export function ActualDashboardPage() {
     mapRpcToState(data, bucket)
   }
 
+  const fetchNewestLeads = async () => {
+    const { data, error } = await supabase
+      .from('crm_leads')
+      .select('captured_by, contact_name, status, created_at')
+      .order('created_at', { ascending: false })
+      .limit(4)
+
+    if (error) {
+      console.error('Newest leads query error:', error)
+      return
+    }
+
+    setNewestLeads((data as NewestLead[]) || [])
+  }
+
+  const fetchTopOverviewStats = async () => {
+    const now = new Date()
+    const dow = now.getDay()
+    const diffToMonday = dow === 0 ? -6 : 1 - dow
+    const monday = new Date(now)
+    monday.setHours(0, 0, 0, 0)
+    monday.setDate(now.getDate() + diffToMonday)
+    const saturday = new Date(monday)
+    saturday.setDate(monday.getDate() + 5)
+
+    const { data: weekRows, error: weekErr } = await supabase
+      .from('crm_leads')
+      .select('created_at')
+      .gte('created_at', monday.toISOString())
+      .lt('created_at', saturday.toISOString())
+
+    if (weekErr) {
+      console.error('Weekly new leads query error:', weekErr)
+    } else {
+      const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+      const counts = [0, 0, 0, 0, 0]
+        ; (weekRows || []).forEach((r: any) => {
+          if (!r.created_at) return
+          const d = new Date(r.created_at)
+          const idx = (d.getDay() + 6) % 7
+          if (idx >= 0 && idx <= 4) counts[idx] += 1
+        })
+      setWeeklyNewLeads(labels.map((day, i) => ({ day, count: counts[i] })))
+    }
+
+  }
+
   /** Map RPC JSON response into component state */
   const mapRpcToState = (data: any, bucket: string) => {
     const k = data.kpis || {}
@@ -437,8 +496,7 @@ export function ActualDashboardPage() {
 
     setClosedWonRevenue(k.wonRevenue ?? 0)
 
-    // Newest leads
-    setNewestLeads(data.newest || [])
+    // Newest leads are loaded separately from frontend using created_at.
 
     // Captured By
     setCapturedByData(data.capturedBy || [])
@@ -485,6 +543,11 @@ export function ActualDashboardPage() {
     loadDashboard()
   }, [selectedYear, selectedMonth, selectedInterval, rangeIndex, availableYears])
 
+  useEffect(() => {
+    fetchNewestLeads()
+    fetchTopOverviewStats()
+  }, [])
+
   // ─── Background prefetch for adjacent rangeIndex ─────────
 
   useEffect(() => {
@@ -517,49 +580,96 @@ export function ActualDashboardPage() {
 
   // ─── Closed-Won Trends (all-time, separate query) ───────
 
-  const fetchClosedWonTrends = async () => {
+  const fetchClosedWonTrends = async (): Promise<ClosedWonTrend[]> => {
     const pageSize = 1000
     let from = 0
     let to = pageSize - 1
-    let allData: { first_contact: string; service_price: number | null }[] = []
+    let allData: {
+      first_contact: string
+      service_price: number | null
+      status: string | null
+    }[] = []
     let done = false
 
     while (!done) {
       const { data, error } = await supabase
         .from('crm_leads')
-        .select('first_contact, service_price')
-        .or('status.neq.Lead In,status.neq.Closed Lost,status.neq.In Progress')
+        .select('first_contact, service_price, status')
         .range(from, to)
 
-      if (error) { 
-        console.error('Error fetching leads:', error); 
-        return [] 
+      if (error) {
+        console.error('Error fetching leads:', error)
+        return []
       }
       if (!data || data.length === 0) break
 
       allData = allData.concat(data)
-      if (data.length < pageSize) { 
-        done = true 
-      } else { 
-        from += pageSize; 
-        to += pageSize 
+      if (data.length < pageSize) {
+        done = true
+      } else {
+        from += pageSize
+        to += pageSize
       }
     }
 
-    const trends: Record<string, { closed_amount: number; won_opportunities: number }> = {}
+    const pipelineStatuses = new Set([
+      'Contact Made',
+      'Needs Defined',
+      'Proposal Sent',
+      'Negotiation Started',
+      'For Follow up',
+    ])
 
-    allData.forEach((lead: any) => {
+    const normalizeStatus = (raw: string | null | undefined): string => {
+      if (!raw) return ''
+      return raw
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+    }
+
+    const trends: Record<
+      string,
+      {
+        closed_amount: number
+        potential_amount: number
+        won_count: number
+        opportunity_count: number
+      }
+    > = {}
+
+    allData.forEach((lead) => {
       const dateStr = lead.first_contact
       if (!dateStr) return
       const date = new Date(dateStr)
-      const label = date.toLocaleString('default', { month: 'short', year: 'numeric' })
-      if (!trends[label]) { trends[label] = { closed_amount: 0, won_opportunities: 0 } }
-      if (typeof lead.service_price === 'number') { trends[label].closed_amount += lead.service_price }
-      trends[label].won_opportunities += 1
+      if (isNaN(date.getTime())) return
+      const label = date.toLocaleString('default', {
+        month: 'short',
+        year: 'numeric',
+      })
+      if (!trends[label]) {
+        trends[label] = {
+          closed_amount: 0,
+          potential_amount: 0,
+          won_count: 0,
+          opportunity_count: 0,
+        }
+      }
+      const price =
+        typeof lead.service_price === 'number' ? lead.service_price : 0
+      const status = normalizeStatus(lead.status)
+      if (status === 'Closed Win') {
+        trends[label].closed_amount += price
+        trends[label].won_count += 1
+      } else if (pipelineStatuses.has(status)) {
+        trends[label].potential_amount += price
+        trends[label].opportunity_count += 1
+      }
     })
 
     const sortedLabels = Object.keys(trends).sort(
-      (a, b) => new Date(a).getTime() - new Date(b).getTime()
+      (a, b) => new Date(a).getTime() - new Date(b).getTime(),
     )
     return sortedLabels.map((label) => ({ month: label, ...trends[label] }))
   }
@@ -573,6 +683,12 @@ export function ActualDashboardPage() {
   }, [selectedYear, selectedMonth, selectedInterval, rangeIndex]);
 
   // ─── Helpers ─────────────────────────────────────────────
+
+  const filteredWinRate = useMemo(() => {
+    const won = stats.closedLeads || 0
+    const total = stats.leadsThisMonth || 0
+    return total > 0 ? (won / total) * 100 : 0
+  }, [stats.closedLeads, stats.leadsThisMonth])
 
   function getTrend(current: number, previous: number): { trend: 'up' | 'down'; change: string } {
     if (previous === 0) {
@@ -652,6 +768,8 @@ export function ActualDashboardPage() {
   const handleRefreshFilters = () => {
     prefetchCache.current.clear()
     loadDashboard()
+    fetchNewestLeads()
+    fetchTopOverviewStats()
     toast.success("Dashboard refreshed!")
   }
 
@@ -696,23 +814,6 @@ export function ActualDashboardPage() {
             {userPosition && (
               <p className="text-sm text-muted-foreground">{userPosition}</p>
             )}
-          </div>
-        </div>
-
-        <div className="px-0 pb-2">
-          <div className="text-sm font-semibold text-muted-foreground mb-1">
-            Closed Won Revenue Goal
-          </div>
-          <div className="relative w-[10vw] h-1 bg-gray-300 dark:bg-zinc-700 rounded overflow-hidden">
-            <div
-              className="absolute top-0 left-0 h-full bg-blue-800 dark:bg-blue-600 transition-all duration-500"
-              style={{
-                width: `${Math.min(closedWonRevenue / 750000 * 100, 100)}%`
-              }}
-            />
-          </div>
-          <div className="text-xs mt-1 text-muted-foreground">
-            ₱{closedWonRevenue.toLocaleString()} / ₱750,000
           </div>
         </div>
 
@@ -766,266 +867,255 @@ export function ActualDashboardPage() {
 
         <div id="print-section">
 
-          {/* CRM Stats Grid */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <StatCard
-              label={
-                selectedInterval === "all"
-                  ? "All Leads"
-                  : selectedMonth === "all"
-                    ? selectedInterval === "annually"
-                      ? `Leads in ${selectedYear}`
-                      : `Leads in ${selectedYear}`
-                    : `Leads in ${selectedMonth} ${selectedYear}`
-              }
-              icon={<Users className="w-4 h-4" />}
-              value={stats.leadsThisMonth.toString()}
-              {...getTrend(stats.leadsThisMonth, stats.leadsLastMonth)}
-              subtext={
-                selectedMonth === "all"
-                  ? "Total leads in the selected year"
-                  : `New leads: ${selectedMonth} ${selectedYear}`
-              }
-              chartData={makeSmoothTrendData(
-                leadAreaChartData.map((d) => ({
-                  date: d.date,
-                  value: Number(d.totalLeads),
-                }))
-              )}
-              className="bg-black dark:bg-white text-white dark:text-black"
-            />
-
-            <StatCard
-              label="In Progress"
-              icon={<Hourglass className="w-4 h-4" />}
-              value={stats.totalInProgress.toString()}
-              {...getTrend(stats.totalInProgress, stats.inProgressPrev)}
-              subtext="Currently active leads"
-              className="bg-blue-600 dark:bg-blue-800 text-white dark:text-white"
-              details={leadInLeads}
-            />
-
-            <StatCard
-              label="Won"
-              icon={<Trophy className="w-4 h-4" />}
-              value={stats.closedLeads.toString()}
-              {...getTrend(stats.closedLeads, stats.closedLeadsPrev)}
-              subtext="Closed as won"
-              className="bg-green-600 dark:bg-green-800 text-white dark:text-white"
-              details={closedWonLeads}
-            />
-
-            <StatCard
-              label="Lost"
-              icon={<XCircle className="w-4 h-4" />}
-              value={stats.closedLost.toString()}
-              {...getTrend(stats.closedLost, stats.closedLostPrev)}
-              subtext="Closed as lost"
-              className="bg-red-600 dark:bg-red-800 text-white dark:text-white"
-              details={closedLostLeads}
-            />
-
-
-            {/* Professional Card Design */}
-            <div className="bg-card border-0 border-gray-200/60 rounded-xl p-4 shadow-lg hover:shadow-md transition-all duration-300 group">
-              {/* Header Section */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-blue-50 dark:bg-blue-50/20 rounded-md flex items-center justify-center group-hover:bg-blue-100 transition-colors duration-200">
-                    <UserPlus className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  </div>
+          {/* Top Overview Visuals */}
+          <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-[1.6fr_1fr] pb-4">
+            {/* New Leads: bar chart + compact newest list */}
+            <Card data-html2canvas-ignore className="bg-background">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-sm font-medium text-zinc-600 dark:text-gray-300 tracking-wide">
-                      Total Leads
-                    </span>
+                    <CardTitle className="text-lg">New Leads</CardTitle>
+                    <CardDescription>
+                      This week (Mon–Fri) + most recently captured
+                    </CardDescription>
                   </div>
-                </div>
-              </div>
-
-              {/* Main Metric */}
-              <div className="mb-2">
-                <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
-                  <CountUp start={0} end={stats.totalLeads} duration={2} separator="," />
-                </div>
-                <div className="w-12 h-1 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full mt-3"></div>
-              </div>
-            </div>
-          </div>
-
-
-
-          {/* Chart 3: Captured By Personnel */}
-          <div className="grid grid-cols-1 sm:grid-cols-[315px_1fr_450px] gap-4 pt-3 items-start">
-
-
-            {/* Pie Chart with reduced size */}
-            <div className="w-full max-w-xs ">
-              <ChartPieCapturedBy data={capturedByData} />
-            </div>
-
-            {/* Sales Pipeline by Owner chart */}
-            <div className="flex flex-col justify-between h-full min-h-[360px]">
-              <CRMBarChart
-                selectedYear={selectedYear}
-                selectedMonth={selectedMonth}
-                selectedInterval={selectedInterval}
-                rangeIndex={rangeIndex}
-              />
-            </div>
-
-
-            {/* Newest leads */}
-
-            <div data-html2canvas-ignore>
-              <Card className="flex-1 bg-background h-[380px] border-l-white-400">
-                <CardHeader >
-                  <CardTitle className="text-xl">Newest Leads</CardTitle>
-                  <CardDescription>Most recently captured entries</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 text-xs font-medium text-muted-foreground mb-0 px-1">
-                    <div>Captured By</div>
-                    <div>Contact Name</div>
-                    <div className="text-right">Status</div>
-                  </div>
-
-                  <div className="space-y-2" >
-                    {newestLeads.map((lead, idx) => {
-
-                      const rowStyle =
-                        idx === 0
-                          ? "text-lg font-semibold"
-                          : idx === 1
-                            ? "text-normal font-medium"
-                            : "text-sm text-muted-foreground"
-
-                      const statusKey = lead.status?.toLowerCase() || "unknown"
-
-                      const statusStyles: Record<
-                        string,
-                        { label: string; className: string; icon: React.ReactNode }
-                      > = {
-                        "lead in": {
-                          label: "Lead In",
-                          className: "bg-gray-600 text-white",
-                          icon: <UserPlus className="w-3.5 h-3.5 mr-1.5" />,
-                        },
-                        "contact made": {
-                          label: "Contact Made",
-                          className: "bg-blue-600 text-white",
-                          icon: <MessageCircle className="w-3.5 h-3.5 mr-1.5" />,
-                        },
-                        "needs defined": {
-                          label: "Needs Defined",
-                          className: "bg-yellow-500 text-white",
-                          icon: <FileText className="w-3.5 h-3.5 mr-1.5" />,
-                        },
-                        "proposal sent": {
-                          label: "Proposal Sent",
-                          className: "bg-purple-600 text-white",
-                          icon: <FileText className="w-3.5 h-3.5 mr-1.5" />,
-                        },
-                        "negotiation started": {
-                          label: "Negotiation Started",
-                          className: "bg-orange-500 text-white",
-                          icon: <Handshake className="w-3.5 h-3.5 mr-1.5" />,
-                        },
-                        "closed won": {
-                          label: "Closed Win",
-                          className: "bg-green-600 text-white",
-                          icon: <BadgeCheck className="w-3.5 h-3.5 mr-1.5" />,
-                        },
-                        "closed win": {
-                          label: "Closed Win",
-                          className: "bg-green-600 text-white",
-                          icon: <BadgeCheck className="w-3.5 h-3.5 mr-1.5" />,
-                        },
-                        "closed lost": {
-                          label: "Closed Lost",
-                          className: "bg-red-600 text-white",
-                          icon: <XCircle className="w-3.5 h-3.5 mr-1.5" />,
-                        },
-                        "in progress": {
-                          label: "In Progress",
-                          className: "bg-zinc-800 text-white border border-zinc-700",
-                          icon: <Loader className="w-3.5 h-3.5 mr-1.5 animate-spin" />,
-                        },
-                        done: {
-                          label: "Done",
-                          className: "bg-black text-green-400 border border-green-700",
-                          icon: <CheckCircle className="w-3.5 h-3.5 mr-1.5 text-green-500" />,
-                        },
-                      }
-
-                      const status = statusStyles[statusKey] || {
-                        label: lead.status || "Unknown",
-                        className: "bg-gray-200 text-gray-700",
-                        icon: null,
-                      }
-
-                      return (
-
-                        <div
-                          key={idx}
-                          className={`grid grid-cols-3 items-center px-1 ${rowStyle}`}
-                        >
-
-                          <div className="truncate">{lead.captured_by}</div>
-                          <div className="truncate text-sm">{lead.contact_name}</div>
-
-                          <div className="flex justify-end">
-                            <span
-                              className={`inline-flex items-center px-2 py-0.5 text-[12px] rounded-full font-medium ${status.className || "bg-gray-400 text-white"
-                                }`}
-                            >
-                              {status.icon}
-                              {status.label}
-                            </span>
-
-                          </div>
-                        </div>
-                      )
-                    })}
-
-                  </div>
-                </CardContent>
-                <div className="pt-0 text-center">
                   <Link href="/lead-table" passHref>
-                    <Button variant="link" className="text-sm text-muted-foreground hover:text-primary px-0 cursor-pointer">
+                    <Button
+                      variant="link"
+                      className="text-xs text-muted-foreground hover:text-primary px-0 cursor-pointer"
+                    >
                       View Details →
                     </Button>
                   </Link>
                 </div>
-              </Card>
-            </div>
-          </div>
-
-          {/* Chart 1 */}
-          <div className="py-3">
-
-
-            <Card className="flex-1 bg-background border-0 shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div>
-                  <CardTitle className="text-lg">Lead Captures Over Time</CardTitle>
-                  <CardDescription></CardDescription>
-                </div>
-
-
-
               </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-[1.2fr_1fr] items-start">
+                  <div>
+                    <NewLeadsWeeklyBar data={weeklyNewLeads} title="" />
+                  </div>
+                  <div>
+                    <div className="grid grid-cols-[1fr_1fr_auto] text-[11px] font-medium text-muted-foreground px-1 pb-1">
+                      <div>Captured By</div>
+                      <div>Contact Name</div>
+                      <div className="text-right">Status</div>
+                    </div>
+                    <div className="space-y-1.5">
+                      {newestLeads.slice(0, 4).map((lead, idx) => {
+                        const statusKey = lead.status?.toLowerCase() || 'unknown'
+                        const statusStyles: Record<
+                          string,
+                          { label: string; className: string; icon: React.ReactNode }
+                        > = {
+                          'lead in': {
+                            label: 'Lead In',
+                            className: 'bg-gray-600 text-white',
+                            icon: <UserPlus className="w-3 h-3 mr-1" />,
+                          },
+                          'contact made': {
+                            label: 'Contact Made',
+                            className: 'bg-blue-600 text-white',
+                            icon: <MessageCircle className="w-3 h-3 mr-1" />,
+                          },
+                          'needs defined': {
+                            label: 'Needs Defined',
+                            className: 'bg-yellow-500 text-white',
+                            icon: <FileText className="w-3 h-3 mr-1" />,
+                          },
+                          'proposal sent': {
+                            label: 'Proposal Sent',
+                            className: 'bg-purple-600 text-white',
+                            icon: <FileText className="w-3 h-3 mr-1" />,
+                          },
+                          'negotiation started': {
+                            label: 'Negotiation Started',
+                            className: 'bg-orange-500 text-white',
+                            icon: <Handshake className="w-3 h-3 mr-1" />,
+                          },
+                          'closed won': {
+                            label: 'Closed Win',
+                            className: 'bg-green-600 text-white',
+                            icon: <BadgeCheck className="w-3 h-3 mr-1" />,
+                          },
+                          'closed win': {
+                            label: 'Closed Win',
+                            className: 'bg-green-600 text-white',
+                            icon: <BadgeCheck className="w-3 h-3 mr-1" />,
+                          },
+                          'closed lost': {
+                            label: 'Closed Lost',
+                            className: 'bg-red-600 text-white',
+                            icon: <XCircle className="w-3 h-3 mr-1" />,
+                          },
+                          'in progress': {
+                            label: 'In Progress',
+                            className: 'bg-zinc-800 text-white border border-zinc-700',
+                            icon: <Loader className="w-3 h-3 mr-1 animate-spin" />,
+                          },
+                          done: {
+                            label: 'Done',
+                            className: 'bg-black text-green-400 border border-green-700',
+                            icon: <CheckCircle className="w-3 h-3 mr-1 text-green-500" />,
+                          },
+                        }
+                        const status = statusStyles[statusKey] || {
+                          label: lead.status || 'Unknown',
+                          className: 'bg-gray-200 text-gray-700',
+                          icon: null,
+                        }
+                        return (
+                          <div
+                            key={idx}
+                            className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 px-1 text-xs"
+                          >
+                            <div className="truncate">{lead.captured_by}</div>
+                            <div className="truncate">{lead.contact_name}</div>
+                            <div className="flex justify-end">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-medium ${status.className || 'bg-gray-400 text-white'}`}
+                              >
+                                {status.icon}
+                                {status.label}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-              <CardContent style={{ minHeight: '400px' }}>
-                <LeadSourceAreaChart data={leadAreaChartData} />
-
+            <Card className="bg-background">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Successful Deals</CardTitle>
+                <CardDescription>
+                  Closed Win / Total Leads in {getDateHeaderLabel()}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-center">
+                <SuccessfulDealsGauge percentage={filteredWinRate} />
               </CardContent>
             </Card>
           </div>
 
+          {/* CRM Stats Row (inline) */}
+          <div className="bg-card border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 dark:divide-zinc-800">
+              {(() => {
+                const REVENUE_GOAL = 750000
+                const goalPct = Math.min((closedWonRevenue / REVENUE_GOAL) * 100, 100)
+
+                type StatItem = {
+                  label: string
+                  value: string
+                  trend?: 'up' | 'down'
+                  change?: string
+                  showTrend?: boolean
+                  goal?: { pct: number; current: number; target: number }
+                }
+
+                const items: StatItem[] = [
+                  {
+                    label: 'New',
+                    value: stats.leadsThisMonth.toLocaleString(),
+                    ...getTrend(stats.leadsThisMonth, stats.leadsLastMonth),
+                    showTrend: true,
+                  },
+                  {
+                    label: 'Closed',
+                    value: stats.closedLeads.toLocaleString(),
+                    ...getTrend(stats.closedLeads, stats.closedLeadsPrev),
+                    showTrend: true,
+                  },
+                  {
+                    label: 'Lost',
+                    value: stats.closedLost.toLocaleString(),
+                    showTrend: false,
+                  },
+                  {
+                    label: 'Total Closed',
+                    value: `₱${closedWonRevenue.toLocaleString('en-PH')}`,
+                    showTrend: false,
+                    goal: {
+                      pct: goalPct,
+                      current: closedWonRevenue,
+                      target: REVENUE_GOAL,
+                    },
+                  },
+                  {
+                    label: 'Total Leads',
+                    value: stats.totalLeads.toLocaleString(),
+                    showTrend: false,
+                  },
+                ]
+
+                return items.map((it) => (
+                  <div key={it.label} className="p-5 flex flex-col gap-1 min-w-0">
+                    <div className="text-xs text-muted-foreground">{it.label}</div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="text-2xl font-semibold tracking-tight truncate">
+                        {it.value}
+                      </div>
+                      {it.showTrend && it.trend && it.change && (
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium shrink-0 ${
+                            it.trend === 'up'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                          }`}
+                        >
+                          {it.change}
+                          {it.trend === 'up' ? (
+                            <ArrowUpRight className="w-3 h-3" />
+                          ) : (
+                            <ArrowDownRight className="w-3 h-3" />
+                          )}
+                        </span>
+                      )}
+
+                      {it.goal && (
+                        <div
+                          className="flex items-center gap-1.5 shrink-0"
+                          title={`₱${it.goal.current.toLocaleString('en-PH')} of ₱${it.goal.target.toLocaleString('en-PH')}`}
+                        >
+                          <div className="relative w-12 sm:w-14 h-1 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                            <div
+                              className="absolute top-0 left-0 h-full bg-black dark:bg-white rounded-full transition-all duration-500"
+                              style={{ width: `${it.goal.pct}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-medium text-muted-foreground">
+                            {it.goal.pct.toFixed(0)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              })()}
+            </div>
+          </div>
 
 
-          {/* NEW: Overall Leads Line Chart */}
-          <div className="py-3">
+
+          {/* Chart 3: Captured By Personnel + Sales Pipeline */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-3 items-start">
+            <CapturedByRanking data={capturedByData} />
+            <SalesPipelineByOwners
+              selectedYear={selectedYear}
+              selectedMonth={selectedMonth}
+              selectedInterval={selectedInterval}
+              rangeIndex={rangeIndex}
+            />
+
+
+          </div>
+
+          {/* Chart 1 + Overall Leads Trend side-by-side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 py-3 items-stretch">
+            <LeadSourceAreaChart data={leadAreaChartData} />
             <OverallLeadsLineChart
               data={overallLeadsData}
               selectedYear={selectedYear}
@@ -1034,27 +1124,19 @@ export function ActualDashboardPage() {
             />
           </div>
 
-          <div className="pb-3 flex space-x-3 justify-evenly">
-            <div className="flex-1">
-              <ClosedWonTrendsChart data={closedWonTrendData} />
-            </div>
+          <div className="py-3">
+            <ClosedWonTrendsChart data={closedWonTrendData} />
           </div>
 
 
-          {/* {/* Chart 2: Top 3 Services */}
-          <Card className="flex-1 bg-background">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div>
-                <CardTitle className="text-lg">
-                  Services / Products ({selectedMonth === 'all' ? selectedYear : `${selectedMonth} ${selectedYear}`})
-                </CardTitle>
-                <CardDescription>Most requested services by leads</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ServiceBarChart data={serviceChartData} />
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 py-3 items-stretch">
+            <ServiceBarChart
+              data={serviceChartData}
+              title={`Services / Products (${selectedMonth === 'all' ? selectedYear : `${selectedMonth} ${selectedYear}`})`}
+              subtitle="Most requested services by leads"
+            />
+            <PHRegionalDotMap />
+          </div>
 
         </div>
 

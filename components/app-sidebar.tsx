@@ -116,7 +116,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <TeamSwitcher teams={teams} currentTeam={currentTeam} onTeamChange={handleTeamChange} />
       </SidebarHeader>
 
-      <SidebarContent className="m-1">
+      <SidebarContent>
         <NavMain items={navMain} />
       </SidebarContent>
 

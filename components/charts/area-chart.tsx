@@ -1,3 +1,4 @@
+'use client'
 
 import {
   AreaChart,
@@ -7,12 +8,9 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   TooltipProps,
 } from 'recharts'
-import { LegendProps } from 'recharts'
-import type { Payload } from 'recharts/types/component/DefaultLegendContent'
-
+import { ZoomPanChart } from './zoom-pan-chart'
 
 const shortLabelMap: Record<string, string> = {
   email: 'Email',
@@ -38,7 +36,7 @@ const shortLabelMap: Record<string, string> = {
   site_visit: 'Visit',
   outbound___site___client_visit: 'O-Visit',
   unknown: 'Unknown',
-  viber: 'Viber'
+  viber: 'Viber',
 }
 
 type AreaData = {
@@ -46,16 +44,23 @@ type AreaData = {
   [leadSource: string]: string | number
 }
 
-const CustomLegend = ({ payload }: LegendProps) => (
-  <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2 text-xs">
-    {(payload as Payload[]).map((entry, index) => (
-      <li key={`item-${index}`} className="flex items-center gap-1">
+const StaticLegend = ({
+  items,
+}: {
+  items: { name: string; color: string }[]
+}) => (
+  <ul className="flex flex-wrap gap-x-3 gap-y-1 mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+    {items.map((entry, index) => (
+      <li key={`legend-${index}`} className="flex items-center gap-1.5">
         <span
-          className="inline-block w-3 h-3 rounded-full"
+          className="w-2 h-2 rounded-[2px] inline-block"
           style={{ backgroundColor: entry.color }}
         />
-        <span className="truncate max-w-[80px]" title={entry.value}>
-          {shortLabelMap[entry.value as string] || entry.value}
+        <span
+          className="text-[10px] text-muted-foreground truncate max-w-[90px]"
+          title={entry.name}
+        >
+          {shortLabelMap[entry.name] || entry.name}
         </span>
       </li>
     ))}
@@ -69,75 +74,202 @@ const CustomTooltip = ({
 }: TooltipProps<number, string>) => {
   if (!active || !payload || !payload.length) return null
 
-  const total = payload.reduce((sum, entry) => sum + (entry?.value ?? 0), 0)
+  const nonZero = payload.filter((p) => (p?.value ?? 0) > 0)
+  if (!nonZero.length) return null
+
+  const total = nonZero.reduce((sum, entry) => sum + (entry?.value ?? 0), 0)
 
   return (
-    <div className="bg-black text-white rounded-md shadow-md px-3 py-2 text-sm w-[180px]">
-      <div className="font-semibold mb-2">{label}</div>
-      {payload.map((entry, index) => (
-        <div key={index} className="flex justify-between items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span
-              className="w-2.5 h-2.5 rounded-full inline-block"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="capitalize">
-              {shortLabelMap[entry.name as string] || entry.name}
+    <div className="bg-zinc-900 text-white rounded-lg shadow-xl px-3 py-2 text-xs min-w-[180px] border border-zinc-700">
+      <div className="font-semibold text-[12px] mb-2">{label}</div>
+      <div className="space-y-1">
+        {nonZero.slice(0, 8).map((entry, index) => (
+          <div
+            key={index}
+            className="flex justify-between items-center gap-4"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className="w-[3px] h-3 rounded-sm inline-block shrink-0"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className="text-white/70 truncate">
+                {shortLabelMap[entry.name as string] || entry.name}
+              </span>
+            </div>
+            <span className="font-semibold text-white tabular-nums">
+              {entry.value}
             </span>
           </div>
-          <span className="font-mono">{entry.value}</span>
-        </div>
-      ))}
-      <div className="border-t mt-2 pt-2 flex justify-between text-xs font-medium text-muted-foreground">
-        <span>Total</span>
-        <span className="font-mono text-white">{total}</span>
+        ))}
+        {nonZero.length > 8 && (
+          <div className="text-[10px] text-white/50 pt-0.5">
+            +{nonZero.length - 8} more
+          </div>
+        )}
+      </div>
+      <div className="border-t border-zinc-700 mt-2 pt-2 flex justify-between text-[11px]">
+        <span className="text-white/60">Total</span>
+        <span className="font-semibold text-white tabular-nums">{total}</span>
       </div>
     </div>
   )
 }
 
-export function LeadSourceAreaChart({ data }: { data: AreaData[] }) {
+export function LeadSourceAreaChart({
+  data,
+  height = 280,
+  pxPerPoint = 56,
+  title = 'Lead Captures Over Time',
+  subtitle = 'Drag horizontally to view all data points',
+}: {
+  data: AreaData[]
+  height?: number
+  pxPerPoint?: number
+  title?: string
+  subtitle?: string
+}) {
   const colors = [
-    '#d6a800', '#42a5f5', '#d6000e', '#66bb6a', '#ab47bc',
-    '#fc0303', '#ffa726', '#8d6e63', '#f200ff', '#590000', '#008a37',
+    '#d6a800',
+    '#42a5f5',
+    '#d6000e',
+    '#66bb6a',
+    '#ab47bc',
+    '#fc0303',
+    '#ffa726',
+    '#8d6e63',
+    '#f200ff',
+    '#590000',
+    '#008a37',
   ]
 
   const leadSources = Array.from(
-    new Set(data.flatMap(row => Object.keys(row).filter(k => k !== 'date')))
+    new Set(data.flatMap((row) => Object.keys(row).filter((k) => k !== 'date'))),
   ).sort((a, b) => a.localeCompare(b))
 
+  const totalCaptures = data.reduce((sum, row) => {
+    const rowSum = leadSources.reduce(
+      (s, k) => s + (Number(row[k]) || 0),
+      0,
+    )
+    return sum + rowSum
+  }, 0)
+
+  const legendItems = leadSources.map((name, i) => ({
+    name,
+    color: colors[i % colors.length],
+  }))
+
   return (
-    <div className="h-[350px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-          <defs>
+    <div className="w-full bg-card border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-4 flex flex-col">
+      <div className="flex items-baseline justify-between mb-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+          <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+        </div>
+        <div className="text-right shrink-0 ml-3">
+          <div className="text-xl font-bold leading-none tabular-nums">
+            {totalCaptures.toLocaleString()}
+          </div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">
+            Captures
+          </div>
+        </div>
+      </div>
+
+      <ZoomPanChart
+        dataLength={data.length}
+        basePxPerPoint={pxPerPoint}
+        height={height}
+        className="w-full"
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={data}
+            margin={{ top: 10, right: 16, left: 0, bottom: 10 }}
+          >
+            <defs>
+              {leadSources.map((key, index) => (
+                <linearGradient
+                  key={key}
+                  id={`gradient-${key}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="5%"
+                    stopColor={colors[index % colors.length]}
+                    stopOpacity={0.45}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor={colors[index % colors.length]}
+                    stopOpacity={0.05}
+                  />
+                </linearGradient>
+              ))}
+            </defs>
+
+            <CartesianGrid
+              horizontal
+              vertical={false}
+              strokeDasharray="3 3"
+              stroke="currentColor"
+              className="text-zinc-200 dark:text-zinc-800"
+            />
+            <XAxis
+              dataKey="date"
+              axisLine={false}
+              tickLine={false}
+              interval={0}
+              tick={{ fontSize: 10, fill: 'currentColor' }}
+              className="text-zinc-500 dark:text-zinc-400"
+            />
+            <YAxis
+              allowDecimals={false}
+              axisLine={false}
+              tickLine={false}
+              width={32}
+              tick={{ fontSize: 10, fill: 'currentColor' }}
+              className="text-zinc-500 dark:text-zinc-400"
+            />
+            <Tooltip
+              content={<CustomTooltip />}
+              cursor={{
+                stroke: '#9ca3af',
+                strokeDasharray: '3 3',
+                strokeWidth: 1,
+              }}
+            />
+
             {leadSources.map((key, index) => (
-              <linearGradient key={key} id={`gradient-${key}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={colors[index % colors.length]} stopOpacity={0.8} />
-                <stop offset="95%" stopColor={colors[index % colors.length]} stopOpacity={0.1} />
-              </linearGradient>
+              <Area
+                key={key}
+                type="monotone"
+                dataKey={key}
+                stackId="1"
+                stroke={colors[index % colors.length]}
+                strokeWidth={1.5}
+                fill={`url(#gradient-${key})`}
+                activeDot={{
+                  r: 3.5,
+                  fill: '#fff',
+                  stroke: colors[index % colors.length],
+                  strokeWidth: 2,
+                }}
+                name={
+                  shortLabelMap[key] ||
+                  key.charAt(0).toUpperCase() + key.slice(1)
+                }
+              />
             ))}
-          </defs>
+          </AreaChart>
+        </ResponsiveContainer>
+      </ZoomPanChart>
 
-          <CartesianGrid horizontal vertical={false} stroke="#ccc" strokeOpacity={0.1} />
-          <XAxis dataKey="date" stroke="#94a3b8" />
-          <YAxis allowDecimals={false} stroke="#94a3b8" />
-          <Tooltip content={<CustomTooltip />} cursor={false} />
-          <Legend content={<CustomLegend />} />
-
-          {leadSources.map((key, index) => (
-            <Area
-            key={key}
-            type="monotone"
-            dataKey={key}
-            stackId="1"
-            stroke={colors[index % colors.length]}
-            fill={`url(#gradient-${key})`}
-            name={shortLabelMap[key] || key.charAt(0).toUpperCase() + key.slice(1)}
-          />
-          ))}
-        </AreaChart>
-      </ResponsiveContainer>
+      <StaticLegend items={legendItems} />
     </div>
   )
 }

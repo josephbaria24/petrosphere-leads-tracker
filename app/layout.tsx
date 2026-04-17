@@ -5,7 +5,12 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ClientLayoutWrapper } from "@/components/client-layout-wrapper";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+});
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -28,9 +33,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} font-sans`}
+        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
         style={{
-          fontFamily: `var(--font-geist-sans),var(--font-inter),  system-ui, sans-serif`,
+          fontFamily: `var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`,
         }}
       >
         <ThemeProvider
