@@ -63,8 +63,8 @@ export function NavMain({
                           asChild
                           className={
                             subItem.isActive
-                              ? "text-yellow-500 dark:text-yellow-600  font-extrabold border-1 bg-zinc-600 dark:border-blue-600"
-                              : "text-zinc-600 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white"
+                              ? "text-yellow-400 font-medium bg-white/5 dark:bg-white/5"
+                              : "text-slate-400 hover:text-slate-200 hover:bg-white/5 dark:text-slate-400 dark:hover:text-slate-200"
                           }
                         >
                           <Link href={subItem.url}>
@@ -84,8 +84,8 @@ export function NavMain({
                 tooltip={item.title}
                 className={
                   item.isActive
-                    ? "text-[#00044a] dark:text-yellow-600 font-extrabold border-0  bg-[#00044a]/20 dark:text-[#ffffff] dark:bg-[#0e16b3]"
-                    : "text-zinc-600 font-medium dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white"
+                    ? "text-yellow-400 font-medium border-l-[3px] border-yellow-400 bg-white/5 dark:bg-white/5"
+                    : "text-slate-400 font-medium hover:text-slate-200 hover:bg-white/5 dark:text-slate-400 dark:hover:text-slate-200"
                 }
               >
                 <Link href={item.url} className="flex items-center gap-2 w-full">

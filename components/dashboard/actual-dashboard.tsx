@@ -262,6 +262,10 @@ export function ActualDashboardPage() {
   ])
 
   const timeLabels = generateTimeLabels(selectedInterval, selectedMonth, selectedYear, availableYears)
+  const currentRange = useMemo(() => computeDateRange(
+    selectedYear, selectedMonth, selectedInterval,
+    rangeIndex, timeLabels, availableYears
+  ), [selectedYear, selectedMonth, selectedInterval, rangeIndex, timeLabels, availableYears])
 
   const [closedWonTrendData, setClosedWonTrendData] = useState<ClosedWonTrend[]>([])
   const [closedWonRevenue, setClosedWonRevenue] = useState(0)
@@ -281,6 +285,8 @@ export function ActualDashboardPage() {
   const [userPosition, setUserPosition] = useState("")
 
   const [loading, setLoading] = useState(false);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true);
+  const [isTrendsLoading, setIsTrendsLoading] = useState(true);
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
 
   // Prefetch cache (simple Map via ref)
@@ -393,11 +399,15 @@ export function ActualDashboardPage() {
   // ─── Core: loadDashboard via RPC ─────────────────────────
 
   const loadDashboard = async () => {
+    setIsDashboardLoading(true)
     const range = computeDateRange(
       selectedYear, selectedMonth, selectedInterval,
       rangeIndex, timeLabels, availableYears
     )
-    if (!range) return
+    if (!range) {
+      setIsDashboardLoading(false)
+      return
+    }
 
     const bucket = getBucket(selectedInterval, selectedMonth)
 
@@ -407,6 +417,7 @@ export function ActualDashboardPage() {
     if (cached) {
       prefetchCache.current.delete(cacheKey)
       mapRpcToState(cached, bucket)
+      setIsDashboardLoading(false)
       return
     }
 
@@ -423,10 +434,12 @@ export function ActualDashboardPage() {
     if (error) {
       console.error('Dashboard RPC error:', error)
       toast.error('Failed to load dashboard data')
+      setIsDashboardLoading(false)
       return
     }
 
     mapRpcToState(data, bucket)
+    setIsDashboardLoading(false)
   }
 
   const fetchNewestLeads = async () => {
@@ -580,35 +593,37 @@ export function ActualDashboardPage() {
 
   // ─── Closed-Won Trends (all-time, separate query) ───────
 
-  const fetchClosedWonTrends = async (): Promise<ClosedWonTrend[]> => {
-    const pageSize = 1000
-    let from = 0
-    let to = pageSize - 1
+  const fetchClosedWonTrends = async (year: number): Promise<ClosedWonTrend[]> => {
     let allData: {
       first_contact: string
       service_price: number | null
       status: string | null
     }[] = []
+
+    const startDate = new Date(year, 0, 1).toISOString()
+    const endDate = new Date(year + 1, 0, 1).toISOString()
+
+    let from = 0
+    const pageSize = 1000
     let done = false
 
     while (!done) {
       const { data, error } = await supabase
         .from('crm_leads')
         .select('first_contact, service_price, status')
-        .range(from, to)
+        .gte('first_contact', startDate)
+        .lt('first_contact', endDate)
+        .range(from, from + pageSize - 1)
 
-      if (error) {
-        console.error('Error fetching leads:', error)
-        return []
-      }
-      if (!data || data.length === 0) break
-
-      allData = allData.concat(data)
-      if (data.length < pageSize) {
+      if (error || !data || data.length === 0) {
         done = true
       } else {
-        from += pageSize
-        to += pageSize
+        allData = allData.concat(data)
+        if (data.length < pageSize) {
+          done = true
+        } else {
+          from += pageSize
+        }
       }
     }
 
@@ -676,11 +691,13 @@ export function ActualDashboardPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      const trends = await fetchClosedWonTrends();
+      setIsTrendsLoading(true);
+      const trends = await fetchClosedWonTrends(selectedYear);
       setClosedWonTrendData(trends || []);
+      setIsTrendsLoading(false);
     };
     loadData();
-  }, [selectedYear, selectedMonth, selectedInterval, rangeIndex]);
+  }, [selectedYear]);
 
   // ─── Helpers ─────────────────────────────────────────────
 
@@ -865,127 +882,18 @@ export function ActualDashboardPage() {
         </div>
 
 
-        <div id="print-section">
+        <div id="print-section" className="relative min-h-[500px]">
+
+          {isDashboardLoading && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-sm rounded-xl">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          )}
 
           {/* Top Overview Visuals */}
           <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-[1.6fr_1fr] pb-4">
-            {/* New Leads: bar chart + compact newest list */}
-            <Card data-html2canvas-ignore className="bg-background">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">New Leads</CardTitle>
-                    <CardDescription>
-                      This week (Mon–Fri) + most recently captured
-                    </CardDescription>
-                  </div>
-                  <Link href="/lead-table" passHref>
-                    <Button
-                      variant="link"
-                      className="text-xs text-muted-foreground hover:text-primary px-0 cursor-pointer"
-                    >
-                      View Details →
-                    </Button>
-                  </Link>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-[1.2fr_1fr] items-start">
-                  <div>
-                    <NewLeadsWeeklyBar data={weeklyNewLeads} title="" />
-                  </div>
-                  <div>
-                    <div className="grid grid-cols-[1fr_1fr_auto] text-[11px] font-medium text-muted-foreground px-1 pb-1">
-                      <div>Captured By</div>
-                      <div>Contact Name</div>
-                      <div className="text-right">Status</div>
-                    </div>
-                    <div className="space-y-1.5">
-                      {newestLeads.slice(0, 4).map((lead, idx) => {
-                        const statusKey = lead.status?.toLowerCase() || 'unknown'
-                        const statusStyles: Record<
-                          string,
-                          { label: string; className: string; icon: React.ReactNode }
-                        > = {
-                          'lead in': {
-                            label: 'Lead In',
-                            className: 'bg-gray-600 text-white',
-                            icon: <UserPlus className="w-3 h-3 mr-1" />,
-                          },
-                          'contact made': {
-                            label: 'Contact Made',
-                            className: 'bg-blue-600 text-white',
-                            icon: <MessageCircle className="w-3 h-3 mr-1" />,
-                          },
-                          'needs defined': {
-                            label: 'Needs Defined',
-                            className: 'bg-yellow-500 text-white',
-                            icon: <FileText className="w-3 h-3 mr-1" />,
-                          },
-                          'proposal sent': {
-                            label: 'Proposal Sent',
-                            className: 'bg-purple-600 text-white',
-                            icon: <FileText className="w-3 h-3 mr-1" />,
-                          },
-                          'negotiation started': {
-                            label: 'Negotiation Started',
-                            className: 'bg-orange-500 text-white',
-                            icon: <Handshake className="w-3 h-3 mr-1" />,
-                          },
-                          'closed won': {
-                            label: 'Closed Win',
-                            className: 'bg-green-600 text-white',
-                            icon: <BadgeCheck className="w-3 h-3 mr-1" />,
-                          },
-                          'closed win': {
-                            label: 'Closed Win',
-                            className: 'bg-green-600 text-white',
-                            icon: <BadgeCheck className="w-3 h-3 mr-1" />,
-                          },
-                          'closed lost': {
-                            label: 'Closed Lost',
-                            className: 'bg-red-600 text-white',
-                            icon: <XCircle className="w-3 h-3 mr-1" />,
-                          },
-                          'in progress': {
-                            label: 'In Progress',
-                            className: 'bg-zinc-800 text-white border border-zinc-700',
-                            icon: <Loader className="w-3 h-3 mr-1 animate-spin" />,
-                          },
-                          done: {
-                            label: 'Done',
-                            className: 'bg-black text-green-400 border border-green-700',
-                            icon: <CheckCircle className="w-3 h-3 mr-1 text-green-500" />,
-                          },
-                        }
-                        const status = statusStyles[statusKey] || {
-                          label: lead.status || 'Unknown',
-                          className: 'bg-gray-200 text-gray-700',
-                          icon: null,
-                        }
-                        return (
-                          <div
-                            key={idx}
-                            className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 px-1 text-xs"
-                          >
-                            <div className="truncate">{lead.captured_by}</div>
-                            <div className="truncate">{lead.contact_name}</div>
-                            <div className="flex justify-end">
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-medium ${status.className || 'bg-gray-400 text-white'}`}
-                              >
-                                {status.icon}
-                                {status.label}
-                              </span>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Lead Captures Over Time */}
+            <LeadSourceAreaChart data={leadAreaChartData} height={220} />
 
             <Card className="bg-background">
               <CardHeader className="pb-2">
@@ -1104,18 +1012,132 @@ export function ActualDashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-3 items-start">
             <CapturedByRanking data={capturedByData} />
             <SalesPipelineByOwners
-              selectedYear={selectedYear}
-              selectedMonth={selectedMonth}
-              selectedInterval={selectedInterval}
-              rangeIndex={rangeIndex}
+              startDate={currentRange?.start || ''}
+              endDate={currentRange?.end || ''}
             />
 
 
           </div>
 
-          {/* Chart 1 + Overall Leads Trend side-by-side */}
+          {/* New Leads + Overall Leads Trend side-by-side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 py-3 items-stretch">
-            <LeadSourceAreaChart data={leadAreaChartData} />
+            {/* New Leads: bar chart + compact newest list */}
+            <Card data-html2canvas-ignore className="bg-background">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">New Leads</CardTitle>
+                    <CardDescription>
+                      This week (Mon–Fri) + most recently captured
+                    </CardDescription>
+                  </div>
+                  <Link href="/lead-table" passHref>
+                    <Button
+                      variant="link"
+                      className="text-xs text-muted-foreground hover:text-primary px-0 cursor-pointer"
+                    >
+                      View Details →
+                    </Button>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-[1.2fr_1fr] items-start">
+                  <div>
+                    <NewLeadsWeeklyBar data={weeklyNewLeads} title="" />
+                  </div>
+                  <div>
+                    <div className="grid grid-cols-[1fr_1fr_auto] text-[11px] font-medium text-muted-foreground px-1 pb-1">
+                      <div>Captured By</div>
+                      <div>Contact Name</div>
+                      <div className="text-right">Status</div>
+                    </div>
+                    <div className="space-y-1.5">
+                      {newestLeads.slice(0, 4).map((lead, idx) => {
+                        const statusKey = lead.status?.toLowerCase() || 'unknown'
+                        const statusStyles: Record<
+                          string,
+                          { label: string; className: string; icon: React.ReactNode }
+                        > = {
+                          'lead in': {
+                            label: 'Lead In',
+                            className: 'bg-gray-600 text-white',
+                            icon: <UserPlus className="w-3 h-3 mr-1" />,
+                          },
+                          'contact made': {
+                            label: 'Contact Made',
+                            className: 'bg-blue-600 text-white',
+                            icon: <MessageCircle className="w-3 h-3 mr-1" />,
+                          },
+                          'needs defined': {
+                            label: 'Needs Defined',
+                            className: 'bg-yellow-500 text-white',
+                            icon: <FileText className="w-3 h-3 mr-1" />,
+                          },
+                          'proposal sent': {
+                            label: 'Proposal Sent',
+                            className: 'bg-purple-600 text-white',
+                            icon: <FileText className="w-3 h-3 mr-1" />,
+                          },
+                          'negotiation started': {
+                            label: 'Negotiation Started',
+                            className: 'bg-orange-500 text-white',
+                            icon: <Handshake className="w-3 h-3 mr-1" />,
+                          },
+                          'closed won': {
+                            label: 'Closed Win',
+                            className: 'bg-green-600 text-white',
+                            icon: <BadgeCheck className="w-3 h-3 mr-1" />,
+                          },
+                          'closed win': {
+                            label: 'Closed Win',
+                            className: 'bg-green-600 text-white',
+                            icon: <BadgeCheck className="w-3 h-3 mr-1" />,
+                          },
+                          'closed lost': {
+                            label: 'Closed Lost',
+                            className: 'bg-red-600 text-white',
+                            icon: <XCircle className="w-3 h-3 mr-1" />,
+                          },
+                          'in progress': {
+                            label: 'In Progress',
+                            className: 'bg-zinc-800 text-white border border-zinc-700',
+                            icon: <Loader className="w-3 h-3 mr-1 animate-spin" />,
+                          },
+                          done: {
+                            label: 'Done',
+                            className: 'bg-black text-green-400 border border-green-700',
+                            icon: <CheckCircle className="w-3 h-3 mr-1 text-green-500" />,
+                          },
+                        }
+                        const status = statusStyles[statusKey] || {
+                          label: lead.status || 'Unknown',
+                          className: 'bg-gray-200 text-gray-700',
+                          icon: null,
+                        }
+                        return (
+                          <div
+                            key={idx}
+                            className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 px-1 text-xs"
+                          >
+                            <div className="truncate">{lead.captured_by}</div>
+                            <div className="truncate">{lead.contact_name}</div>
+                            <div className="flex justify-end">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-medium ${status.className || 'bg-gray-400 text-white'}`}
+                              >
+                                {status.icon}
+                                {status.label}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             <OverallLeadsLineChart
               data={overallLeadsData}
               selectedYear={selectedYear}
@@ -1124,7 +1146,12 @@ export function ActualDashboardPage() {
             />
           </div>
 
-          <div className="py-3">
+          <div className="py-3 relative min-h-[300px]">
+            {isTrendsLoading && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/50 backdrop-blur-sm rounded-xl">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            )}
             <ClosedWonTrendsChart data={closedWonTrendData} />
           </div>
 

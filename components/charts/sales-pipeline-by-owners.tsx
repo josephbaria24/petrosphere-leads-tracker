@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
+import { Loader2 } from 'lucide-react'
 
 type LeadStatus =
   | 'Lead In'
@@ -17,10 +18,8 @@ type LeadStatus =
 type RowData = { name: string } & Partial<Record<LeadStatus, number>>
 
 type Props = {
-  selectedYear: number
-  selectedMonth: string
-  selectedInterval: string
-  rangeIndex: number
+  startDate: string
+  endDate: string
 }
 
 const statuses: LeadStatus[] = [
@@ -47,35 +46,6 @@ const statusColor: Record<LeadStatus, string> = {
   'For Follow up': '#4f46e5',
 }
 
-function generateTimeLabels(
-  interval: string,
-  month: string,
-  year: number,
-  availableYears: number[],
-): string[] {
-  switch (interval) {
-    case 'weekly':
-      return Array.from({ length: 52 }, (_, i) => `W${i + 1}`)
-    case 'quarterly':
-      return ['Q1', 'Q2', 'Q3', 'Q4']
-    case 'annually':
-      return availableYears.map(String)
-    default: {
-      if (month === 'all') {
-        return [
-          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-        ]
-      }
-      const monthIndex = new Date(`${month} 1, ${year}`).getMonth()
-      const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
-      return Array.from({ length: daysInMonth }, (_, i) =>
-        String(i + 1).padStart(2, '0'),
-      )
-    }
-  }
-}
-
 type HoverState = {
   visible: boolean
   x: number
@@ -86,10 +56,8 @@ type HoverState = {
 }
 
 export default function SalesPipelineByOwners({
-  selectedYear,
-  selectedMonth,
-  selectedInterval,
-  rangeIndex,
+  startDate,
+  endDate,
 }: Props) {
   const [chartData, setChartData] = useState<RowData[]>([])
   const [hover, setHover] = useState<HoverState>({
@@ -101,50 +69,12 @@ export default function SalesPipelineByOwners({
     breakdown: [],
   })
 
+  const [isLoading, setIsLoading] = useState(true)
+
   useEffect(() => {
     const fetchData = async () => {
-      let startDate = new Date(selectedYear, 0, 1)
-      let endDate = new Date(selectedYear + 1, 0, 1)
-
-      const label = generateTimeLabels(
-        selectedInterval,
-        selectedMonth,
-        selectedYear,
-        [selectedYear],
-      )[rangeIndex]
-
-      switch (selectedInterval) {
-        case 'weekly': {
-          const janFirst = new Date(selectedYear, 0, 1)
-          startDate = new Date(janFirst)
-          startDate.setDate(janFirst.getDate() + rangeIndex * 7)
-          endDate = new Date(startDate)
-          endDate.setDate(startDate.getDate() + 7)
-          break
-        }
-        case 'quarterly': {
-          const startMonth = rangeIndex * 3
-          startDate = new Date(selectedYear, startMonth, 1)
-          endDate = new Date(selectedYear, startMonth + 3, 1)
-          break
-        }
-        case 'annually': {
-          const labelYear = parseInt(label)
-          if (!label || isNaN(labelYear)) return
-          startDate = new Date(labelYear, 0, 1)
-          endDate = new Date(labelYear + 1, 0, 1)
-          break
-        }
-        default: {
-          if (selectedMonth !== 'all') {
-            const monthIndex = new Date(
-              `${selectedMonth} 1, ${selectedYear}`,
-            ).getMonth()
-            startDate = new Date(selectedYear, monthIndex, 1)
-            endDate = new Date(selectedYear, monthIndex + 1, 1)
-          }
-        }
-      }
+      if (!startDate || !endDate) return
+      setIsLoading(true)
 
       const pageSize = 1000
       let from = 0
@@ -154,31 +84,30 @@ export default function SalesPipelineByOwners({
         status: string
         first_contact: string
       }[] = []
-      let done = false
+      const { count } = await supabase
+        .from('crm_leads')
+        .select('*', { count: 'exact', head: true })
+        .gte('first_contact', startDate)
+        .lt('first_contact', endDate)
 
-      while (!done) {
-        const { data, error } = await supabase
-          .from('crm_leads')
-          .select('captured_by, status, first_contact, created_at')
-          .gte('first_contact', startDate.toISOString())
-          .lt('first_contact', endDate.toISOString())
-          .range(from, to)
-
-        if (error) {
-          console.error('Error fetching CRM leads:', error)
-          return
+      if (count) {
+        const pageSize = 1000
+        const pages = Math.ceil(count / pageSize)
+        const promises = []
+        for (let i = 0; i < pages; i++) {
+          promises.push(
+            supabase
+              .from('crm_leads')
+              .select('captured_by, status')
+              .gte('first_contact', startDate)
+              .lt('first_contact', endDate)
+              .range(i * pageSize, (i + 1) * pageSize - 1)
+          )
         }
-
-        if (!data || data.length === 0) {
-          done = true
-        } else {
-          allData = allData.concat(data)
-          if (data.length < pageSize) done = true
-          else {
-            from += pageSize
-            to += pageSize
-          }
-        }
+        const results = await Promise.all(promises)
+        results.forEach(r => {
+          if (r.data) allData = allData.concat(r.data)
+        })
       }
 
       const map: Record<string, RowData> = {}
@@ -193,10 +122,11 @@ export default function SalesPipelineByOwners({
       })
 
       setChartData(Object.values(map))
+      setIsLoading(false)
     }
 
     fetchData()
-  }, [selectedYear, selectedMonth, selectedInterval, rangeIndex])
+  }, [startDate, endDate])
 
   const { rows, maxTotal, activeStatuses } = useMemo(() => {
     const ordered = [...chartData]
@@ -220,7 +150,7 @@ export default function SalesPipelineByOwners({
   }, [chartData])
 
   return (
-    <div className="w-full bg-card border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-4 relative">
+    <div className="w-full bg-card border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-4 relative min-h-[200px]">
       <div className="flex items-baseline justify-between mb-3">
         <div>
           <h3 className="text-sm font-semibold tracking-tight">
@@ -231,6 +161,12 @@ export default function SalesPipelineByOwners({
           </p>
         </div>
       </div>
+
+      {isLoading && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-card/50 backdrop-blur-[1px] rounded-xl">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
 
       <ul
         className="space-y-2"

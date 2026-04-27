@@ -129,18 +129,40 @@ export function PHRegionalDotMap({
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase.from('crm_leads').select('region')
+    
+    let allData: { region: string | null }[] = []
+    let done = false
+    let from = 0
+    const pageSize = 1000
 
-    if (error) {
-      console.error('PH Regional Map fetch error:', error)
-      setLoading(false)
-      return
+    while (!done) {
+      const { data, error } = await supabase
+        .from('crm_leads')
+        .select('region')
+        .range(from, from + pageSize - 1)
+
+      if (error) {
+        console.error('PH Regional Map fetch error:', error)
+        setLoading(false)
+        return
+      }
+
+      if (!data || data.length === 0) {
+        done = true
+      } else {
+        allData = allData.concat(data)
+        if (data.length < pageSize) {
+          done = true
+        } else {
+          from += pageSize
+        }
+      }
     }
 
     const counts = {} as Record<RegionCode, number>
     ;(Object.keys(REGION_META) as RegionCode[]).forEach((c) => (counts[c] = 0))
 
-    ;(data || []).forEach((lead: { region: string | null }) => {
+    allData.forEach((lead) => {
       if (lead.region) {
         const code = DB_REGION_MAP[lead.region]
         if (code) counts[code] = (counts[code] || 0) + 1
@@ -148,7 +170,7 @@ export function PHRegionalDotMap({
     })
 
     setRegionCounts(counts)
-    setTotalLeads((data || []).length)
+    setTotalLeads(allData.length)
     setLastUpdated(new Date())
     setLoading(false)
   }, [])

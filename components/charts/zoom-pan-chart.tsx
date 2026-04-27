@@ -96,9 +96,18 @@ export function ZoomPanChart({
   const reset = () => {
     setZoom(1)
     requestAnimationFrame(() => {
-      if (scrollRef.current) scrollRef.current.scrollLeft = 0
+      if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth
     })
   }
+
+  // Automatically scroll to the end (current date) when data loads
+  useEffect(() => {
+    if (scrollRef.current) {
+      requestAnimationFrame(() => {
+        if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth
+      })
+    }
+  }, [dataLength])
 
   useEffect(() => {
     const el = scrollRef.current

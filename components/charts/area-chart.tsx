@@ -161,7 +161,7 @@ export function LeadSourceAreaChart({
   }))
 
   return (
-    <div className="w-full bg-card border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-4 flex flex-col">
+    <div className="w-full min-w-0 overflow-hidden bg-card border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-4 flex flex-col">
       <div className="flex items-baseline justify-between mb-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold tracking-tight">{title}</h3>

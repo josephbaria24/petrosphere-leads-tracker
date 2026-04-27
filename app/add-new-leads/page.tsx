@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -70,6 +70,18 @@ const INITIAL_FORM_STATE = {
 const CAPTURED_BY_OPTIONS = ['Ross', 'Randy', 'Michelle', 'Harthwell', 'Sergs', 'Krezel', 'Carmela', 'Cherrylene', 'Kim', 'Other']
 const SERVICE_MODES = ['Face to Face', 'E-learning', 'Online']
 
+const STATUS_COLORS: Record<string, string> = {
+  'Lead In': '#64748b',
+  'Contact Made': '#2563eb',
+  'Needs Defined': '#b45309',
+  'Proposal Sent': '#7c3aed',
+  'Negotiation Started': '#ea580c',
+  'In Progress': '#0891b2',
+  'For Follow up': '#4f46e5',
+  'Closed Win': '#16a34a',
+  'Closed Lost': '#dc2626',
+}
+
 export default function AddNewLeadPage() {
   const router = useRouter()
 
@@ -91,6 +103,8 @@ export default function AddNewLeadPage() {
   const [editingDropdown, setEditingDropdown] = useState<string | null>(null)
   const [isRegionOpen, setIsRegionOpen] = useState(false)
   const [isLeadSourceOpen, setIsLeadSourceOpen] = useState(false)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
+  const [isCapturedByOpen, setIsCapturedByOpen] = useState(false)
   const [duplicateLead, setDuplicateLead] = useState<any>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [serviceDetails, setServiceDetails] = useState<Array<{ name: string; mode: string; price: number }>>([])
@@ -257,6 +271,35 @@ export default function AddNewLeadPage() {
     }
   }, [])
 
+  const handleEditService = useCallback(async (oldName: string) => {
+    const newName = window.prompt("Enter new service name:", oldName);
+    if (!newName || newName.trim() === "" || newName === oldName) return;
+    
+    try {
+      const { error } = await supabase
+        .from('services')
+        .update({ name: newName.trim() })
+        .eq('name', oldName);
+
+      if (error) {
+        toast.error('Failed to update service', { description: error.message });
+        return;
+      }
+
+      setServicePrices(prev => {
+        const updated = { ...prev };
+        updated[newName.trim()] = updated[oldName];
+        delete updated[oldName];
+        return updated;
+      });
+
+      setServiceDetails(prev => prev.map(s => s.name === oldName ? { ...s, name: newName.trim() } : s));
+      toast.success('Service updated successfully');
+    } catch (err) {
+      toast.error('Failed to update service');
+    }
+  }, []);
+
   const validateForm = useCallback(() => {
     const requiredFields = [
       'contact_name', 'email', 'phone', 'mobile', 'company', 'address',
@@ -409,68 +452,35 @@ export default function AddNewLeadPage() {
 
   return (
     <div className="min-h-screen rounded-lg bg-card">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="max-w-7xl mx-auto p-4 space-y-4">
         {/* Header Section */}
-        <div className="bg-white/80 dark:bg-card backdrop-blur-sm border-0 rounded-xl p-6 shadow-lg">
+        <div className="bg-white/80 dark:bg-card backdrop-blur-sm border-0 rounded-xl px-5 py-4 shadow-lg">
           <div className="flex items-center justify-between">
-            <div className="space-y-2">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink
-                      href="/dashboard"
-                      className="text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium"
-                    >
-                      Manage Lead
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className="text-slate-400 dark:text-slate-500" />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="text-slate-900 dark:text-slate-100 font-semibold">
-                      Add New Lead
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <UserPlus2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-                    Add New Lead
-                  </h1>
-                  <p className="text-zinc-600 dark:text-zinc-400">
-                    Fill out the form below to add a new lead to your CRM system
-                  </p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-600 rounded-lg shadow-md">
+                <UserPlus2 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink href="/dashboard" className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600">Manage Lead</BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator className="text-slate-300" />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage className="text-xs font-semibold text-slate-800 dark:text-slate-200">Add New Lead</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
+                <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">Add New Lead</h1>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <ExcelActions onImportSuccess={() => router.refresh()} />
-            </div>
+            <ExcelActions onImportSuccess={() => router.refresh()} />
           </div>
         </div>
 
-        {/* Main Form Card */}
         <Card className="border-0 shadow-xl bg-white/95 dark:bg-background backdrop-blur-sm">
-          <CardHeader className="pb-0">
-            <div className="flex items-center space-x-3">
-              <div className="">
-                <UserPlus2 className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-              </div>
-              <div>
-                <CardTitle className="text-xl font-semibold text-slate-900 dark:text-white">
-                  Lead Information
-                </CardTitle>
-                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                  Complete all required fields to create a new lead entry
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-8">
+          <CardContent className="p-5 space-y-5">
             {/* Duplicate Lead Modal */}
             {duplicateLead && (
               <EditLeadModal
@@ -478,195 +488,98 @@ export default function AddNewLeadPage() {
                 onClose={() => setIsEditModalOpen(false)}
                 onSave={async (updated) => {
                   try {
-                    const { error } = await supabase
-                      .from("crm_leads")
-                      .update(updated)
-                      .eq("id", duplicateLead.id)
-
-                    if (error) {
-                      toast.error("Update failed")
-                    } else {
-                      toast.success("Lead updated successfully")
-                    }
-                  } catch {
-                    toast.error("Update failed")
-                  }
+                    const { error } = await supabase.from("crm_leads").update(updated).eq("id", duplicateLead.id)
+                    if (error) toast.error("Update failed")
+                    else toast.success("Lead updated successfully")
+                  } catch { toast.error("Update failed") }
                 }}
                 lead={duplicateLead}
                 currentUserName={form.captured_by || "Unknown"}
               />
             )}
 
-            {/* Contact Information Section */}
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
-                <User className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Contact Details</h3>
+            {/* ── Contact Details ── */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-blue-100 dark:border-blue-900/30">
+                <User className="w-4 h-4 text-blue-500" />
+                <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Contact Details</h3>
               </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="contact_name" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Contact Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="contact_name"
-                    value={form.contact_name}
-                    onChange={(e) => handleChange('contact_name', e.target.value)}
-                    onBlur={() => checkDuplicateLead(form.contact_name, form.email)}
-                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                    placeholder="Enter contact name"
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Contact Name <span className="text-red-400">*</span></Label>
+                  <Input id="contact_name" value={form.contact_name} onChange={(e) => handleChange('contact_name', e.target.value)} onBlur={() => checkDuplicateLead(form.contact_name, form.email)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-blue-500" placeholder="Full name" />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
-                    <Mail className="w-4 h-4" />
-                    <span>Email Address <span className="text-red-500">*</span></span>
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => handleChange('email', e.target.value)}
-                    onBlur={() => checkDuplicateLead(form.contact_name, form.email)}
-                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                    placeholder="contact@example.com"
-                  />
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1"><Mail className="w-3 h-3" />Email <span className="text-red-400">*</span></Label>
+                  <Input id="email" type="email" value={form.email} onChange={(e) => handleChange('email', e.target.value)} onBlur={() => checkDuplicateLead(form.contact_name, form.email)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-blue-500" placeholder="contact@example.com" />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
-                    <Phone className="w-4 h-4" />
-                    <span>Phone Number <span className="text-red-500">*</span></span>
-                  </Label>
-                  <Input
-                    id="phone"
-                    value={form.phone}
-                    onChange={(e) => handleChange('phone', e.target.value)}
-                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                    placeholder="+63 xxx xxx xxxx"
-                  />
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1"><Phone className="w-3 h-3" />Phone <span className="text-red-400">*</span></Label>
+                  <Input id="phone" value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-blue-500" placeholder="+63 xxx xxx xxxx" />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="mobile" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Mobile Number <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="mobile"
-                    value={form.mobile}
-                    onChange={(e) => handleChange('mobile', e.target.value)}
-                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                    placeholder="+63 9xx xxx xxxx"
-                  />
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Mobile <span className="text-red-400">*</span></Label>
+                  <Input id="mobile" value={form.mobile} onChange={(e) => handleChange('mobile', e.target.value)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-blue-500" placeholder="+63 9xx xxx xxxx" />
                 </div>
               </div>
             </div>
 
-            {/* Company Information Section */}
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
-                <Building2 className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Company Information</h3>
+            {/* ── Company Information ── */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-emerald-100 dark:border-emerald-900/30">
+                <Building2 className="w-4 h-4 text-emerald-500" />
+                <h3 className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Company Information</h3>
               </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="company" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Company Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="company"
-                    value={form.company}
-                    onChange={(e) => handleChange('company', e.target.value)}
-                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                    placeholder="Company name"
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Company Name <span className="text-red-400">*</span></Label>
+                  <Input id="company" value={form.company} onChange={(e) => handleChange('company', e.target.value)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-emerald-500" placeholder="Company name" />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address" className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
-                    <MapPin className="w-4 h-4" />
-                    <span>Company Address <span className="text-red-500">*</span></span>
-                  </Label>
-                  <Input
-                    id="address"
-                    value={form.address}
-                    onChange={(e) => handleChange('address', e.target.value)}
-                    className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                    placeholder="Complete address"
-                  />
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1"><MapPin className="w-3 h-3" />Address <span className="text-red-400">*</span></Label>
+                  <Input id="address" value={form.address} onChange={(e) => handleChange('address', e.target.value)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-emerald-500" placeholder="Complete address" />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="region" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Region <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    open={isRegionOpen}
-                    onOpenChange={setIsRegionOpen}
-                    onValueChange={(val) => handleChange('region', val)}
-                  >
-                    <SelectTrigger
-                      id="region"
-                      className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                    >
-                      <SelectValue placeholder="Select region" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="flex justify-end p-2">
-                      </div>
-                      {regions.map((region) => (
-                        <SelectItem
-                          key={region}
-                          value={region}
-                        >
-                          {region}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="lead_source" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Lead Source <span className="text-red-500">*</span>
-                  </Label>
-                  <Popover open={isLeadSourceOpen} onOpenChange={setIsLeadSourceOpen}>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Region <span className="text-red-400">*</span></Label>
+                  <Popover open={isRegionOpen} onOpenChange={setIsRegionOpen}>
                     <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                      >
-                        <span className="truncate">{form.lead_source || "Select lead source"}</span>
-                        <ChevronDown className="ml-2 h-4 w-4 opacity-50 flex-shrink-0" />
+                      <Button variant="outline" role="combobox" className="w-full h-9 justify-between text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-normal">
+                        <span className="truncate">{form.region || "Select region"}</span>
+                        <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-50 shrink-0" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0 bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600">
-                      <Command className="bg-transparent">
-                        <CommandInput
-                          placeholder="Search lead source..."
-                          className="border-0 focus:ring-0 bg-transparent"
-                        />
+                    <PopoverContent className="w-[220px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Search region..." className="h-8 text-sm" />
+                        <CommandEmpty>No region found.</CommandEmpty>
+                        <CommandGroup className="max-h-[200px] overflow-y-auto">
+                          {regions.map((r) => (
+                            <CommandItem key={r} value={r} onSelect={() => { handleChange('region', r); setIsRegionOpen(false) }}>
+                              <Check className={cn("mr-2 h-3.5 w-3.5", form.region === r ? "opacity-100" : "opacity-0")} />{r}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Lead Source <span className="text-red-400">*</span></Label>
+                  <Popover open={isLeadSourceOpen} onOpenChange={setIsLeadSourceOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full h-9 justify-between text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-normal">
+                        <span className="truncate">{form.lead_source || "Select source"}</span>
+                        <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-50 shrink-0" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[220px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Search source..." className="h-8 text-sm" />
                         <CommandEmpty>No source found.</CommandEmpty>
                         <CommandGroup className="max-h-[200px] overflow-y-auto">
-                          {leadSources.map((source) => (
-                            <CommandItem
-                              key={source}
-                              value={source}
-                              onSelect={() => {
-                                handleChange('lead_source', source)
-                                setIsLeadSourceOpen(false)
-                              }}
-                            >
-                              <Check
-                                className={cn("mr-2 h-4 w-4", form.lead_source === source ? "opacity-100" : "opacity-0")}
-                              />
-                              {source}
+                          {leadSources.map((s) => (
+                            <CommandItem key={s} value={s} onSelect={() => { handleChange('lead_source', s); setIsLeadSourceOpen(false) }}>
+                              <Check className={cn("mr-2 h-3.5 w-3.5", form.lead_source === s ? "opacity-100" : "opacity-0")} />{s}
                             </CommandItem>
                           ))}
                         </CommandGroup>
@@ -677,247 +590,173 @@ export default function AddNewLeadPage() {
               </div>
             </div>
 
-            {/* Timeline Section */}
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
-                <Calendar className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Timeline & Status</h3>
+            {/* ── Timeline & Status ── */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-amber-100 dark:border-amber-900/30">
+                <Calendar className="w-4 h-4 text-amber-500" />
+                <h3 className="text-sm font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Timeline & Status</h3>
               </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="first_contact" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    First Contact <span className="text-red-500">*</span>
-                  </Label>
-                  <DatePicker
-                    value={form.first_contact ? new Date(form.first_contact) : undefined}
-                    onChange={(date) => handleChange('first_contact', date ? formatLocalDate(date) : '')}
-
-                  />
+              <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+                <div className="grid grid-cols-2 gap-3 lg:w-[340px] shrink-0">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">First Contact <span className="text-red-400">*</span></Label>
+                    <DatePicker value={form.first_contact ? new Date(form.first_contact) : undefined} onChange={(date) => handleChange('first_contact', date ? formatLocalDate(date) : '')} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Last Contact <span className="text-red-400">*</span></Label>
+                    <DatePicker value={form.last_contact ? new Date(form.last_contact) : undefined} onChange={(date) => handleChange('last_contact', date ? formatLocalDate(date) : '')} />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="last_contact" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Last Contact <span className="text-red-500">*</span>
-                  </Label>
-                  <DatePicker
-                    value={form.last_contact ? new Date(form.last_contact) : undefined}
-                    onChange={(date) => handleChange('last_contact', date ? formatLocalDate(date) : '')}
-                  />
-                </div>
+                {/* Status Pipeline */}
+                <div className="space-y-1 flex-1 min-w-0">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Status <span className="text-red-400">*</span></Label>
+                  <div className="relative w-full overflow-x-auto pb-0.5">
+                    {/* Background track line */}
+                    <div className="absolute top-[8px] left-[9px] right-[9px] h-[2px] bg-zinc-200 dark:bg-zinc-700" />
+                    {/* Progress fill line */}
+                    {form.status && leadStatuses.indexOf(form.status) >= 0 && (
+                      <div
+                        className="absolute top-[8px] left-[9px] h-[2px] transition-all duration-300"
+                        style={{ width: `calc(${(leadStatuses.indexOf(form.status) / Math.max(leadStatuses.length - 1, 1)) * 100}% - 18px)`, backgroundColor: STATUS_COLORS[form.status] || '#64748b' }}
+                      />
+                    )}
+                    {/* Dots row */}
+                    <div className="relative flex items-start justify-between">
+                      {leadStatuses.map((st, i) => {
+                        const selectedIdx = leadStatuses.indexOf(form.status)
+                        const isSelected = form.status === st
+                        const isPast = selectedIdx >= 0 && i < selectedIdx
 
-                <div className="space-y-5">
-                  <Label htmlFor="status" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Current Status <span className="text-red-500">*</span>
-                  </Label>
-                  <Select onValueChange={(val) => handleChange('status', val)}>
-                    <SelectTrigger
-                      id="status"
-                      className="w-full justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                    >
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-zinc-800 border-slate-300 dark:border-slate-600">
-                      {leadStatuses.map(stage => (
-                        <SelectItem
-                          key={stage}
-                          value={stage}
-                          className="focus:bg-zinc-50 dark:focus:bg-zinc-900/20"
-                        >
-                          {stage}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        return (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => handleChange('status', st)}
+                            className="flex flex-col items-center gap-0.5 group z-[1]"
+                            title={st}
+                          >
+                            <div
+                              className={cn(
+                                "w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center transition-all",
+                                (isSelected || isPast)
+                                  ? "border-transparent"
+                                  : "bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 group-hover:scale-105"
+                              )}
+                              style={(isSelected || isPast) ? { backgroundColor: STATUS_COLORS[st] || '#64748b', borderColor: STATUS_COLORS[st] || '#64748b', ...(isSelected ? { boxShadow: `0 2px 6px ${STATUS_COLORS[st]}50`, transform: 'scale(1.15)' } : {}) } : {}}
+                            >
+                              {(isPast || isSelected) && <Check className="w-2.5 h-2.5 text-white" />}
+                            </div>
+                            <span
+                              className={cn(
+                                "text-[10px] leading-tight text-center max-w-[64px] transition-colors whitespace-nowrap",
+                                (isSelected || isPast) ? "font-bold" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600"
+                              )}
+                              style={(isSelected || isPast) ? { color: STATUS_COLORS[st] || '#64748b' } : {}}
+                            >
+                              {st}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Captured By Section */}
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
-                <Settings className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Assignment</h3>
+            {/* ── Assignment & Notes ── */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-violet-100 dark:border-violet-900/30">
+                <Settings className="w-4 h-4 text-violet-500" />
+                <h3 className="text-sm font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Assignment & Notes</h3>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setEditingDropdown('captured_by_settings')} className="ml-auto h-6 w-6 p-0 text-slate-400 hover:text-violet-600">
+                  <Settings className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Captured By <span className="text-red-400">*</span></Label>
+                  <Popover open={isCapturedByOpen} onOpenChange={setIsCapturedByOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full h-9 justify-between text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-normal">
+                        <span className="truncate">{form.captured_by || "Select member"}</span>
+                        <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-50 shrink-0" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[220px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Search member..." className="h-8 text-sm" />
+                        <CommandEmpty>No member found.</CommandEmpty>
+                        <CommandGroup className="max-h-[200px] overflow-y-auto">
+                          {capturedByOptions.map((p) => (
+                            <CommandItem key={p} value={p} onSelect={() => { handleChange('captured_by', p); setIsCapturedByOpen(false) }}>
+                              <Check className={cn("mr-2 h-3.5 w-3.5", form.captured_by === p ? "opacity-100" : "opacity-0")} />{p}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Or enter custom name</Label>
+                  <Input placeholder="Custom name..." value={form.captured_by} onChange={(e) => handleChange('captured_by', e.target.value)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-violet-500" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1"><FileText className="w-3 h-3" />Notes</Label>
+                  <Textarea id="notes" value={form.notes} onChange={(e) => handleChange('notes', e.target.value)} className="text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-violet-500 min-h-[36px] h-9 resize-none" placeholder="Additional notes..." />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Services & Pricing ── */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-teal-100 dark:border-teal-900/30">
+                <DollarSign className="w-4 h-4 text-teal-500" />
+                <h3 className="text-sm font-semibold text-teal-600 dark:text-teal-400 uppercase tracking-wider">Services & Pricing</h3>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="captured_by" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Captured By <span className="text-red-500">*</span>
-                  </Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingDropdown('captured_by_settings')}
-                    className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600"
-                  >
-                    <Settings className="w-4 h-4" />
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <Input id="service_search" type="text" placeholder="Search services..." value={serviceSearch} onChange={(e) => setServiceSearch(e.target.value)} className="h-9 pl-8 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-teal-500" />
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setIsAddServiceModalOpen(true)} className="h-9 text-xs bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/30 text-teal-700 dark:text-teal-300">
+                    <Plus className="w-3.5 h-3.5 mr-1" />Add
                   </Button>
                 </div>
-                <Select onValueChange={(val) => handleChange('captured_by', val)}>
-                  <SelectTrigger
-                    id="captured_by"
-                    className=" justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                  >
-                    <SelectValue placeholder="Select team member" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-zinc-800 border-slate-300 dark:border-slate-600">
-                    {capturedByOptions.map(person => (
-                      <SelectItem
-                        key={person}
-                        value={person}
-                        className="focus:bg-zinc-50 dark:focus:bg-zinc-900/20"
-                      >
-                        {person}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Or manually enter name
-                  </Label>
-                  <Input
-                    placeholder="Enter custom name..."
-                    value={form.captured_by}
-                    onChange={(e) => handleChange('captured_by', e.target.value)}
-                    className="justify-between bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Notes Section */}
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
-                <FileText className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Additional Information</h3>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Notes & Comments
-                </Label>
-                <Textarea
-                  id="notes"
-                  value={form.notes}
-                  onChange={(e) => handleChange('notes', e.target.value)}
-                  className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 focus:border-zinc-500 dark:focus:border-zinc-400 transition-colors min-h-[120px] resize-none"
-                  placeholder="Add any additional notes or comments about this lead..."
-                />
-              </div>
-            </div>
-
-            {/* Services Section */}
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2 pb-3 border-b border-zinc-200 dark:border-zinc-700">
-                <DollarSign className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Services & Pricing</h3>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="service_search" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                      Search Services
-                    </Label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <Input
-                        id="service_search"
-                        type="text"
-                        placeholder="Search for services..."
-                        value={serviceSearch}
-                        onChange={(e) => setServiceSearch(e.target.value)}
-                        className="pl-10 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 focus:border-zinc-500 dark:focus:border-zinc-400 transition-colors"
-                      />
-                    </div>
-                  </div>
-                  <div className="pt-7">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsAddServiceModalOpen(true)}
-                      className="h-10 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Service
-                    </Button>
-                  </div>
-                </div>
-                <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4 space-y-3 max-h-[400px] overflow-y-auto border border-zinc-200 dark:border-zinc-700">
+                <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-3 space-y-2 max-h-[300px] overflow-y-auto border border-zinc-200 dark:border-zinc-700">
                   {filteredServices.length === 0 ? (
-                    <div className="text-center py-8 text-slate-500 dark:text-slate-400">
-                      <p>No services found matching your search.</p>
-                    </div>
+                    <div className="text-center py-6 text-xs text-slate-400">No services found.</div>
                   ) : (
                     filteredServices.map((service) => {
                       const selected = serviceDetails.find((s) => s.name === service)
                       return (
-                        <div key={service} className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700 space-y-3">
+                        <div key={service} className={cn("group rounded-lg p-2.5 border transition-all", selected ? "bg-teal-50/50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800" : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700")}>
                           <div className="flex items-center justify-between">
-                            <label className="flex items-center space-x-3 cursor-pointer flex-1">
-                              <input
-                                type="checkbox"
-                                checked={!!selected}
-                                onChange={(e) => handleServiceToggle(service, e.target.checked)}
-                                className="w-4 h-4 text-zinc-600 bg-zinc-100 border-zinc-300 rounded focus:ring-zinc-500 dark:focus:ring-zinc-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                              />
-                              <span className="font-medium text-slate-900 dark:text-white">{service}</span>
+                            <label className="flex items-center gap-2 cursor-pointer flex-1">
+                              <input type="checkbox" checked={!!selected} onChange={(e) => handleServiceToggle(service, e.target.checked)} className="w-3.5 h-3.5 rounded border-zinc-300 text-teal-600 focus:ring-teal-500" />
+                              <span className="text-sm font-medium text-slate-800 dark:text-white">{service}</span>
                             </label>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteService(service)}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/20"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button type="button" variant="ghost" size="sm" onClick={() => handleEditService(service)} className="h-7 w-7 p-0 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20">
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteService(service)} className="h-7 w-7 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
                           </div>
-
                           {selected && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-7 pt-2 border-t border-zinc-200 dark:border-zinc-600">
-                              <div className="space-y-1">
-                                <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                                  Service Mode
-                                </Label>
-                                <Select
-                                  value={selected?.mode || ''}
-                                  onValueChange={(value) => handleServiceModeChange(service, value)}
-                                >
-                                  <SelectTrigger className="h-9 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600">
-                                    <SelectValue placeholder="Select mode" />
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600">
-                                    {SERVICE_MODES.map(mode => (
-                                      <SelectItem
-                                        key={mode}
-                                        value={mode}
-                                        className="focus:bg-zinc-50 dark:focus:bg-zinc-900/20"
-                                      >
-                                        {mode}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              <div className="space-y-1">
-                                <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                                  Price (₱)
-                                </Label>
-                                <Input
-                                  type="number"
-                                  placeholder="0.00"
-                                  value={selected?.price || ''}
-                                  onChange={(e) => handleServicePriceChange(service, Number(e.target.value))}
-                                  className="h-9 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600"
-                                />
-                              </div>
+                            <div className="grid grid-cols-2 gap-2 mt-2 ml-5">
+                              <Select value={selected?.mode || ''} onValueChange={(v) => handleServiceModeChange(service, v)}>
+                                <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700"><SelectValue placeholder="Mode" /></SelectTrigger>
+                                <SelectContent>{SERVICE_MODES.map(m => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}</SelectContent>
+                              </Select>
+                              <Input type="number" placeholder="₱ 0.00" value={selected?.price || ''} onChange={(e) => handleServicePriceChange(service, Number(e.target.value))} className="h-8 text-xs bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700" />
                             </div>
                           )}
                         </div>
@@ -927,44 +766,31 @@ export default function AddNewLeadPage() {
                 </div>
 
                 {serviceDetails.length > 0 && (
-                  <div className="bg-zinc-50 dark:bg-zinc-900/20 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <h4 className="font-semibold text-blue-900 dark:text-blue-100">Selected Services</h4>
-                    </div>
-
-                    <div className="space-y-2 mb-4">
+                  <div className="bg-teal-50 dark:bg-teal-950/20 rounded-lg p-3 border border-teal-200 dark:border-teal-800">
+                    <div className="space-y-1.5 mb-2">
                       {serviceDetails.map((s) => (
-                        <div key={s.name} className="flex items-center justify-between py-2 px-3 bg-white dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700">
-                          <div className="flex-1">
-                            <span className="font-medium text-slate-900 dark:text-white">{s.name}</span>
-                            {s.mode && (
-                              <Badge variant="secondary" className="ml-2 text-xs bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-slate-300">
-                                {s.mode}
-                              </Badge>
-                            )}
+                        <div key={s.name} className="flex items-center justify-between text-sm py-1 px-2 bg-white/60 dark:bg-zinc-900/40 rounded">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-slate-800 dark:text-white">{s.name}</span>
+                            {s.mode && <Badge variant="secondary" className="text-[10px] h-5 bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300">{s.mode}</Badge>}
                           </div>
-                          <span className="font-semibold text-slate-900 dark:text-white">₱{s.price.toFixed(2)}</span>
+                          <span className="font-semibold text-teal-700 dark:text-teal-300">₱{s.price.toFixed(2)}</span>
                         </div>
                       ))}
                     </div>
-
-                    <div className="flex justify-between items-center pt-3 border-t border-zinc-200 dark:border-zinc-700">
-                      <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Total Amount:</span>
-                      <span className="text-xl font-bold text-blue-900 dark:text-blue-100">₱{totalServicePrice.toFixed(2)}</span>
+                    <div className="flex justify-between items-center pt-2 border-t border-teal-200 dark:border-teal-800">
+                      <span className="text-xs font-medium text-teal-700 dark:text-teal-300">Total:</span>
+                      <span className="text-lg font-bold text-teal-800 dark:text-teal-200">₱{totalServicePrice.toFixed(2)}</span>
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Submit Button */}
-            <div className="pt-6 border-t border-zinc-200 dark:border-zinc-700">
-              <Button
-                onClick={handleSubmit}
-
-              >
-                <Plus className="w-5 h-5 mr-2" />
+            {/* Submit */}
+            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
+              <Button onClick={handleSubmit} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 h-10">
+                <Plus className="w-4 h-4 mr-2" />
                 Add Lead
               </Button>
             </div>
@@ -1014,7 +840,8 @@ export default function AddNewLeadPage() {
                     if (!newVal) return
                     const table =
                       editingDropdown === 'regions' ? 'regions' :
-                        editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
+                        editingDropdown === 'leadSources' ? 'lead_sources' :
+                          editingDropdown === 'captured_by_settings' ? 'captured_by_settings' : 'lead_statuses'
 
                     const { error } = await supabase.from(table).update({ name: newVal }).eq('name', oldVal)
                     if (error) {
@@ -1027,7 +854,8 @@ export default function AddNewLeadPage() {
                   onDelete={async (val) => {
                     const table =
                       editingDropdown === 'regions' ? 'regions' :
-                        editingDropdown === 'leadSources' ? 'lead_sources' : 'lead_statuses'
+                        editingDropdown === 'leadSources' ? 'lead_sources' :
+                          editingDropdown === 'captured_by_settings' ? 'captured_by_settings' : 'lead_statuses'
 
                     const { error } = await supabase.from(table).delete().eq('name', val)
                     if (error) {
