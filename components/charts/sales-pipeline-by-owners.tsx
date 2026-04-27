@@ -82,7 +82,6 @@ export default function SalesPipelineByOwners({
       let allData: {
         captured_by: string
         status: string
-        first_contact: string
       }[] = []
       const { count } = await supabase
         .from('crm_leads')
