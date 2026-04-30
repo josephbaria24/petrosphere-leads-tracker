@@ -37,6 +37,58 @@ const COLUMN_MAPPING = {
 
 const REQUIRED_COLUMNS = ['Contact Name', 'Email', 'Company', 'Status']
 
+const normalizeDateForPostgres = (value: unknown): string | null => {
+    if (value === undefined || value === null || value === '') return null
+
+    // Excel serial date (e.g., 45405)
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        const parsed = XLSX.SSF.parse_date_code(value)
+        if (!parsed) return null
+        const year = String(parsed.y).padStart(4, '0')
+        const month = String(parsed.m).padStart(2, '0')
+        const day = String(parsed.d).padStart(2, '0')
+        return `${year}-${month}-${day}`
+    }
+
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        const year = value.getFullYear()
+        const month = String(value.getMonth() + 1).padStart(2, '0')
+        const day = String(value.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+    }
+
+    if (typeof value !== 'string') return null
+    const raw = value.trim()
+    if (!raw) return null
+
+    // Handles MM/DD/YYYY, M/D/YYYY, MM-DD-YYYY, MM.DD.YYYY
+    const mmddyyyy = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/)
+    if (mmddyyyy) {
+        const month = Number(mmddyyyy[1])
+        const day = Number(mmddyyyy[2])
+        const year = Number(mmddyyyy[3])
+        const candidate = new Date(year, month - 1, day)
+        if (
+            candidate.getFullYear() === year &&
+            candidate.getMonth() === month - 1 &&
+            candidate.getDate() === day
+        ) {
+            return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        }
+    }
+
+    // Handles YYYY-MM-DD and other native-parsable date strings
+    const native = new Date(raw)
+    if (!Number.isNaN(native.getTime())) {
+        const year = native.getFullYear()
+        const month = String(native.getMonth() + 1).padStart(2, '0')
+        const day = String(native.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+    }
+
+    return null
+}
+
 export function ExcelActions({ onImportSuccess }: { onImportSuccess?: () => void }) {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [isImporting, setIsImporting] = useState(false)
@@ -256,6 +308,15 @@ export function ExcelActions({ onImportSuccess }: { onImportSuccess?: () => void
                             lead[dbField] = row[excelHeader]
                         }
                     })
+
+                    // Normalize date fields for Postgres date columns
+                    if ('first_contact' in lead) {
+                        lead.first_contact = normalizeDateForPostgres(lead.first_contact)
+                    }
+                    if ('last_contact' in lead) {
+                        lead.last_contact = normalizeDateForPostgres(lead.last_contact)
+                    }
+
                     return lead
                 })
 
