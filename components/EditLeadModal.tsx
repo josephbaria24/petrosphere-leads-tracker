@@ -545,6 +545,13 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
 
   const handleSave = async () => {
     try {
+      const normalizedStatus = edited.status?.toLowerCase().trim()
+      const normalizedPreviousStatus = lead.status?.toLowerCase().trim()
+      const closedWinJustCaptured =
+        normalizedStatus === "closed win" &&
+        normalizedPreviousStatus !== "closed win" &&
+        Boolean(edited.captured_by?.trim())
+
       await onSave(edited)
       if (edited.service_price && !Number.isInteger(Number(edited.service_price))) {
         alert("Service price must be an integer!")
@@ -667,8 +674,11 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
           console.error('Error updating proposal status:', updateStatusError)
         }
       }
-      // ✅ Show success toast
-      toast.success("Lead updated successfully")
+      if (closedWinJustCaptured) {
+        toast.success(`Congratulations ${edited.captured_by}! Client captured and marked as Closed Win!`)
+      } else {
+        toast.success("Lead updated successfully")
+      }
 
       onClose()
     } catch (error) {

@@ -288,6 +288,39 @@ export function ActualDashboardPage() {
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [isTrendsLoading, setIsTrendsLoading] = useState(true);
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  const [showClosedWinCelebration, setShowClosedWinCelebration] = useState(false)
+  const [closedWinCelebrationData, setClosedWinCelebrationData] = useState<{
+    capturedBy: string
+    leadName: string
+    servicePrice: number
+    totalClosedWins: number
+  } | null>(null)
+  const [celebrationMessage, setCelebrationMessage] = useState("You did a great job!")
+  const [topNavClosedWinTickerItems, setTopNavClosedWinTickerItems] = useState<string[]>([])
+
+  const confettiPieces = useMemo(
+    () =>
+      Array.from({ length: 70 }, (_, index) => ({
+        id: index,
+        left: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 1.2}s`,
+        duration: `${2.4 + Math.random() * 2.4}s`,
+        color: ['#22c55e', '#3b82f6', '#eab308', '#ef4444', '#a855f7'][index % 5],
+      })),
+    []
+  )
+
+  const celebrationMessages = useMemo(
+    () => [
+      "You did a great job!",
+      "We are so proud of you. Keep going!",
+      "Excellent work closing this win!",
+      "Outstanding effort. Keep the momentum going!",
+      "Congratulations on a job well done!",
+      "Fantastic close. Your hard work is paying off!",
+    ],
+    []
+  )
 
   // Prefetch cache (simple Map via ref)
   const prefetchCache = useRef<Map<string, any>>(new Map())
@@ -561,6 +594,111 @@ export function ActualDashboardPage() {
     fetchTopOverviewStats()
   }, [])
 
+  useEffect(() => {
+    const fetchClosedWinCelebration = async () => {
+      const startOfToday = new Date()
+      startOfToday.setHours(0, 0, 0, 0)
+      const endOfToday = new Date()
+      endOfToday.setHours(23, 59, 59, 999)
+
+      const { data: latestClosedWin, error: latestError } = await supabase
+        .from('crm_leads')
+        .select('id, captured_by, contact_name, service_price')
+        .or('status.eq.Closed Win,status.eq.closed win')
+        .gte('created_at', startOfToday.toISOString())
+        .lte('created_at', endOfToday.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (latestError) {
+        console.error('Closed Win latest lead query error:', latestError)
+        return
+      }
+
+      if (!latestClosedWin) return
+
+      const { count, error: countError } = await supabase
+        .from('crm_leads')
+        .select('id', { count: 'exact', head: true })
+        .or('status.eq.Closed Win,status.eq.closed win')
+        .gte('created_at', startOfToday.toISOString())
+        .lte('created_at', endOfToday.toISOString())
+
+      if (countError) {
+        console.error('Closed Win count query error:', countError)
+        return
+      }
+
+      setClosedWinCelebrationData({
+        capturedBy: latestClosedWin.captured_by || 'Unknown',
+        leadName: latestClosedWin.contact_name || 'Unnamed Lead',
+        servicePrice: Number(latestClosedWin.service_price || 0),
+        totalClosedWins: count || 0,
+      })
+      const randomIndex = Math.floor(Math.random() * celebrationMessages.length)
+      setCelebrationMessage(celebrationMessages[randomIndex])
+      setShowClosedWinCelebration(true)
+    }
+
+    fetchClosedWinCelebration()
+  }, [celebrationMessages])
+
+  useEffect(() => {
+    const fetchTopNavClosedWinTicker = async () => {
+      const startOfToday = new Date()
+      startOfToday.setHours(0, 0, 0, 0)
+      const startOfYesterday = new Date(startOfToday)
+      startOfYesterday.setDate(startOfToday.getDate() - 1)
+      const endOfToday = new Date()
+      endOfToday.setHours(23, 59, 59, 999)
+
+      const { data, error } = await supabase
+        .from('crm_leads')
+        .select('captured_by, service_price, created_at')
+        .or('status.eq.Closed Win,status.eq.closed win')
+        .gte('created_at', startOfYesterday.toISOString())
+        .lte('created_at', endOfToday.toISOString())
+
+      if (error) {
+        console.error('Top nav ticker query error:', error)
+        return
+      }
+
+      if (!data || data.length === 0) {
+        setTopNavClosedWinTickerItems([
+          "No Closed Win leads for today and yesterday",
+        ])
+        return
+      }
+
+      const totalsByCapturerAndDay = new Map<string, number>()
+      for (const row of data) {
+        const capturer = (row.captured_by || 'Unknown').trim() || 'Unknown'
+        const amount = Number(row.service_price || 0)
+        const createdAt = row.created_at ? new Date(row.created_at) : null
+        const isToday =
+          !!createdAt &&
+          createdAt >= startOfToday &&
+          createdAt <= endOfToday
+
+        const label = isToday ? "Today" : "Yesterday"
+        const key = `${capturer}__${label}`
+        totalsByCapturerAndDay.set(key, (totalsByCapturerAndDay.get(key) || 0) + amount)
+      }
+
+      const sortedItems = Array.from(totalsByCapturerAndDay.entries()).sort((a, b) => b[1] - a[1])
+      const messages = sortedItems.map(([key, total]) => {
+        const [capturer, dayLabel] = key.split("__")
+        return `${capturer}: Closed ₱${total.toLocaleString('en-PH')} ${dayLabel}`
+      })
+
+      setTopNavClosedWinTickerItems(messages)
+    }
+
+    fetchTopNavClosedWinTicker()
+  }, [])
+
   // ─── Background prefetch for adjacent rangeIndex ─────────
 
   useEffect(() => {
@@ -802,35 +940,124 @@ export function ActualDashboardPage() {
 
   return (
     <div>
-      <SidebarInset>
-        {/* Greeting + Total Leads */}
-        <div className="flex pl-4 pb-6 items-center gap-3">
-          {/* Icon that switches in dark mode */}
-          <div className="w-10 h-10 relative">
-
-            <Image
-              src="/icons/black2.png"
-              alt="Logo"
-              fill
-              className="object-contain block dark:hidden"
-            />
-
-            <Image
-              src="/icons/white2.png"
-              alt="Logo"
-              fill
-              className="object-contain hidden dark:block"
-            />
+      {showClosedWinCelebration && closedWinCelebrationData && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/35 backdrop-blur-[1px]">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            {confettiPieces.map((piece) => (
+              <span
+                key={piece.id}
+                className="absolute top-[-10%] confetti-piece"
+                style={{
+                  left: piece.left,
+                  animationDelay: piece.delay,
+                  animationDuration: piece.duration,
+                  backgroundColor: piece.color,
+                }}
+              />
+            ))}
           </div>
 
-          {/* Text greeting */}
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-bold">
-              {getGreeting()}, {userName ? userName.split(" ")[0] : "User"}!
-            </h1>
-            {userPosition && (
-              <p className="text-sm text-muted-foreground">{userPosition}</p>
-            )}
+          <div className="relative z-[121] w-[92%] max-w-3xl rounded-2xl border border-transparent p-3 shadow-2xl" style={{ background: "linear-gradient(115deg, #00044a 0%, #0a1168 70%, #ffb800 130%)" }}>
+            <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-[220px_1fr]">
+              <div className="overflow-hidden rounded-xl border border-white/50 dark:border-white/10">
+                <Image
+                  src="/congrats.png"
+                  alt="Congratulations"
+                  width={1200}
+                  height={800}
+                  className="h-full w-full object-cover"
+                  priority
+                />
+              </div>
+
+              <div className="rounded-xl bg-white/92 dark:bg-zinc-950/60 p-4 backdrop-blur-sm">
+                <div className="mb-2 flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-500" />
+                  <p className="text-lg font-extrabold tracking-wide text-[#00044a] dark:text-blue-100">
+                    WELL DONE!
+                  </p>
+                </div>
+                <p className="mb-2 text-sm font-semibold text-[#00044a] dark:text-blue-200">
+                  {celebrationMessage}
+                </p>
+                <p className="text-sm text-[#111827] dark:text-blue-100/90">
+                  <span className="font-semibold">{closedWinCelebrationData.capturedBy}</span> closed a win for
+                  <span className="font-semibold"> {closedWinCelebrationData.leadName}</span> worth
+                  <span className="font-semibold"> ₱{closedWinCelebrationData.servicePrice.toLocaleString('en-PH')}</span>.
+                </p>
+                <p className="mt-1 text-xs font-medium text-[#00044a]/90 dark:text-blue-200/80">
+                  Today's Closed Win Leads: {closedWinCelebrationData.totalClosedWins}
+                </p>
+                <div className="mt-3">
+                  <Button
+                    size="sm"
+                    className="h-8 px-4 text-xs bg-[#00044a] hover:bg-[#0a1168] text-white"
+                    onClick={() => setShowClosedWinCelebration(false)}
+                  >
+                    Continue
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <SidebarInset>
+        <div className="mb-3 flex flex-col gap-4 pl-4 lg:flex-row lg:items-start lg:justify-between">
+          {/* Greeting */}
+          <div className="flex items-center gap-3">
+            {/* Icon that switches in dark mode */}
+            <div className="w-10 h-10 relative">
+
+              <Image
+                src="/icons/black2.png"
+                alt="Logo"
+                fill
+                className="object-contain block dark:hidden"
+              />
+
+              <Image
+                src="/icons/white2.png"
+                alt="Logo"
+                fill
+                className="object-contain hidden dark:block"
+              />
+            </div>
+
+            {/* Text greeting */}
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold">
+                {getGreeting()}, {userName ? userName.split(" ")[0] : "User"}!
+              </h1>
+              {userPosition && (
+                <p className="text-sm text-muted-foreground">{userPosition}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Closed Win Highlights Ticker */}
+          <div className="relative w-full lg:w-[30%] overflow-hidden rounded-xl border border-emerald-300/40 dark:border-emerald-700/40 bg-gradient-to-r from-emerald-50/80 via-white to-blue-50/80 dark:from-emerald-950/30 dark:via-zinc-900 dark:to-blue-950/30 shadow-sm">
+            <div className="absolute inset-y-0 left-0 z-20 w-20 bg-gradient-to-r from-background to-transparent pointer-events-none" />
+            <div className="absolute inset-y-0 right-0 z-20 w-20 bg-gradient-to-l from-background to-transparent pointer-events-none" />
+            <div className="flex items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-800/50 px-4 py-2">
+              <Trophy className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <p className="text-xs font-semibold tracking-wide uppercase text-emerald-700 dark:text-emerald-300">
+                Closed Win Highlights (Today + Yesterday)
+              </p>
+            </div>
+            <div className="relative h-12 overflow-hidden">
+              <div className="closed-win-ticker-track">
+                {[...topNavClosedWinTickerItems, ...topNavClosedWinTickerItems].map((message, index) => (
+                  <span
+                    key={`${message}-${index}`}
+                    className="mx-2 inline-flex items-center rounded-full border border-emerald-300/60 dark:border-emerald-700/60 bg-white/90 dark:bg-zinc-900/80 px-4 py-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-100 shadow-sm"
+                  >
+                    {message}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1183,6 +1410,50 @@ export function ActualDashboardPage() {
         timeLabels={timeLabels}
         onRefresh={handleRefreshFilters}
       />
+
+      <style jsx global>{`
+        @keyframes confetti-fall {
+          0% {
+            transform: translate3d(0, -10vh, 0) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translate3d(0, 110vh, 0) rotate(720deg);
+            opacity: 0.9;
+          }
+        }
+
+        .confetti-piece {
+          width: 8px;
+          height: 14px;
+          border-radius: 2px;
+          animation-name: confetti-fall;
+          animation-timing-function: linear;
+          animation-iteration-count: infinite;
+        }
+
+        @keyframes ticker-left-to-right {
+          0% {
+            transform: translateX(-50%);
+          }
+          100% {
+            transform: translateX(0%);
+          }
+        }
+
+        .closed-win-ticker-track {
+          position: absolute;
+          top: 0;
+          left: 0;
+          display: inline-flex;
+          align-items: center;
+          white-space: nowrap;
+          min-width: max-content;
+          height: 100%;
+          padding: 0 0.5rem;
+          animation: ticker-left-to-right 22s linear infinite;
+        }
+      `}</style>
     </div>
   )
 }
