@@ -122,12 +122,15 @@ export function LeadSourceAreaChart({
   pxPerPoint = 56,
   title = 'Lead Captures Over Time',
   subtitle = 'Drag horizontally to view all data points',
+  initialFocusIndex,
 }: {
   data: AreaData[]
   height?: number
   pxPerPoint?: number
   title?: string
   subtitle?: string
+  /** Center scroll on this x-axis bucket (e.g. today). */
+  initialFocusIndex?: number
 }) {
   const colors = [
     '#d6a800',
@@ -181,6 +184,7 @@ export function LeadSourceAreaChart({
         dataLength={data.length}
         basePxPerPoint={pxPerPoint}
         height={height}
+        initialFocusIndex={initialFocusIndex}
         className="w-full"
       >
         <ResponsiveContainer width="100%" height="100%">

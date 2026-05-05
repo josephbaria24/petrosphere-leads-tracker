@@ -160,6 +160,13 @@ export default function CRMBarChart({
         }
       }
   
+      const fmt = (d: Date) => {
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${day}`
+      }
+  
       const pageSize = 1000
       let from = 0
       let to = pageSize - 1
@@ -170,8 +177,8 @@ export default function CRMBarChart({
         const { data, error } = await supabase
           .from('crm_leads')
           .select('captured_by, status, first_contact, created_at')
-          .gte('first_contact', startDate.toISOString())
-          .lt('first_contact', endDate.toISOString())
+          .gte('first_contact', fmt(startDate))
+          .lt('first_contact', fmt(endDate))
           .range(from, to)
   
         if (error) {

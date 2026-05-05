@@ -23,6 +23,8 @@ interface Props {
   maxZoom?: number
   /** Baseline container width when there is no data (px). */
   fallbackMinWidth?: number
+  /** Optional index to center on when data loads (e.g. current day). */
+  initialFocusIndex?: number
   className?: string
 }
 
@@ -44,6 +46,7 @@ export function ZoomPanChart({
   minZoom = 0.5,
   maxZoom = 6,
   fallbackMinWidth = 320,
+  initialFocusIndex,
   className = '',
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -96,18 +99,46 @@ export function ZoomPanChart({
   const reset = () => {
     setZoom(1)
     requestAnimationFrame(() => {
-      if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth
+      if (scrollRef.current) {
+        if (initialFocusIndex !== undefined) {
+          const pointWidth = basePxPerPoint
+          const targetScroll = initialFocusIndex * pointWidth - scrollRef.current.clientWidth / 2
+          scrollRef.current.scrollLeft = Math.max(0, targetScroll)
+        } else {
+          scrollRef.current.scrollLeft = scrollRef.current.scrollWidth
+        }
+      }
     })
   }
 
-  // Automatically scroll to the end (current date) when data loads
+  // Automatically scroll to the end or initialFocusIndex when data loads
   useEffect(() => {
-    if (scrollRef.current) {
-      requestAnimationFrame(() => {
-        if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth
-      })
+    const el = scrollRef.current
+    if (!el) return
+
+    const performScroll = () => {
+      const currentEl = scrollRef.current
+      if (!currentEl) return
+
+      if (initialFocusIndex !== undefined) {
+        const pointWidth = basePxPerPoint * zoom
+        const targetScroll = initialFocusIndex * pointWidth - currentEl.clientWidth / 2
+        currentEl.scrollLeft = Math.max(0, targetScroll)
+      } else {
+        currentEl.scrollLeft = currentEl.scrollWidth
+      }
     }
-  }, [dataLength])
+
+    // Attempt scroll immediately and after delays to account for layout/rendering
+    requestAnimationFrame(performScroll)
+    const timer1 = setTimeout(performScroll, 300)
+    const timer2 = setTimeout(performScroll, 1000)
+    
+    return () => {
+      clearTimeout(timer1)
+      clearTimeout(timer2)
+    }
+  }, [dataLength, initialFocusIndex, basePxPerPoint, zoom])
 
   useEffect(() => {
     const el = scrollRef.current

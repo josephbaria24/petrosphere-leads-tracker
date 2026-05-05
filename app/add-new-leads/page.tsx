@@ -24,6 +24,7 @@ import EditLeadModal from '@/components/EditLeadModal'
 import { Badge } from '@/components/ui/badge'
 import { ExcelActions } from '@/components/leads/ExcelActions'
 
+
 // Optimized debounce hook with ref
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value)
@@ -475,7 +476,7 @@ export default function AddNewLeadPage() {
                 <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">Add New Lead</h1>
               </div>
             </div>
-            <ExcelActions onImportSuccess={() => router.refresh()} />
+            <ExcelActions showExport={false} onImportSuccess={() => router.refresh()} />
           </div>
         </div>
 

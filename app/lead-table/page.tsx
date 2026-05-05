@@ -59,6 +59,7 @@ import { Separator } from "@radix-ui/react-separator"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
+import { ExcelActions } from "@/components/leads/ExcelActions"
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -605,6 +606,8 @@ export default function DataTablePage() {
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 </Button>
+
+                <ExcelActions showImport={false} onImportSuccess={refreshData} />
 
                 {/* Delete Selected */}
                 {selectedIds.length > 0 && (

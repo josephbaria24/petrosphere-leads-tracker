@@ -92,6 +92,33 @@ export function OverallLeadsLineChart({
     return `Daily breakdown for ${selectedMonth} ${selectedYear}`
   }
 
+  const getInitialFocusIndex = () => {
+    if (selectedInterval !== 'monthly' || selectedMonth === 'all') return undefined
+
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    const currentMonthName = monthNames[now.getMonth()]
+
+    const selMonth = (selectedMonth || '').toLowerCase().trim()
+    const curMonth = currentMonthName.toLowerCase().trim()
+    
+    // Support both full names and abbreviations (e.g. "January" vs "Jan")
+    const isMatch = selectedYear === currentYear && 
+                    (selMonth === curMonth || selMonth.startsWith(curMonth) || curMonth.startsWith(selMonth))
+
+    if (isMatch) {
+      const focus = now.getDate() - 1
+      console.log(`[OverallLeadsLineChart] Match! Focusing day ${now.getDate()} of ${currentMonthName} (index ${focus})`)
+      return focus
+    }
+
+    console.log(`[OverallLeadsLineChart] No match. Selected: "${selectedMonth}" ${selectedYear}, Current: "${currentMonthName}" ${currentYear}`)
+    return undefined
+  }
+
+  const initialFocusIndex = getInitialFocusIndex()
+
   return (
     <div className="w-full bg-card border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-4 flex flex-col">
       <div className="flex items-baseline justify-between mb-3">
@@ -133,6 +160,7 @@ export function OverallLeadsLineChart({
         dataLength={data.length}
         basePxPerPoint={56}
         height={280}
+        initialFocusIndex={initialFocusIndex}
         className="w-full"
       >
         <ResponsiveContainer width="100%" height="100%">

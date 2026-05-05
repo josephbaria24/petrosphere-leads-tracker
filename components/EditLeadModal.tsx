@@ -714,7 +714,7 @@ const EditLeadModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, lead
               {/* Other Fields in Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Object.entries(edited)
-                  .filter(([key]) => key !== 'id' && key !== 'status')
+                  .filter(([key]) => !['id', 'status', 'user_id', 'created_at', 'updated_at'].includes(key))
                   .map(([key, value]) => (
                     <div key={key}>
                       <Label className="text-sm font-medium capitalize block mb-1">

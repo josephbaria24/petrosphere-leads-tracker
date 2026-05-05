@@ -4,7 +4,7 @@
 
 import { OverallLeadsLineChart } from '@/components/charts/line-chart-label'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from '@/lib/supabase-client'
 
 import CountUp from "react-countup"
 import { Separator } from "@/components/ui/separator"
@@ -32,6 +32,7 @@ import { FloatingDateFilter } from './floating-date-filter'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { NewLeadsWeeklyBar } from '@/components/charts/new-leads-weekly-bar'
 import { SuccessfulDealsGauge } from '@/components/charts/successful-deals-gauge'
+import { LeadAgingChart, type LeadAgingData } from '@/components/charts/lead-aging-chart'
 
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -54,6 +55,58 @@ function generateTimeLabels(interval: string, month: string, year: number, avail
         const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
         return Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0'))
       }
+    }
+  }
+}
+
+/** X-axis bucket index to center on “today” for Lead Captures chart labels (matches generateTimeLabels). */
+function getLeadCapturesFocusIndexForToday(
+  labels: string[],
+  interval: string,
+  selectedMonth: string,
+  selectedYear: number
+): number | undefined {
+  if (!labels.length) return undefined
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = now.getMonth()
+  const d = now.getDate()
+  const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
+  const last = labels.length - 1
+  const clamp = (i: number) => Math.max(0, Math.min(last, i))
+
+  switch (interval) {
+    case 'all':
+    case 'annually': {
+      if (selectedYear !== y) return selectedYear < y ? last : 0
+      const idx = labels.indexOf(String(y))
+      return idx >= 0 ? idx : last
+    }
+    case 'weekly': {
+      if (selectedYear !== y) return selectedYear < y ? last : 0
+      const start = new Date(selectedYear, 0, 1).getTime()
+      const diffDays = Math.floor((now.getTime() - start) / 86400000)
+      const weekNum = Math.min(52, Math.max(1, Math.floor(diffDays / 7) + 1))
+      const idx = labels.indexOf(`W${weekNum}`)
+      return idx >= 0 ? idx : clamp(weekNum - 1)
+    }
+    case 'quarterly': {
+      if (selectedYear !== y) return selectedYear < y ? last : 0
+      const q = Math.floor(m / 3) + 1
+      const idx = labels.indexOf(`Q${q}`)
+      return idx >= 0 ? idx : last
+    }
+    default: {
+      if (selectedMonth === 'all') {
+        if (selectedYear !== y) return selectedYear < y ? last : 0
+        const idx = labels.indexOf(monthShort[m])
+        return idx >= 0 ? idx : last
+      }
+      const viewedMonth = new Date(`${selectedMonth} 1, ${selectedYear}`).getMonth()
+      if (y !== selectedYear || m !== viewedMonth) return last
+      const dayLabel = String(d).padStart(2, '0')
+      const idx = labels.indexOf(dayLabel)
+      return idx >= 0 ? idx : last
     }
   }
 }
@@ -157,7 +210,12 @@ function computeDateRange(
     chartEnd = new Date(year + 1, 0, 1)
   }
 
-  const fmt = (d: Date) => d.toISOString().split('T')[0]
+  const fmt = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
   return {
     start: fmt(startDate),
     end: fmt(endDate),
@@ -178,8 +236,6 @@ export function ActualDashboardPage() {
     totalLeads: number
   }
   const [overallLeadsData, setOverallLeadsData] = useState<OverallLeadsData[]>([])
-
-  const supabase = useMemo(() => createClientComponentClient(), [])
 
   const getDateHeaderLabel = () => {
     if (selectedInterval === 'all') {
@@ -262,6 +318,10 @@ export function ActualDashboardPage() {
   ])
 
   const timeLabels = generateTimeLabels(selectedInterval, selectedMonth, selectedYear, availableYears)
+  const leadCapturesFocusIndex = useMemo(
+    () => getLeadCapturesFocusIndexForToday(timeLabels, selectedInterval, selectedMonth, selectedYear),
+    [timeLabels, selectedInterval, selectedMonth, selectedYear]
+  )
   const currentRange = useMemo(() => computeDateRange(
     selectedYear, selectedMonth, selectedInterval,
     rangeIndex, timeLabels, availableYears
@@ -297,6 +357,7 @@ export function ActualDashboardPage() {
   } | null>(null)
   const [celebrationMessage, setCelebrationMessage] = useState("You did a great job!")
   const [topNavClosedWinTickerItems, setTopNavClosedWinTickerItems] = useState<string[]>([])
+  const [leadAgingData, setLeadAgingData] = useState<LeadAgingData[]>([])
 
   const confettiPieces = useMemo(
     () =>
@@ -411,7 +472,23 @@ export function ActualDashboardPage() {
         .from('crm_leads')
         .select('first_contact')
 
-      if (error) return console.error(error)
+      if (error) {
+        const msg = error.message ?? String(error)
+        const isFetchFailure =
+          msg.includes('Failed to fetch') ||
+          msg.includes('NetworkError') ||
+          msg.includes('Load failed')
+        if (isFetchFailure) {
+          console.warn(
+            '[Dashboard] Could not reach Supabase while loading years. Check NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY and network:',
+            msg
+          )
+        } else {
+          console.error('Dashboard init error (fetching years):', msg, error)
+          if (error.details) console.error('Error Details:', error.details)
+        }
+        return
+      }
 
       const years = new Set<number>()
       data?.forEach((row: any) => {
@@ -432,6 +509,13 @@ export function ActualDashboardPage() {
   // ─── Core: loadDashboard via RPC ─────────────────────────
 
   const loadDashboard = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      console.warn('No active session found in loadDashboard, skipping fetch.')
+      setIsDashboardLoading(false)
+      return
+    }
+
     setIsDashboardLoading(true)
     const range = computeDateRange(
       selectedYear, selectedMonth, selectedInterval,
@@ -699,6 +783,40 @@ export function ActualDashboardPage() {
     fetchTopNavClosedWinTicker()
   }, [])
 
+  useEffect(() => {
+    const fetchAging = async () => {
+      const { data: activeLeads, error } = await supabase
+        .from('crm_leads')
+        .select('updated_at')
+        .not('status', 'ilike', 'Closed Win')
+        .not('status', 'ilike', 'Closed Lost')
+
+      if (error) return
+
+      const now = new Date()
+      const buckets: LeadAgingData[] = [
+        { range: '0-2 Days', count: 0, color: '#22c55e' }, // Green
+        { range: '3-4 Days', count: 0, color: '#eab308' }, // Yellow
+        { range: '5-6 Days', count: 0, color: '#f97316' }, // Orange
+        { range: '7+ Days', count: 0, color: '#ef4444' },  // Red
+      ]
+
+      activeLeads?.forEach(lead => {
+        if (!lead.updated_at) return
+        const updatedAt = new Date(lead.updated_at)
+        const diffDays = Math.floor((now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60 * 24))
+        
+        if (diffDays <= 2) buckets[0].count++
+        else if (diffDays <= 4) buckets[1].count++
+        else if (diffDays <= 6) buckets[2].count++
+        else buckets[3].count++
+      })
+
+      setLeadAgingData(buckets)
+    }
+    fetchAging()
+  }, [])
+
   // ─── Background prefetch for adjacent rangeIndex ─────────
 
   useEffect(() => {
@@ -738,8 +856,15 @@ export function ActualDashboardPage() {
       status: string | null
     }[] = []
 
-    const startDate = new Date(year, 0, 1).toISOString()
-    const endDate = new Date(year + 1, 0, 1).toISOString()
+    const fmtLocal = (d: Date) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
+
+    const startDate = fmtLocal(new Date(year, 0, 1))
+    const endDate = fmtLocal(new Date(year + 1, 0, 1))
 
     let from = 0
     const pageSize = 1000
@@ -1120,7 +1245,11 @@ export function ActualDashboardPage() {
           {/* Top Overview Visuals */}
           <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-[1.6fr_1fr] pb-4">
             {/* Lead Captures Over Time */}
-            <LeadSourceAreaChart data={leadAreaChartData} height={220} />
+            <LeadSourceAreaChart
+              data={leadAreaChartData}
+              height={220}
+              initialFocusIndex={leadCapturesFocusIndex}
+            />
 
             <Card className="bg-background">
               <CardHeader className="pb-2">
@@ -1237,13 +1366,15 @@ export function ActualDashboardPage() {
 
           {/* Chart 3: Captured By Personnel + Sales Pipeline */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-3 items-start">
-            <CapturedByRanking data={capturedByData} />
-            <SalesPipelineByOwners
-              startDate={currentRange?.start || ''}
-              endDate={currentRange?.end || ''}
-            />
-
-
+            <div className="lg:col-span-1">
+              <CapturedByRanking data={capturedByData} />
+            </div>
+            <div className="lg:col-span-1">
+              <SalesPipelineByOwners
+                startDate={currentRange?.start || ''}
+                endDate={currentRange?.end || ''}
+              />
+            </div>
           </div>
 
           {/* New Leads + Overall Leads Trend side-by-side */}
@@ -1389,7 +1520,7 @@ export function ActualDashboardPage() {
               title={`Services / Products (${selectedMonth === 'all' ? selectedYear : `${selectedMonth} ${selectedYear}`})`}
               subtitle="Most requested services by leads"
             />
-            <PHRegionalDotMap />
+            <LeadAgingChart data={leadAgingData} />
           </div>
 
         </div>

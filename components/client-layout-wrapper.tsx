@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { Toaster } from "sonner"
 import { ThemeToggle } from "./mode-toggle"
 import Image from "next/image"
+import { LeadAgingManager } from "./LeadAgingManager"
 
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { SessionContextProvider } from "@supabase/auth-helpers-react"
@@ -71,6 +72,7 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
         </main>
       ) : (
         <SidebarProvider>
+          <LeadAgingManager />
           <div className="flex h-screen w-full overflow-hidden">
             <AppSidebar />
             <Toaster richColors position="top-right" />

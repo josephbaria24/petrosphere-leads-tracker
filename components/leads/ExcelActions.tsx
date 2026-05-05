@@ -89,7 +89,15 @@ const normalizeDateForPostgres = (value: unknown): string | null => {
     return null
 }
 
-export function ExcelActions({ onImportSuccess }: { onImportSuccess?: () => void }) {
+export function ExcelActions({ 
+    onImportSuccess,
+    showImport = true,
+    showExport = true
+}: { 
+    onImportSuccess?: () => void,
+    showImport?: boolean,
+    showExport?: boolean
+}) {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [isImporting, setIsImporting] = useState(false)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -355,156 +363,160 @@ export function ExcelActions({ onImportSuccess }: { onImportSuccess?: () => void
 
     return (
         <div className="flex flex-wrap gap-3">
-            <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                setIsDialogOpen(open)
-                if (!open) setPreviewData(null)
-            }}>
-                <DialogTrigger asChild>
-                    <Button variant="outline" className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">
-                        <Upload className="w-4 h-4 mr-2 text-green-600" />
-                        Import from Excel
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className={`${previewData ? 'sm:max-w-[900px]' : 'sm:max-w-[500px]'} bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 flex flex-col max-h-[90vh]`}>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <FileSpreadsheet className="w-5 h-5 text-green-600" />
-                            {previewData ? 'Preview Import Data' : 'Import Leads from Excel'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {previewData
-                                ? `Verify the ${previewData.length} leads below before confirming.`
-                                : 'Upload an Excel file (.xlsx or .xls) to bulk import leads.'}
-                        </DialogDescription>
-                    </DialogHeader>
+            {showImport && (
+                <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                    setIsDialogOpen(open)
+                    if (!open) setPreviewData(null)
+                }}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                            <Upload className="w-4 h-4 mr-2 text-green-600" />
+                            Import from Excel
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className={`${previewData ? 'sm:max-w-[900px]' : 'sm:max-w-[500px]'} bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 flex flex-col max-h-[90vh]`}>
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                                {previewData ? 'Preview Import Data' : 'Import Leads from Excel'}
+                            </DialogTitle>
+                            <DialogDescription>
+                                {previewData
+                                    ? `Verify the ${previewData.length} leads below before confirming.`
+                                    : 'Upload an Excel file (.xlsx or .xls) to bulk import leads.'}
+                            </DialogDescription>
+                        </DialogHeader>
 
-                    <div className="flex-1 overflow-hidden">
-                        {!previewData ? (
-                            <div className="space-y-6 py-4">
-                                <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800">
-                                    <Info className="h-4 w-4 text-blue-600" />
-                                    <AlertTitle className="text-blue-900 dark:text-blue-100">Template Instructions</AlertTitle>
-                                    <AlertDescription className="text-blue-800 dark:text-blue-200">
-                                        Download the template below to ensure your data is formatted correctly.
-                                        Required columns: <strong>{REQUIRED_COLUMNS.join(', ')}</strong>.
-                                    </AlertDescription>
-                                </Alert>
+                        <div className="flex-1 overflow-hidden">
+                            {!previewData ? (
+                                <div className="space-y-6 py-4">
+                                    <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800">
+                                        <Info className="h-4 w-4 text-blue-600" />
+                                        <AlertTitle className="text-blue-900 dark:text-blue-100">Template Instructions</AlertTitle>
+                                        <AlertDescription className="text-blue-800 dark:text-blue-200">
+                                            Download the template below to ensure your data is formatted correctly.
+                                            Required columns: <strong>{REQUIRED_COLUMNS.join(', ')}</strong>.
+                                        </AlertDescription>
+                                    </Alert>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <h4 className="text-sm font-semibold flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                            Allowed Columns
-                                        </h4>
-                                        <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
-                                            {Object.keys(COLUMN_MAPPING).map(col => (
-                                                <li key={col} className="flex items-center gap-1">
-                                                    {REQUIRED_COLUMNS.includes(col) && <span className="text-red-500 font-bold">*</span>}
-                                                    {col}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                    <div className="flex flex-col justify-center items-center p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 hover:bg-green-50/50 dark:hover:bg-green-900/5 transition-colors group cursor-pointer"
-                                        onClick={() => fileInputRef.current?.click()}>
-                                        <Upload className="w-8 h-8 text-zinc-400 group-hover:text-green-600 mb-2 transition-colors" />
-                                        <p className="text-xs font-medium text-center text-zinc-600 dark:text-zinc-400 group-hover:text-green-700">
-                                            {isImporting ? 'Processing...' : 'Click to upload Excel'}
-                                        </p>
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept=".xlsx, .xls"
-                                            onChange={handleFileUpload}
-                                            className="hidden"
-                                        />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <h4 className="text-sm font-semibold flex items-center gap-1">
+                                                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                                Allowed Columns
+                                            </h4>
+                                            <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                                                {Object.keys(COLUMN_MAPPING).map(col => (
+                                                    <li key={col} className="flex items-center gap-1">
+                                                        {REQUIRED_COLUMNS.includes(col) && <span className="text-red-500 font-bold">*</span>}
+                                                        {col}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                        <div className="flex flex-col justify-center items-center p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 hover:bg-green-50/50 dark:hover:bg-green-900/5 transition-colors group cursor-pointer"
+                                            onClick={() => fileInputRef.current?.click()}>
+                                            <Upload className="w-8 h-8 text-zinc-400 group-hover:text-green-600 mb-2 transition-colors" />
+                                            <p className="text-xs font-medium text-center text-zinc-600 dark:text-zinc-400 group-hover:text-green-700">
+                                                {isImporting ? 'Processing...' : 'Click to upload Excel'}
+                                            </p>
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept=".xlsx, .xls"
+                                                onChange={handleFileUpload}
+                                                className="hidden"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="py-4 h-full flex flex-col">
-                                <div className="border rounded-lg overflow-auto max-h-[50vh]">
-                                    <table className="w-full text-xs text-left">
-                                        <thead className="bg-zinc-50 dark:bg-zinc-800 sticky top-0">
-                                            <tr>
-                                                <th className="p-2 border-b">Name</th>
-                                                <th className="p-2 border-b">Email</th>
-                                                <th className="p-2 border-b">Company</th>
-                                                <th className="p-2 border-b">Status</th>
-                                                <th className="p-2 border-b">Region</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {previewData.map((lead, idx) => (
-                                                <tr key={idx} className="border-b hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50">
-                                                    <td className="p-2">{lead.contact_name}</td>
-                                                    <td className="p-2 font-mono">{lead.email}</td>
-                                                    <td className="p-2">{lead.company}</td>
-                                                    <td className="p-2">{lead.status}</td>
-                                                    <td className="p-2">{lead.region}</td>
+                            ) : (
+                                <div className="py-4 h-full flex flex-col">
+                                    <div className="border rounded-lg overflow-auto max-h-[50vh]">
+                                        <table className="w-full text-xs text-left">
+                                            <thead className="bg-zinc-50 dark:bg-zinc-800 sticky top-0">
+                                                <tr>
+                                                    <th className="p-2 border-b">Name</th>
+                                                    <th className="p-2 border-b">Email</th>
+                                                    <th className="p-2 border-b">Company</th>
+                                                    <th className="p-2 border-b">Status</th>
+                                                    <th className="p-2 border-b">Region</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody>
+                                                {previewData.map((lead, idx) => (
+                                                    <tr key={idx} className="border-b hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50">
+                                                        <td className="p-2">{lead.contact_name}</td>
+                                                        <td className="p-2 font-mono">{lead.email}</td>
+                                                        <td className="p-2">{lead.company}</td>
+                                                        <td className="p-2">{lead.status}</td>
+                                                        <td className="p-2">{lead.region}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <Alert variant="default" className="mt-4 bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800">
+                                        <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                        <AlertDescription className="text-yellow-800 dark:text-yellow-200 text-xs">
+                                            Review the data carefully. Clicking "Confirm Import" will add all {previewData.length} records to the database.
+                                        </AlertDescription>
+                                    </Alert>
                                 </div>
-
-                                <Alert variant="default" className="mt-4 bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800">
-                                    <AlertCircle className="h-4 w-4 text-yellow-600" />
-                                    <AlertDescription className="text-yellow-800 dark:text-yellow-200 text-xs">
-                                        Review the data carefully. Clicking "Confirm Import" will add all {previewData.length} records to the database.
-                                    </AlertDescription>
-                                </Alert>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex justify-between items-center pt-4 border-t border-zinc-100 dark:border-zinc-800 mt-auto">
-                        {!previewData ? (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={downloadTemplate}
-                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/10"
-                            >
-                                <Download className="w-4 h-4 mr-2" />
-                                Download Template
-                            </Button>
-                        ) : (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPreviewData(null)}
-                            >
-                                Back to Upload
-                            </Button>
-                        )}
-                        <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(false)}>
-                                Cancel
-                            </Button>
-                            {previewData && (
-                                <Button
-                                    size="sm"
-                                    className="bg-green-600 hover:bg-green-700 text-white"
-                                    onClick={confirmImport}
-                                    disabled={isImporting}
-                                >
-                                    {isImporting ? 'Importing...' : 'Confirm Import'}
-                                </Button>
                             )}
                         </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
 
-            <Button
-                variant="outline"
-                onClick={exportLeads}
-                className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-slate-300"
-            >
-                <Download className="w-4 h-4 mr-2 text-blue-600" />
-                Export to Excel
-            </Button>
+                        <div className="flex justify-between items-center pt-4 border-t border-zinc-100 dark:border-zinc-800 mt-auto">
+                            {!previewData ? (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={downloadTemplate}
+                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/10"
+                                >
+                                    <Download className="w-4 h-4 mr-2" />
+                                    Download Template
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPreviewData(null)}
+                                >
+                                    Back to Upload
+                                </Button>
+                            )}
+                            <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(false)}>
+                                    Cancel
+                                </Button>
+                                {previewData && (
+                                    <Button
+                                        size="sm"
+                                        className="bg-green-600 hover:bg-green-700 text-white"
+                                        onClick={confirmImport}
+                                        disabled={isImporting}
+                                    >
+                                        {isImporting ? 'Importing...' : 'Confirm Import'}
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
+
+            {showExport && (
+                <Button
+                    variant="outline"
+                    onClick={exportLeads}
+                    className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-slate-300"
+                >
+                    <Download className="w-4 h-4 mr-2 text-blue-600" />
+                    Export to Excel
+                </Button>
+            )}
         </div>
     )
 }
