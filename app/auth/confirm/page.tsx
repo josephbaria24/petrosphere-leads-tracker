@@ -1,13 +1,12 @@
 // app/auth/confirm/page.tsx
 'use client'
 
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase-client'
 
 export default function AuthConfirm() {
   const router = useRouter()
-  const supabase = useMemo(() => createClientComponentClient(), [])
 
   useEffect(() => {
     const run = async () => {
@@ -38,7 +37,7 @@ export default function AuthConfirm() {
     }
 
     run()
-  }, [router, supabase])
+  }, [router])
 
   return (
     <div className="flex items-center justify-center min-h-screen">

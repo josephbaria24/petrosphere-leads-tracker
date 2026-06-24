@@ -233,10 +233,10 @@ export default function DataTablePage() {
       if (!userId) return;
   
       const { data: profile } = await supabase
-        .from('public_profiles')
+        .from('profiles')
         .select('full_name')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
   
       if (profile?.full_name) {
         setCurrentUserName(profile.full_name);

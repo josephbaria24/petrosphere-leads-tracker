@@ -338,10 +338,10 @@ export default function AddNewLeadPage() {
       }
 
       const { data: profile } = await supabase
-        .from('public_profiles')
+        .from('profiles')
         .select('full_name')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
       const fullCompany = `${form.company} - ${form.address}`.trim()
       const selectedNames = serviceDetails.map(s => s.name).join(', ')

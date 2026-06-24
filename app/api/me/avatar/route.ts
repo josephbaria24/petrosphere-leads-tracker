@@ -1,20 +1,16 @@
 // app/api/me/avatar/route.ts
 import { NextResponse } from "next/server"
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies as getCookies } from "next/headers"
+import { createClient } from "@/lib/supabase-server"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function GET() {
-  // ✔ Pass the async function directly (don't await here)
-  const supabase = createRouteHandlerClient({
-    cookies: getCookies  // or: async () => await getCookies()
-  })
+  const supabase = await createClient()
 
   const {
     data: { session },
-    error
+    error,
   } = await supabase.auth.getSession()
 
   if (error || !session) {
@@ -27,7 +23,7 @@ export async function GET() {
   }
 
   const res = await fetch("https://graph.microsoft.com/v1.0/me/photo/$value", {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
   })
 
   if (!res.ok) {
@@ -40,7 +36,7 @@ export async function GET() {
     status: 200,
     headers: {
       "Content-Type": res.headers.get("Content-Type") ?? "image/jpeg",
-      "Cache-Control": "private, max-age=3600"
-    }
+      "Cache-Control": "private, max-age=3600",
+    },
   })
 }

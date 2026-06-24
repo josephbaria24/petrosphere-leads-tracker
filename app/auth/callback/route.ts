@@ -1,9 +1,8 @@
 // app/auth/callback/route.ts
 import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
+import { createClient } from "@/lib/supabase-server"
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -14,12 +13,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const cookieStore = await cookies()
-    
-    const supabase = createRouteHandlerClient({ 
-      cookies: (() => cookieStore) as any // Type assertion for Next.js 15 compatibility
-    })
-
+    const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
@@ -28,7 +22,6 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.redirect(new URL("/auth/confirm", requestUrl.origin))
-    
   } catch (err) {
     console.error("Unexpected error in callback:", err)
     return NextResponse.redirect(new URL("/login?error=unexpected", requestUrl.origin))

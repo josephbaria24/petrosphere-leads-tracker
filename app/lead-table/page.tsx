@@ -25,7 +25,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
 
-import { ChevronDown, Search, Filter, Users, Eye, EyeOff, Trash2, Database, Settings, ChevronLeft, ChevronRight, RefreshCw, Loader2 } from "lucide-react"
+import { ChevronDown, Search, Eye, Trash2, Database, ChevronLeft, ChevronRight, RefreshCw, Loader2 } from "lucide-react"
 import EditLeadModal from "@/components/EditLeadModal"
 import { supabase } from "@/lib/supabase-client"
 import { getColumns } from "./columns"
@@ -55,11 +55,17 @@ import {
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
-import { Separator } from "@radix-ui/react-separator"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { ExcelActions } from "@/components/leads/ExcelActions"
+import { cn } from "@/lib/utils"
+import { formatUnknownError, logSupabaseError } from "@/lib/format-error"
+
+type LeadTableColumnMeta = { thClass?: string }
+
+function columnWidthClass(meta: unknown): string {
+  return (meta as LeadTableColumnMeta | undefined)?.thClass ?? ""
+}
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -127,7 +133,7 @@ export default function DataTablePage() {
   const [globalFilter, setGlobalFilter] = React.useState("")
   const debouncedGlobalFilter = useDebounce(globalFilter, 300)
 
-  const [pageSize, setPageSize] = useState(50)
+  const [pageSize, setPageSize] = useState(20)
 
   // We enforce sorting by Created At for cursor pagination
   const [sorting, setSorting] = React.useState<SortingState>([
@@ -160,10 +166,10 @@ export default function DataTablePage() {
       if (!userId) return;
 
       const { data: profile } = await supabase
-        .from('public_profiles')
+        .from('profiles')
         .select('full_name')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (profile?.full_name) {
         setCurrentUserName(profile.full_name);
@@ -176,6 +182,9 @@ export default function DataTablePage() {
   // Fetch unique options for filters
   useEffect(() => {
     const fetchFilterOptions = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
       try {
         const [
           { data: statuses },
@@ -231,6 +240,12 @@ export default function DataTablePage() {
   }, [])
 
   const fetchLeads = async (cursor: { created_at: string, id: string } | null = currentCursor) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     try {
       // We fetch pageSize + 1 to check if there is a next page
@@ -243,9 +258,10 @@ export default function DataTablePage() {
 
       // Apply Cursor Filter
       if (cursor) {
-        // (created_at, id) < (cursor.created_at, cursor.id)
-        // Logic: created_at < cursor.created_at OR (created_at = cursor.created_at AND id < cursor.id)
-        query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`)
+        const ts = cursor.created_at.replace(/"/g, '\\"')
+        query = query.or(
+          `created_at.lt."${ts}",and(created_at.eq."${ts}",id.lt.${cursor.id})`
+        )
       }
 
       // Global Filter (Search)
@@ -276,7 +292,11 @@ export default function DataTablePage() {
 
       const { data: fetchedData, error } = await query
 
-      if (error) throw error
+      if (error) {
+        logSupabaseError('fetchLeads', error)
+        toast.error(formatUnknownError(error) || 'Failed to fetch leads')
+        return
+      }
 
       if (fetchedData) {
         // Check if we have more than pageSize
@@ -292,20 +312,39 @@ export default function DataTablePage() {
       }
 
     } catch (error) {
-      console.error('Error fetching leads:', error)
-      toast.error("Failed to fetch leads")
+      logSupabaseError('fetchLeads', error)
+      toast.error(formatUnknownError(error) || 'Failed to fetch leads')
     } finally {
       setLoading(false)
     }
   }
 
-  // Effect to refetch when filters/sort change (Reset to first page)
+  // Refetch when filters change — wait until auth session is available
   useEffect(() => {
-    // Reset cursor stack
-    setCursors([])
-    setCurrentCursor(null)
-    // Fetch first page
-    fetchLeads(null)
+    let cancelled = false
+
+    const resetAndFetch = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+
+      setCursors([])
+      setCurrentCursor(null)
+      fetchLeads(null)
+    }
+
+    resetAndFetch()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled || !session) return
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        resetAndFetch()
+      }
+    })
+
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
   }, [
     debouncedGlobalFilter,
     statusFilter,
@@ -315,7 +354,7 @@ export default function DataTablePage() {
     modeOfServiceFilter,
     leadSourceFilter,
     firstContactFilter,
-    pageSize // Refetch if page size changes
+    pageSize,
   ])
 
   const handleNextPage = () => {
@@ -444,88 +483,50 @@ export default function DataTablePage() {
 
   const selectedIds = table.getFilteredSelectedRowModel().rows.map(row => row.original.id)
 
-
-
-
-
   return (
-    <div className="min-h-screen rounded-lg bg-card from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800">
-      <div className="max-w-full mx-auto p-6 space-y-6">
-        {/* Header Section */}
-        <div className="bg-white/80 dark:bg-card backdrop-blur-sm border-0 border-zinc-200/60 dark:border-zinc-700/60 rounded-xl p-6 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="space-y-2">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink
-                      href="/dashboard"
-                      className="text-zinc-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium"
-                    >
-                      Manage Lead
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className="text-zinc-400 dark:text-zinc-500" />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="text-zinc-900 dark:text-zinc-100 font-semibold">
-                      Leads List
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <Database className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-                    Leads Database
-                  </h1>
-                  <p className="text-zinc-600 dark:text-zinc-400">
-                    Manage and track all your leads in one place
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-lg border border-blue-200/50 dark:border-blue-700/50">
-                <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                  {data.length} <span className="text-sm font-normal opacity-70">(Showing)</span>
-                </div>
-                <div className="text-sm text-blue-600 dark:text-blue-400">
-                  Leads on Page
-                </div>
-              </div>
-              <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-4 rounded-lg border border-green-200/50 dark:border-green-700/50">
-                <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-                  {table.getFilteredSelectedRowModel().rows.length}
-                </div>
-                <div className="text-sm text-green-600 dark:text-green-400">
-                  Selected
-                </div>
-              </div>
-            </div>
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden bg-background">
+      {/* Compact header */}
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  href="/dashboard"
+                  className="text-zinc-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 text-sm font-medium"
+                >
+                  Manage Lead
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="text-zinc-400 dark:text-zinc-500" />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="text-zinc-900 dark:text-zinc-100 text-sm font-semibold">
+                  Leads List
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <div className="hidden sm:flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-white">
+            <Database className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            Leads Database
           </div>
         </div>
+        <div className="flex items-center gap-4 text-xs text-zinc-600 dark:text-zinc-400">
+          <span>
+            <span className="font-semibold text-blue-700 dark:text-blue-300 tabular-nums">{data.length}</span> on page
+          </span>
+          <span>
+            <span className="font-semibold text-green-700 dark:text-green-300 tabular-nums">
+              {table.getFilteredSelectedRowModel().rows.length}
+            </span> selected
+          </span>
+        </div>
+      </div>
 
-        {/* Main Content Card */}
-        <Card className="border-0 shadow-xl bg-white/95 dark:bg-background backdrop-blur-sm">
-          <CardHeader className="">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Users className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                <CardTitle className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  Leads Management
-                </CardTitle>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-2">
-            {/* Controls Section */}
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-2 border-0 dark:border-zinc-700">
+      {/* Table workspace */}
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden px-2 py-2">
+        {/* Controls */}
+        <div className="shrink-0 flex flex-col lg:flex-row gap-2 items-start lg:items-center justify-between mb-2">
               {/* Search */}
               <div className="flex-1 max-w-md">
                 <div className="relative">
@@ -587,7 +588,7 @@ export default function DataTablePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-800">
-                      {[50, 100, 200, 500].map((size) => (
+                      {[10, 20, 50, 100, 200, 500].map((size) => (
                         <SelectItem key={size} value={String(size)}>
                           {size}
                         </SelectItem>
@@ -673,15 +674,19 @@ export default function DataTablePage() {
             </div>
 
             {/* Table Container */}
-            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900/50">
-              <Table>
-                <TableHeader className="bg-zinc-50 dark:bg-zinc-900/50">
+            <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50">
+              <div className="flex-1 min-h-0 overflow-auto">
+                <Table containerClassName="overflow-visible" className="w-max min-w-full">
+                <TableHeader className="bg-zinc-50 dark:bg-zinc-900/50 sticky top-0 z-10">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-900">
                       {headerGroup.headers.map((header) => (
                         <TableHead
                           key={header.id}
-                          className="text-zinc-700 dark:text-zinc-300 font-semibold border-0 last:border-r-0"
+                          className={cn(
+                            "text-zinc-700 dark:text-zinc-300 font-semibold border-0 last:border-r-0",
+                            columnWidthClass(header.column.columnDef.meta)
+                          )}
                         >
                           {header.isPlaceholder
                             ? null
@@ -694,7 +699,7 @@ export default function DataTablePage() {
 
                 <TableBody>
                   {loading ? (
-                    Array.from({ length: 10 }).map((_, i) => (
+                    Array.from({ length: pageSize }).map((_, i) => (
                       <TableRow key={`skeleton-${i}`} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
                         {table.getAllColumns().map((col, idx) => (
                           <TableCell key={idx} className="border-0">
@@ -720,7 +725,10 @@ export default function DataTablePage() {
                         {row.getVisibleCells().map((cell) => (
                           <TableCell
                             key={cell.id}
-                            className="text-zinc-700 dark:text-zinc-300 border-0 border-zinc-100 dark:border-zinc-800 last:border-r-0"
+                            className={cn(
+                              "text-zinc-700 dark:text-zinc-300 border-0 border-zinc-100 dark:border-zinc-800 last:border-r-0",
+                              columnWidthClass(cell.column.columnDef.meta)
+                            )}
                           >
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
@@ -742,11 +750,12 @@ export default function DataTablePage() {
                     </TableRow>
                   )}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             </div>
 
             {/* Pagination */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+            <div className="shrink-0 flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-700">
               <div className="text-sm text-zinc-600 dark:text-zinc-400">
                 Showing {table.getRowModel().rows.length} results
                 {table.getFilteredSelectedRowModel().rows.length > 0 && (
@@ -780,8 +789,7 @@ export default function DataTablePage() {
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+      </div>
 
         {/* Edit Modal */}
         {selectedLead && (
@@ -808,7 +816,6 @@ export default function DataTablePage() {
             }}
           />
         )}
-      </div>
     </div>
   )
 }

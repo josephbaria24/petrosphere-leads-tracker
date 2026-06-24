@@ -2,21 +2,25 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabase-client"
 import { Eye, EyeOff } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
   const router = useRouter()
-  const supabase = useMemo(() => createClientComponentClient(), [])
-  
+  const [wasCleared, setWasCleared] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setWasCleared(params.get("cleared") === "1")
+  }, [])
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [errorMsg, setErrorMsg] = useState("")
@@ -82,6 +86,11 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
   
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
+      {wasCleared && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-900">
+          Stale login cookies were cleared. Please sign in again.
+        </p>
+      )}
       <Card>
         <CardHeader className="text-center">
           <div className="relative text-center text-sm mb-4">

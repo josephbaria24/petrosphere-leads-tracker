@@ -134,6 +134,42 @@ const STATUS_ORDER = [
   "Closed Lost",
 ];
 
+/** Compact column widths for the leads table (px). */
+const COL_W = {
+  select: "min-w-10 max-w-10",
+  status: "min-w-[128px] max-w-[128px]",
+  capturedBy: "min-w-[96px] max-w-[96px]",
+  contactName: "min-w-[132px] max-w-[132px]",
+  email: "min-w-[148px] max-w-[148px]",
+  phone: "min-w-[100px] max-w-[100px]",
+  mobile: "min-w-[100px] max-w-[100px]",
+  company: "min-w-[128px] max-w-[128px]",
+  address: "min-w-[128px] max-w-[128px]",
+  region: "min-w-[108px] max-w-[108px]",
+  leadSource: "min-w-[92px] max-w-[92px]",
+  firstContact: "min-w-[88px] max-w-[88px]",
+  lastContact: "min-w-[88px] max-w-[88px]",
+  service: "min-w-[116px] max-w-[116px]",
+  mode: "min-w-[92px] max-w-[92px]",
+  price: "min-w-[88px] max-w-[88px]",
+  notes: "min-w-[120px] max-w-[120px]",
+  createdAt: "min-w-[88px] max-w-[88px]",
+} as const
+
+function TruncatedText({
+  value,
+  className = "",
+}: {
+  value?: string | null
+  className?: string
+}) {
+  if (!value) return <span className="text-muted-foreground">—</span>
+  return (
+    <div className={`truncate text-sm ${className}`} title={value}>
+      {value}
+    </div>
+  )
+}
 
 export const getColumns = ({
   capturedByFilter,
@@ -183,6 +219,7 @@ export const getColumns = ({
 
     {
       id: "select",
+      meta: { thClass: COL_W.select },
       header: ({ table }) => (
         <Checkbox
           checked={
@@ -205,6 +242,7 @@ export const getColumns = ({
     },
     {
       accessorKey: "status",
+      meta: { thClass: COL_W.status },
       header: function StatusHeader({ column }: { column: any }) {
         const setFilter = setStatusFilter;
 
@@ -313,10 +351,10 @@ export const getColumns = ({
         const badge = statusMap[normalized]
 
         return (
-          <div className="flex items-center">
-            <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full font-medium ${badge?.className || "bg-gray-400 text-white"}`}>
+          <div className="flex items-center max-w-full overflow-hidden">
+            <span className={`inline-flex items-center max-w-full truncate px-2 py-0.5 text-xs rounded-full font-medium ${badge?.className || "bg-gray-400 text-white"}`}>
               {badge?.icon}
-              {badge?.label || status || "—"}
+              <span className="truncate">{badge?.label || status || "—"}</span>
             </span>
           </div>
         )
@@ -324,6 +362,7 @@ export const getColumns = ({
     },
     {
       accessorKey: "captured_by",
+      meta: { thClass: COL_W.capturedBy },
       header: function CapturedByHeader({ column, table }) {
         const unique = React.useMemo(() => {
           return capturedByOptions;
@@ -402,10 +441,14 @@ export const getColumns = ({
         );
       },
       enableSorting: true,
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("captured_by") as string} />
+      ),
     }
     ,
     {
       accessorKey: "contact_name",
+      meta: { thClass: COL_W.contactName },
       header: ({ column }) => (
         <div
           className="flex items-center gap-2 cursor-pointer group"
@@ -416,52 +459,56 @@ export const getColumns = ({
         </div>
       ),
       enableSorting: true,
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("contact_name") as string} />
+      ),
     },
     {
       accessorKey: "email",
+      meta: { thClass: COL_W.email },
       header: "Email",
-      cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
+      cell: ({ row }) => (
+        <TruncatedText
+          value={(row.getValue("email") as string)?.toLowerCase()}
+          className="lowercase font-mono text-xs"
+        />
+      ),
     },
     {
       accessorKey: "phone",
+      meta: { thClass: COL_W.phone },
       header: "Phone",
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("phone") as string} className="text-xs" />
+      ),
     },
     {
       accessorKey: "mobile",
+      meta: { thClass: COL_W.mobile },
       header: "Mobile",
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("mobile") as string} className="text-xs" />
+      ),
     },
     {
       accessorKey: "company",
+      meta: { thClass: COL_W.company },
       header: "Company",
-      cell: ({ row }) => {
-        const company = row.getValue("company") as string;
-        if (!company) return "—";
-        const words = company.split(" ");
-        const truncated = words.length > 4 ? words.slice(0, 4).join(" ") + "..." : company;
-        return (
-          <div className="w-[180px] truncate" title={company}>
-            {truncated}
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("company") as string} />
+      ),
     },
     {
       accessorKey: "address",
+      meta: { thClass: COL_W.address },
       header: "Address",
-      cell: ({ row }) => {
-        const address = row.getValue("address") as string;
-        if (!address) return "—";
-        const words = address.split(" ");
-        const truncated = words.length > 4 ? words.slice(0, 4).join(" ") + "..." : address;
-        return (
-          <div className="w-[180px] truncate" title={address}>
-            {truncated}
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("address") as string} />
+      ),
     },
     {
       accessorKey: "region",
+      meta: { thClass: COL_W.region },
       header: ({ column, table }) =>
         FilterHeader({
           title: "Region",
@@ -471,9 +518,13 @@ export const getColumns = ({
           options: regionOptions,
         }),
       enableSorting: true,
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("region") as string} className="text-xs" />
+      ),
     },
     {
       accessorKey: "lead_source",
+      meta: { thClass: COL_W.leadSource },
       header: ({ column, table }) =>
         FilterHeader({
           title: "Lead Source",
@@ -483,9 +534,13 @@ export const getColumns = ({
           options: leadSourceOptions,
         }),
       enableSorting: true,
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("lead_source") as string} className="text-xs" />
+      ),
     },
     {
       accessorKey: "first_contact",
+      meta: { thClass: COL_W.firstContact },
       header: ({ column, table }) =>
         FilterHeader({
           title: "First Contact",
@@ -497,11 +552,16 @@ export const getColumns = ({
       enableSorting: true,
       cell: ({ row }) => {
         const date = row.getValue("first_contact")
-        return date ? new Date(date as string).toLocaleDateString() : "—"
+        return (
+          <span className="text-xs whitespace-nowrap">
+            {date ? new Date(date as string).toLocaleDateString() : "—"}
+          </span>
+        )
       },
     },
     {
       accessorKey: "last_contact",
+      meta: { thClass: COL_W.lastContact },
       header: ({ column }) => (
         <div
           className="flex items-center gap-2 cursor-pointer group"
@@ -514,11 +574,16 @@ export const getColumns = ({
       enableSorting: true,
       cell: ({ row }) => {
         const date = row.getValue("last_contact")
-        return date ? new Date(date as string).toLocaleDateString() : "—"
+        return (
+          <span className="text-xs whitespace-nowrap">
+            {date ? new Date(date as string).toLocaleDateString() : "—"}
+          </span>
+        )
       },
     },
     {
       accessorKey: "service_product",
+      meta: { thClass: COL_W.service },
       header: ({ column, table }) =>
         FilterHeader({
           title: "Service",
@@ -528,9 +593,13 @@ export const getColumns = ({
           options: serviceOptions,
         }),
       enableSorting: true,
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("service_product") as string} className="text-xs" />
+      ),
     },
     {
       accessorKey: "mode_of_service",
+      meta: { thClass: COL_W.mode },
       header: ({ column, table }) =>
         FilterHeader({
           title: "Mode of Service",
@@ -540,29 +609,43 @@ export const getColumns = ({
           options: modeOfServiceOptions,
         }),
       enableSorting: true,
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("mode_of_service") as string} className="text-xs" />
+      ),
     },
     {
       accessorKey: "service_price",
+      meta: { thClass: COL_W.price },
       header: "Service Price",
       cell: ({ row }) => {
         const val = row.getValue("service_price")
         const num = typeof val === "number" ? val : parseFloat(val as string)
-        return isNaN(num) ? "—" : `₱${num.toFixed(2)}`
+        return (
+          <span className="text-xs whitespace-nowrap tabular-nums">
+            {isNaN(num) ? "—" : `₱${num.toFixed(2)}`}
+          </span>
+        )
       },
     },
 
 
     {
       accessorKey: "notes",
+      meta: { thClass: COL_W.notes },
       header: "Notes",
-      cell: ({ row }) => (
-        <span className="line-clamp-2 max-h-[3em] overflow-hidden block">
-          {row.getValue("notes")}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const notes = row.getValue("notes") as string
+        if (!notes) return <span className="text-muted-foreground">—</span>
+        return (
+          <span className="line-clamp-2 text-xs leading-snug overflow-hidden block" title={notes}>
+            {notes}
+          </span>
+        )
+      },
     },
     {
       accessorKey: "created_at",
+      meta: { thClass: COL_W.createdAt },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -576,7 +659,11 @@ export const getColumns = ({
       enableSorting: true,
       cell: ({ row }) => {
         const date = row.getValue("created_at")
-        return date ? new Date(date as string).toLocaleDateString() : "—"
+        return (
+          <span className="text-xs whitespace-nowrap">
+            {date ? new Date(date as string).toLocaleDateString() : "—"}
+          </span>
+        )
       },
     },
   ]

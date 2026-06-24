@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronsUpDown, Plus, Users, Building2 } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import {
@@ -10,8 +10,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -20,6 +18,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { cn } from "@/lib/utils"
 
 export function TeamSwitcher({
   teams,
@@ -30,90 +29,98 @@ export function TeamSwitcher({
     name: string
     logo: React.ElementType
     plan: string
-    value: string // 'CRM' or 'PDN'
+    value: string
   }[]
   currentTeam?: string
   onTeamChange?: (team: string) => void
 }) {
   const { isMobile } = useSidebar()
   const router = useRouter()
-  
-  // Find active team based on currentTeam prop or default to first
+
   const [activeTeam, setActiveTeam] = React.useState(() => {
-    return teams.find(t => t.value === currentTeam) || teams[0]
+    return teams.find((t) => t.value === currentTeam) || teams[0]
   })
 
-  const handleTeamSwitch = async (team: typeof teams[0]) => {
+  React.useEffect(() => {
+    const team = teams.find((t) => t.value === currentTeam)
+    if (team) setActiveTeam(team)
+  }, [currentTeam, teams])
+
+  const handleTeamSwitch = (team: (typeof teams)[0]) => {
     setActiveTeam(team)
-    
-    // Save to localStorage
-    localStorage.setItem('selected-team', team.value)
-    
-    // Call parent callback if provided
-    if (onTeamChange) {
-      onTeamChange(team.value)
-    }
-    
-    // Redirect to appropriate dashboard
-    if (team.value === 'PDN') {
-      router.push('/dashboard/pdn')
+    localStorage.setItem("selected-team", team.value)
+    onTeamChange?.(team.value)
+
+    if (team.value === "PDN") {
+      router.push("/dashboard/pdn")
     } else {
-      router.push('/dashboard')
+      router.push("/dashboard")
     }
   }
 
-  if (!activeTeam) {
-    return null
-  }
+  if (!activeTeam) return null
 
   return (
-    <SidebarMenu>
+    <SidebarMenu className="group-data-[collapsible=icon]:items-center">
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              tooltip={activeTeam.name}
+              className={cn(
+                "h-auto rounded-xl border border-zinc-200 bg-white px-3 py-2.5 shadow-sm",
+                "hover:bg-zinc-50 data-[state=open]:bg-zinc-50",
+                "dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:data-[state=open]:bg-zinc-800",
+                "group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!border-0",
+                "group-data-[collapsible=icon]:!bg-transparent group-data-[collapsible=icon]:!p-0",
+                "group-data-[collapsible=icon]:!shadow-none group-data-[collapsible=icon]:justify-center"
+              )}
             >
-              <div className="bg-transparent text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-              <activeTeam.logo />
+              <div
+                className={cn(
+                  "flex size-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50",
+                  "dark:border-zinc-700 dark:bg-zinc-800",
+                  "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:rounded-xl"
+                )}
+              >
+                <activeTeam.logo />
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{activeTeam.name}</span>
-                <span className="truncate text-xs">{activeTeam.plan}</span>
+              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                <span className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {activeTeam.name}
+                </span>
+                <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                  {activeTeam.plan}
+                </span>
               </div>
-              <ChevronsUpDown className="ml-auto" />
+              <ChevronDown className="ml-auto size-4 shrink-0 text-zinc-500 group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-xl"
             align="start"
             side={isMobile ? "bottom" : "right"}
-            sideOffset={4}
+            sideOffset={8}
           >
-            <DropdownMenuLabel className="text-muted-foreground text-xs">
-              Teams
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Switch workspace
             </DropdownMenuLabel>
-            {teams.map((team, index) => (
+            {teams.map((team) => (
               <DropdownMenuItem
                 key={team.name}
                 onClick={() => handleTeamSwitch(team)}
-                className="gap-2 p-2"
+                className="gap-2 rounded-lg p-2"
               >
-                <div className="flex size-6 items-center justify-center rounded-md border">
-                <team.logo />
+                <div className="flex size-7 items-center justify-center rounded-md border bg-zinc-50 dark:bg-zinc-800">
+                  <team.logo />
                 </div>
-                {team.name}
-                <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{team.name}</span>
+                  <span className="text-xs text-muted-foreground">{team.plan}</span>
+                </div>
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2" disabled>
-              <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
-                <Plus className="size-4" />
-              </div>
-              <div className="text-muted-foreground font-medium">Add team</div>
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

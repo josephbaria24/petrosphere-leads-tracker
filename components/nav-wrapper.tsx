@@ -1,13 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabase-client"
 import { NavUser as BaseNavUser } from "./nav-user"
 
 type U = { name: string; email: string; avatar?: string | null }
 
 export function NavUserWrapper({ user }: { user: U }) {
-  const supabase = createClientComponentClient()
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatar ?? null)
 
   useEffect(() => {

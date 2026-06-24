@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { NewLeadsWeeklyBar } from '@/components/charts/new-leads-weekly-bar'
 import { SuccessfulDealsGauge } from '@/components/charts/successful-deals-gauge'
 import { LeadAgingChart, type LeadAgingData } from '@/components/charts/lead-aging-chart'
+import { logSupabaseError } from '@/lib/format-error'
 
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -350,10 +351,14 @@ export function ActualDashboardPage() {
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [showClosedWinCelebration, setShowClosedWinCelebration] = useState(false)
   const [closedWinCelebrationData, setClosedWinCelebrationData] = useState<{
-    capturedBy: string
-    leadName: string
-    servicePrice: number
+    wins: Array<{
+      id: string
+      capturedBy: string
+      leadName: string
+      servicePrice: number
+    }>
     totalClosedWins: number
+    totalValue: number
   } | null>(null)
   const [celebrationMessage, setCelebrationMessage] = useState("You did a great job!")
   const [topNavClosedWinTickerItems, setTopNavClosedWinTickerItems] = useState<string[]>([])
@@ -685,40 +690,33 @@ export function ActualDashboardPage() {
       const endOfToday = new Date()
       endOfToday.setHours(23, 59, 59, 999)
 
-      const { data: latestClosedWin, error: latestError } = await supabase
+      const { data: todaysClosedWins, error } = await supabase
         .from('crm_leads')
-        .select('id, captured_by, contact_name, service_price')
+        .select('id, captured_by, contact_name, service_price, created_at')
         .or('status.eq.Closed Win,status.eq.closed win')
         .gte('created_at', startOfToday.toISOString())
         .lte('created_at', endOfToday.toISOString())
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
 
-      if (latestError) {
-        console.error('Closed Win latest lead query error:', latestError)
+      if (error) {
+        logSupabaseError('Closed Win celebration', error)
         return
       }
 
-      if (!latestClosedWin) return
+      if (!todaysClosedWins?.length) return
 
-      const { count, error: countError } = await supabase
-        .from('crm_leads')
-        .select('id', { count: 'exact', head: true })
-        .or('status.eq.Closed Win,status.eq.closed win')
-        .gte('created_at', startOfToday.toISOString())
-        .lte('created_at', endOfToday.toISOString())
-
-      if (countError) {
-        console.error('Closed Win count query error:', countError)
-        return
-      }
+      const wins = todaysClosedWins.map((lead) => ({
+        id: lead.id,
+        capturedBy: lead.captured_by || 'Unknown',
+        leadName: lead.contact_name || 'Unnamed Lead',
+        servicePrice: Number(lead.service_price || 0),
+      }))
+      const totalValue = wins.reduce((sum, win) => sum + win.servicePrice, 0)
 
       setClosedWinCelebrationData({
-        capturedBy: latestClosedWin.captured_by || 'Unknown',
-        leadName: latestClosedWin.contact_name || 'Unnamed Lead',
-        servicePrice: Number(latestClosedWin.service_price || 0),
-        totalClosedWins: count || 0,
+        wins,
+        totalClosedWins: wins.length,
+        totalValue,
       })
       const randomIndex = Math.floor(Math.random() * celebrationMessages.length)
       setCelebrationMessage(celebrationMessages[randomIndex])
@@ -745,7 +743,7 @@ export function ActualDashboardPage() {
         .lte('created_at', endOfToday.toISOString())
 
       if (error) {
-        console.error('Top nav ticker query error:', error)
+        logSupabaseError('Top nav Closed Win ticker', error)
         return
       }
 
@@ -1095,24 +1093,40 @@ export function ActualDashboardPage() {
                 />
               </div>
 
-              <div className="rounded-xl bg-white/92 dark:bg-zinc-950/60 p-4 backdrop-blur-sm">
-                <div className="mb-2 flex items-center gap-2">
+              <div className="flex min-h-0 flex-col rounded-xl bg-white/92 p-4 backdrop-blur-sm dark:bg-zinc-950/60">
+                <div className="mb-2 flex shrink-0 items-center gap-2">
                   <Trophy className="h-5 w-5 text-yellow-500" />
                   <p className="text-lg font-extrabold tracking-wide text-[#00044a] dark:text-blue-100">
                     WELL DONE!
                   </p>
                 </div>
-                <p className="mb-2 text-sm font-semibold text-[#00044a] dark:text-blue-200">
+                <p className="mb-3 shrink-0 text-sm font-semibold text-[#00044a] dark:text-blue-200">
                   {celebrationMessage}
                 </p>
-                <p className="text-sm text-[#111827] dark:text-blue-100/90">
-                  <span className="font-semibold">{closedWinCelebrationData.capturedBy}</span> closed a win for
-                  <span className="font-semibold"> {closedWinCelebrationData.leadName}</span> worth
-                  <span className="font-semibold"> ₱{closedWinCelebrationData.servicePrice.toLocaleString('en-PH')}</span>.
-                </p>
-                <p className="mt-1 text-xs font-medium text-[#00044a]/90 dark:text-blue-200/80">
-                  Today's Closed Win Leads: {closedWinCelebrationData.totalClosedWins}
-                </p>
+
+                <div className="closed-win-celebration-list min-h-0 max-h-28 space-y-2 overflow-y-auto overscroll-y-contain pr-1 sm:max-h-36">
+                  {closedWinCelebrationData.wins.map((win) => (
+                    <div
+                      key={win.id}
+                      className="shrink-0 rounded-lg border border-[#00044a]/10 bg-white/70 px-3 py-2 text-sm text-[#111827] dark:border-blue-200/20 dark:bg-zinc-900/40 dark:text-blue-100/90"
+                    >
+                      <span className="font-semibold">{win.capturedBy}</span> closed a win for{' '}
+                      <span className="font-semibold">{win.leadName}</span> worth{' '}
+                      <span className="font-semibold">₱{win.servicePrice.toLocaleString('en-PH')}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {closedWinCelebrationData.wins.length > 2 && (
+                  <p className="mt-1 shrink-0 text-[10px] font-medium text-[#00044a]/55 dark:text-blue-200/55">
+                    Scroll to see all {closedWinCelebrationData.wins.length} wins
+                  </p>
+                )}
+
+                <div className="mt-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-[#00044a] dark:text-blue-200">
+                  <span>Today&apos;s Closed Win Leads: {closedWinCelebrationData.totalClosedWins}</span>
+                  <span>Total Value: ₱{closedWinCelebrationData.totalValue.toLocaleString('en-PH')}</span>
+                </div>
                 <div className="mt-3">
                   <Button
                     size="sm"
@@ -1570,6 +1584,24 @@ export function ActualDashboardPage() {
           100% {
             transform: translateX(0%);
           }
+        }
+
+        .closed-win-celebration-list {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(0, 4, 74, 0.4) transparent;
+        }
+
+        .closed-win-celebration-list::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .closed-win-celebration-list::-webkit-scrollbar-thumb {
+          background: rgba(0, 4, 74, 0.35);
+          border-radius: 999px;
+        }
+
+        .closed-win-celebration-list::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 4, 74, 0.55);
         }
 
         .closed-win-ticker-track {

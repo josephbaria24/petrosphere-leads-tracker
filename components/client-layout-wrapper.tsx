@@ -1,7 +1,7 @@
 // components/client-layout-wrapper.tsx
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -10,16 +10,13 @@ import { ThemeToggle } from "./mode-toggle"
 import Image from "next/image"
 import { LeadAgingManager } from "./LeadAgingManager"
 
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabase-client"
 import { SessionContextProvider } from "@supabase/auth-helpers-react"
 
 export function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const isLoginPage = pathname === "/login"
-
-  // ✅ single client instance
-  const supabase = useMemo(() => createClientComponentClient(), [])
 
   const [isReady, setIsReady] = useState(false)
 
@@ -29,38 +26,38 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
     const isPublic = (path: string) =>
       path.startsWith("/login") || path.startsWith("/auth") || path.startsWith("/unauthorized")
 
-    const init = async () => {
-      const { data } = await supabase.auth.getSession()
-      const session = data.session
-
-      if (!mounted) return
-      setIsReady(true)
-
-      // Protect routes
-      if (!session && !isPublic(pathname)) {
+    const routeForAuth = (hasUser: boolean) => {
+      if (!hasUser && !isPublic(pathname)) {
         router.replace("/login")
+        return
       }
-
-      if (session && isLoginPage) {
+      if (hasUser && pathname === "/login") {
         router.replace("/dashboard")
       }
+    }
+
+    const init = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!mounted) return
+      setIsReady(true)
+      routeForAuth(!!user)
     }
 
     init()
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      // ignore token refresh redirects
       if (event === "TOKEN_REFRESHED") return
-
-      if (!session && !isPublic(pathname)) router.replace("/login")
-      if (session && isLoginPage) router.replace("/dashboard")
+      if (!mounted) return
+      routeForAuth(!!session?.user)
     })
 
     return () => {
       mounted = false
       authListener.subscription.unsubscribe()
     }
-  }, [pathname, router, isLoginPage, supabase])
+  }, [pathname, router])
 
   if (!isReady) return <div className="p-10 text-center">Loading...</div>
 

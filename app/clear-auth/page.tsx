@@ -3,31 +3,32 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
+function clearBrowserAuthData() {
+  document.cookie.split(';').forEach((c) => {
+    const name = c.replace(/^ +/, '').split('=')[0]
+    if (!name) return
+    document.cookie = `${name}=;expires=${new Date(0).toUTCString()};path=/`
+  })
+  localStorage.clear()
+  sessionStorage.clear()
+}
+
 export default function ClearAuth() {
   const router = useRouter()
 
   useEffect(() => {
-    // Clear all cookies
-    document.cookie.split(";").forEach((c) => {
-      document.cookie = c
-        .replace(/^ +/, "")
-        .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
-    })
-    
-    // Clear localStorage
-    localStorage.clear()
-    
-    // Clear sessionStorage
-    sessionStorage.clear()
-    
+    clearBrowserAuthData()
     setTimeout(() => {
       router.push('/login')
-    }, 1000)
+    }, 500)
   }, [router])
 
   return (
     <div className="p-10 text-center">
       <p>Clearing authentication data...</p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        If login still fails, clear cookies for this site in your browser settings.
+      </p>
     </div>
   )
 }
