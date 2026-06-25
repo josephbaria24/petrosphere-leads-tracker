@@ -676,7 +676,7 @@ export default function DataTablePage() {
             {/* Table Container */}
             <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50">
               <div className="flex-1 min-h-0 overflow-auto">
-                <Table containerClassName="overflow-visible" className="w-max min-w-full">
+                <Table containerClassName="overflow-visible" className="w-max min-w-full table-fixed">
                 <TableHeader className="bg-zinc-50 dark:bg-zinc-900/50 sticky top-0 z-10">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-900">
@@ -684,7 +684,7 @@ export default function DataTablePage() {
                         <TableHead
                           key={header.id}
                           className={cn(
-                            "text-zinc-700 dark:text-zinc-300 font-semibold border-0 last:border-r-0",
+                            "overflow-hidden px-1.5 py-1.5 text-[11px] font-semibold border-0 last:border-r-0",
                             columnWidthClass(header.column.columnDef.meta)
                           )}
                         >
@@ -726,7 +726,7 @@ export default function DataTablePage() {
                           <TableCell
                             key={cell.id}
                             className={cn(
-                              "text-zinc-700 dark:text-zinc-300 border-0 border-zinc-100 dark:border-zinc-800 last:border-r-0",
+                              "overflow-hidden px-1.5 py-1.5 border-0 last:border-r-0",
                               columnWidthClass(cell.column.columnDef.meta)
                             )}
                           >

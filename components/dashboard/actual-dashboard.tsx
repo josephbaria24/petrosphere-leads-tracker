@@ -1176,21 +1176,15 @@ export function ActualDashboardPage() {
           </div>
 
           {/* Closed Win Highlights Ticker */}
-          <div className="relative w-full lg:w-[30%] overflow-hidden rounded-xl border border-emerald-300/40 dark:border-emerald-700/40 bg-gradient-to-r from-emerald-50/80 via-white to-blue-50/80 dark:from-emerald-950/30 dark:via-zinc-900 dark:to-blue-950/30 shadow-sm">
+          <div className="relative w-full lg:w-[52%] xl:w-[58%] overflow-hidden rounded-xl border border-blue-300/40 dark:border-blue-700/40 bg-gradient-to-r from-blue-50/80 via-white to-blue-50/80 dark:from-blue-950/30 dark:via-zinc-900 dark:to-blue-950/30 shadow-sm">
             <div className="absolute inset-y-0 left-0 z-20 w-20 bg-gradient-to-r from-background to-transparent pointer-events-none" />
             <div className="absolute inset-y-0 right-0 z-20 w-20 bg-gradient-to-l from-background to-transparent pointer-events-none" />
-            <div className="flex items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-800/50 px-4 py-2">
-              <Trophy className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <p className="text-xs font-semibold tracking-wide uppercase text-emerald-700 dark:text-emerald-300">
-                Closed Win Highlights (Today + Yesterday)
-              </p>
-            </div>
             <div className="relative h-12 overflow-hidden">
               <div className="closed-win-ticker-track">
                 {[...topNavClosedWinTickerItems, ...topNavClosedWinTickerItems].map((message, index) => (
                   <span
                     key={`${message}-${index}`}
-                    className="mx-2 inline-flex items-center rounded-full border border-emerald-300/60 dark:border-emerald-700/60 bg-white/90 dark:bg-zinc-900/80 px-4 py-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-100 shadow-sm"
+                    className="mx-2 inline-flex items-center rounded-lg border border-blue-300/60 dark:border-blue-700/60 bg-white/90 dark:bg-zinc-900/80 px-4 py-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-100 shadow-sm"
                   >
                     {message}
                   </span>
@@ -1614,7 +1608,7 @@ export function ActualDashboardPage() {
           min-width: max-content;
           height: 100%;
           padding: 0 0.5rem;
-          animation: ticker-left-to-right 22s linear infinite;
+          animation: ticker-left-to-right 32s linear infinite;
         }
       `}</style>
     </div>

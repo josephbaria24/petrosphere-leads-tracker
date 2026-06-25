@@ -26,6 +26,9 @@ import {
   Package,
   ClipboardList,
   User,
+  List,
+  UserPlus,
+  FileText,
 } from "lucide-react"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -99,11 +102,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         pathname.startsWith("/add-new-leads") ||
         pathname.startsWith("/proposals-tracker"),
       items: [
-        { title: "Leads List", url: "/lead-table", isActive: pathname === "/lead-table" },
-        { title: "Add New Lead", url: "/add-new-leads", isActive: pathname === "/add-new-leads" },
+        { title: "Leads List", url: "/lead-table", icon: List, isActive: pathname === "/lead-table" },
+        { title: "Add New Lead", url: "/add-new-leads", icon: UserPlus, isActive: pathname === "/add-new-leads" },
         {
           title: "Proposals tracker",
           url: "/proposals-tracker",
+          icon: FileText,
           isActive: pathname === "/proposals-tracker",
         },
       ],
@@ -136,8 +140,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: User,
       isActive: pathname.startsWith("/pdn"),
       items: [
-        { title: "Leads Lists", url: "/pdn-leads", isActive: pathname === "/pdn-leads" },
-        { title: "Add New Leads", url: "/pdn/projects/new", isActive: pathname === "/pdn/projects/new" },
+        { title: "Leads Lists", url: "/pdn-leads", icon: List, isActive: pathname === "/pdn-leads" },
+        { title: "Add New Leads", url: "/pdn/projects/new", icon: UserPlus, isActive: pathname === "/pdn/projects/new" },
       ],
     },
     { title: "Products", url: "/pdn/products", icon: Package, isActive: pathname === "/pdn/products" },
@@ -148,16 +152,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="gap-4 p-4 pb-2 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-3 group-data-[collapsible=icon]:p-3">
+      <SidebarHeader className="gap-3 p-3 pb-1.5 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:p-2.5">
         <TeamSwitcher teams={teams} currentTeam={currentTeam} onTeamChange={handleTeamChange} />
       </SidebarHeader>
 
-      <SidebarContent className="px-1 group-data-[collapsible=icon]:px-2">
+      <SidebarContent className="px-1 group-data-[collapsible=icon]:px-1.5">
         <NavMain items={navMain} />
       </SidebarContent>
 
       <SidebarFooter className="mt-auto gap-0 p-0">
-        <div className="px-3 pb-4 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pb-3">
+        <div className="px-2.5 pb-3 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1.5 group-data-[collapsible=icon]:pb-2.5">
           <NavUserWrapper
             user={{
               name: userName,

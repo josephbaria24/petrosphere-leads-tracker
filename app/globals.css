@@ -42,6 +42,9 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --animate-collapsible-down: collapsible-down 0.25s ease-out;
+  --animate-collapsible-up: collapsible-up 0.2s ease-out;
+  --animate-nav-sub-in: nav-sub-in 0.22s ease-out both;
 }
 
 :root {
@@ -69,14 +72,14 @@
   --chart-3: #555fc6;
   --chart-4: #ff3794;
   --chart-5: #edc72a;
-  --sidebar: #f4f4f5;
+  --sidebar: #ffffff;
   --sidebar-foreground: #3f3f46;
-  --sidebar-primary: #166534;
+  --sidebar-primary: #2563eb;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #d9f99d;
-  --sidebar-accent-foreground: #1a2e05;
+  --sidebar-accent: #dbeafe;
+  --sidebar-accent-foreground: #1d4ed8;
   --sidebar-border: #e4e4e7;
-  --sidebar-ring: #a1a1aa;
+  --sidebar-ring: #93c5fd;
 }
 
 .dark {
@@ -103,14 +106,68 @@
   --chart-3: #edc72a;
   --chart-4: #2dc62d;
   --chart-5: #dd7e0d;
-  --sidebar: #18181b;
+  --sidebar: #09090b;
   --sidebar-foreground: #d4d4d8;
-  --sidebar-primary: #4ade80;
-  --sidebar-primary-foreground: #052e16;
-  --sidebar-accent: rgba(163, 230, 53, 0.18);
-  --sidebar-accent-foreground: #ecfccb;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #eff6ff;
+  --sidebar-accent: rgba(59, 130, 246, 0.2);
+  --sidebar-accent-foreground: #bfdbfe;
   --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #52525b;
+  --sidebar-ring: #3b82f6;
+}
+
+
+@keyframes collapsible-down {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes collapsible-up {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes nav-sub-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.group\/collapsible[data-state="open"] [data-sidebar="menu-sub-item"]:nth-child(1) {
+  animation: nav-sub-in 0.22s ease-out 0.04s both;
+}
+
+.group\/collapsible[data-state="open"] [data-sidebar="menu-sub-item"]:nth-child(2) {
+  animation: nav-sub-in 0.22s ease-out 0.08s both;
+}
+
+.group\/collapsible[data-state="open"] [data-sidebar="menu-sub-item"]:nth-child(3) {
+  animation: nav-sub-in 0.22s ease-out 0.12s both;
+}
+
+.group\/collapsible[data-state="open"] [data-sidebar="menu-sub-item"]:nth-child(4) {
+  animation: nav-sub-in 0.22s ease-out 0.16s both;
+}
+
+.group\/collapsible[data-state="open"] [data-sidebar="menu-sub-item"]:nth-child(n + 5) {
+  animation: nav-sub-in 0.22s ease-out 0.2s both;
 }
 
 

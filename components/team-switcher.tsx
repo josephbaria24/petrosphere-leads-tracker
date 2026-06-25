@@ -69,32 +69,32 @@ export function TeamSwitcher({
               size="lg"
               tooltip={activeTeam.name}
               className={cn(
-                "h-auto rounded-xl border border-zinc-200 bg-white px-3 py-2.5 shadow-sm",
+                "h-auto rounded-lg border border-zinc-200 bg-white px-2.5 py-2 shadow-sm",
                 "hover:bg-zinc-50 data-[state=open]:bg-zinc-50",
                 "dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:data-[state=open]:bg-zinc-800",
-                "group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!border-0",
+                "group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!border-0",
                 "group-data-[collapsible=icon]:!bg-transparent group-data-[collapsible=icon]:!p-0",
                 "group-data-[collapsible=icon]:!shadow-none group-data-[collapsible=icon]:justify-center"
               )}
             >
               <div
                 className={cn(
-                  "flex size-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50",
+                  "flex size-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50",
                   "dark:border-zinc-700 dark:bg-zinc-800",
-                  "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:rounded-xl"
+                  "group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:rounded-lg"
                 )}
               >
                 <activeTeam.logo />
               </div>
               <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                <span className="truncate text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                   {activeTeam.name}
                 </span>
-                <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
                   {activeTeam.plan}
                 </span>
               </div>
-              <ChevronDown className="ml-auto size-4 shrink-0 text-zinc-500 group-data-[collapsible=icon]:hidden" />
+              <ChevronDown className="ml-auto size-3.5 shrink-0 text-zinc-500 group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

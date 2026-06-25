@@ -16,14 +16,53 @@ import {
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+
+export type Lead = {
+  id: string
+  contact_name: string
+  email: string
+  phone?: string
+  mobile?: string
+  company?: string
+  address?: string
+  status?: string
+  region?: string
+  service_product?: string
+  mode_of_service?: string
+  service_price?: number
+  lead_source?: string
+  first_contact?: string
+  last_contact?: string
+  captured_by?: string
+  notes?: string
+  created_at?: string
+}
+
+const HEADER_LABEL =
+  "min-w-0 truncate text-[11px] font-semibold leading-tight text-zinc-700 dark:text-zinc-300"
+
+function HeaderLabel({ children, title }: { children: React.ReactNode; title?: string }) {
+  return (
+    <span className={HEADER_LABEL} title={title ?? (typeof children === "string" ? children : undefined)}>
+      {children}
+    </span>
+  )
+}
+
+const FILTER_BTN = "h-5 w-5 shrink-0 p-0"
+const FILTER_ICON = "h-3 w-3"
+const SORT_ICON = "h-3 w-3 shrink-0 opacity-50 group-hover:opacity-100"
+
 const FilterHeader = ({
   title,
+  shortTitle,
   accessor,
   filter,
   setFilter,
   options,
 }: {
   title: string;
+  shortTitle?: string;
   accessor: keyof Lead;
   filter: string[];
   setFilter: React.Dispatch<React.SetStateAction<string[]>>;
@@ -42,12 +81,12 @@ const FilterHeader = ({
   }, [open, filter]);
 
   return (
-    <div className="flex items-center gap-2">
-      {title}
+    <div className="flex min-w-0 max-w-full items-center gap-0.5 overflow-hidden">
+      <HeaderLabel title={title}>{shortTitle ?? title}</HeaderLabel>
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm">
-            <ChevronDown className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className={FILTER_BTN}>
+            <ChevronDown className={FILTER_ICON} />
           </Button>
         </DropdownMenuTrigger>
 
@@ -102,26 +141,6 @@ const FilterHeader = ({
   );
 
 }
-export type Lead = {
-  id: string
-  contact_name: string
-  email: string
-  phone?: string
-  mobile?: string
-  company?: string
-  address?: string
-  status?: string
-  region?: string
-  service_product?: string
-  mode_of_service?: string
-  service_price?: number
-  lead_source?: string
-  first_contact?: string
-  last_contact?: string
-  captured_by?: string
-  notes?: string
-  created_at?: string
-}
 // Define the exact order you want
 const STATUS_ORDER = [
   "Lead In",
@@ -136,24 +155,24 @@ const STATUS_ORDER = [
 
 /** Compact column widths for the leads table (px). */
 const COL_W = {
-  select: "min-w-10 max-w-10",
-  status: "min-w-[128px] max-w-[128px]",
-  capturedBy: "min-w-[96px] max-w-[96px]",
-  contactName: "min-w-[132px] max-w-[132px]",
-  email: "min-w-[148px] max-w-[148px]",
-  phone: "min-w-[100px] max-w-[100px]",
-  mobile: "min-w-[100px] max-w-[100px]",
-  company: "min-w-[128px] max-w-[128px]",
-  address: "min-w-[128px] max-w-[128px]",
-  region: "min-w-[108px] max-w-[108px]",
-  leadSource: "min-w-[92px] max-w-[92px]",
-  firstContact: "min-w-[88px] max-w-[88px]",
-  lastContact: "min-w-[88px] max-w-[88px]",
-  service: "min-w-[116px] max-w-[116px]",
-  mode: "min-w-[92px] max-w-[92px]",
-  price: "min-w-[88px] max-w-[88px]",
-  notes: "min-w-[120px] max-w-[120px]",
-  createdAt: "min-w-[88px] max-w-[88px]",
+  select: "w-10 min-w-10 max-w-10",
+  status: "w-[118px] min-w-[118px] max-w-[118px]",
+  capturedBy: "w-[100px] min-w-[100px] max-w-[100px]",
+  contactName: "w-[110px] min-w-[110px] max-w-[110px]",
+  email: "w-[130px] min-w-[130px] max-w-[130px]",
+  phone: "w-[96px] min-w-[96px] max-w-[96px]",
+  mobile: "w-[96px] min-w-[96px] max-w-[96px]",
+  company: "w-[110px] min-w-[110px] max-w-[110px]",
+  address: "w-[110px] min-w-[110px] max-w-[110px]",
+  region: "w-[88px] min-w-[88px] max-w-[88px]",
+  leadSource: "w-[88px] min-w-[88px] max-w-[88px]",
+  firstContact: "w-[84px] min-w-[84px] max-w-[84px]",
+  lastContact: "w-[84px] min-w-[84px] max-w-[84px]",
+  service: "w-[96px] min-w-[96px] max-w-[96px]",
+  mode: "w-[88px] min-w-[88px] max-w-[88px]",
+  price: "w-[80px] min-w-[80px] max-w-[80px]",
+  notes: "w-[110px] min-w-[110px] max-w-[110px]",
+  createdAt: "w-[84px] min-w-[84px] max-w-[84px]",
 } as const
 
 function TruncatedText({
@@ -267,12 +286,12 @@ export const getColumns = ({
         }, [open, statusFilter]);
 
         return (
-          <div className="flex items-center gap-2">
-            Status
+          <div className="flex min-w-0 max-w-full items-center gap-0.5 overflow-hidden">
+            <HeaderLabel title="Status">Status</HeaderLabel>
             <DropdownMenu open={open} onOpenChange={setOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <ChevronDown className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className={FILTER_BTN}>
+                  <ChevronDown className={FILTER_ICON} />
                 </Button>
               </DropdownMenuTrigger>
 
@@ -325,7 +344,7 @@ export const getColumns = ({
 
             </DropdownMenu>
             <ArrowUpDown
-              className="ml-1 h-4 w-4 text-muted-foreground opacity-50 hover:opacity-100 cursor-pointer"
+              className={`${SORT_ICON} cursor-pointer`}
               onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             />
           </div>
@@ -376,13 +395,12 @@ export const getColumns = ({
         }, [open, capturedByFilter]);
 
         return (
-          <div className="flex items-center gap-2">
-            Captured By
-
+          <div className="flex min-w-0 max-w-full items-center gap-0.5 overflow-hidden">
+            <HeaderLabel title="Captured By">Captured</HeaderLabel>
             <DropdownMenu open={open} onOpenChange={setOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <ChevronDown className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className={FILTER_BTN}>
+                  <ChevronDown className={FILTER_ICON} />
                 </Button>
               </DropdownMenuTrigger>
 
@@ -451,11 +469,11 @@ export const getColumns = ({
       meta: { thClass: COL_W.contactName },
       header: ({ column }) => (
         <div
-          className="flex items-center gap-2 cursor-pointer group"
+          className="group flex min-w-0 max-w-full cursor-pointer items-center gap-0.5 overflow-hidden"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Contact Name
-          <ArrowUpDown className="ml-1 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          <HeaderLabel title="Contact Name">Contact</HeaderLabel>
+          <ArrowUpDown className={`${SORT_ICON} transition-opacity`} />
         </div>
       ),
       enableSorting: true,
@@ -466,7 +484,7 @@ export const getColumns = ({
     {
       accessorKey: "email",
       meta: { thClass: COL_W.email },
-      header: "Email",
+      header: () => <HeaderLabel>Email</HeaderLabel>,
       cell: ({ row }) => (
         <TruncatedText
           value={(row.getValue("email") as string)?.toLowerCase()}
@@ -477,7 +495,7 @@ export const getColumns = ({
     {
       accessorKey: "phone",
       meta: { thClass: COL_W.phone },
-      header: "Phone",
+      header: () => <HeaderLabel>Phone</HeaderLabel>,
       cell: ({ row }) => (
         <TruncatedText value={row.getValue("phone") as string} className="text-xs" />
       ),
@@ -485,7 +503,7 @@ export const getColumns = ({
     {
       accessorKey: "mobile",
       meta: { thClass: COL_W.mobile },
-      header: "Mobile",
+      header: () => <HeaderLabel>Mobile</HeaderLabel>,
       cell: ({ row }) => (
         <TruncatedText value={row.getValue("mobile") as string} className="text-xs" />
       ),
@@ -493,93 +511,10 @@ export const getColumns = ({
     {
       accessorKey: "company",
       meta: { thClass: COL_W.company },
-      header: "Company",
+      header: () => <HeaderLabel>Company</HeaderLabel>,
       cell: ({ row }) => (
         <TruncatedText value={row.getValue("company") as string} />
       ),
-    },
-    {
-      accessorKey: "address",
-      meta: { thClass: COL_W.address },
-      header: "Address",
-      cell: ({ row }) => (
-        <TruncatedText value={row.getValue("address") as string} />
-      ),
-    },
-    {
-      accessorKey: "region",
-      meta: { thClass: COL_W.region },
-      header: ({ column, table }) =>
-        FilterHeader({
-          title: "Region",
-          accessor: "region",
-          filter: regionFilter,
-          setFilter: setRegionFilter,
-          options: regionOptions,
-        }),
-      enableSorting: true,
-      cell: ({ row }) => (
-        <TruncatedText value={row.getValue("region") as string} className="text-xs" />
-      ),
-    },
-    {
-      accessorKey: "lead_source",
-      meta: { thClass: COL_W.leadSource },
-      header: ({ column, table }) =>
-        FilterHeader({
-          title: "Lead Source",
-          accessor: "lead_source",
-          filter: leadSourceFilter,
-          setFilter: setLeadSourceFilter,
-          options: leadSourceOptions,
-        }),
-      enableSorting: true,
-      cell: ({ row }) => (
-        <TruncatedText value={row.getValue("lead_source") as string} className="text-xs" />
-      ),
-    },
-    {
-      accessorKey: "first_contact",
-      meta: { thClass: COL_W.firstContact },
-      header: ({ column, table }) =>
-        FilterHeader({
-          title: "First Contact",
-          accessor: "first_contact",
-          filter: firstContactFilter,
-          setFilter: setFirstContactFilter,
-          options: firstContactOptions,
-        }),
-      enableSorting: true,
-      cell: ({ row }) => {
-        const date = row.getValue("first_contact")
-        return (
-          <span className="text-xs whitespace-nowrap">
-            {date ? new Date(date as string).toLocaleDateString() : "—"}
-          </span>
-        )
-      },
-    },
-    {
-      accessorKey: "last_contact",
-      meta: { thClass: COL_W.lastContact },
-      header: ({ column }) => (
-        <div
-          className="flex items-center gap-2 cursor-pointer group"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Last Contact
-          <ArrowUpDown className="ml-1 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-      ),
-      enableSorting: true,
-      cell: ({ row }) => {
-        const date = row.getValue("last_contact")
-        return (
-          <span className="text-xs whitespace-nowrap">
-            {date ? new Date(date as string).toLocaleDateString() : "—"}
-          </span>
-        )
-      },
     },
     {
       accessorKey: "service_product",
@@ -603,6 +538,7 @@ export const getColumns = ({
       header: ({ column, table }) =>
         FilterHeader({
           title: "Mode of Service",
+          shortTitle: "Mode",
           accessor: "mode_of_service",
           filter: modeOfServiceFilter,
           setFilter: setModeOfServiceFilter,
@@ -616,7 +552,7 @@ export const getColumns = ({
     {
       accessorKey: "service_price",
       meta: { thClass: COL_W.price },
-      header: "Service Price",
+      header: () => <HeaderLabel title="Service Price">Price</HeaderLabel>,
       cell: ({ row }) => {
         const val = row.getValue("service_price")
         const num = typeof val === "number" ? val : parseFloat(val as string)
@@ -627,12 +563,95 @@ export const getColumns = ({
         )
       },
     },
-
-
+    {
+      accessorKey: "first_contact",
+      meta: { thClass: COL_W.firstContact },
+      header: ({ column, table }) =>
+        FilterHeader({
+          title: "First Contact",
+          shortTitle: "1st Cntct",
+          accessor: "first_contact",
+          filter: firstContactFilter,
+          setFilter: setFirstContactFilter,
+          options: firstContactOptions,
+        }),
+      enableSorting: true,
+      cell: ({ row }) => {
+        const date = row.getValue("first_contact")
+        return (
+          <span className="text-xs whitespace-nowrap">
+            {date ? new Date(date as string).toLocaleDateString() : "—"}
+          </span>
+        )
+      },
+    },
+    {
+      accessorKey: "last_contact",
+      meta: { thClass: COL_W.lastContact },
+      header: ({ column }) => (
+        <div
+          className="group flex min-w-0 max-w-full cursor-pointer items-center gap-0.5 overflow-hidden"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          <HeaderLabel title="Last Contact">Last Cntct</HeaderLabel>
+          <ArrowUpDown className={`${SORT_ICON} transition-opacity`} />
+        </div>
+      ),
+      enableSorting: true,
+      cell: ({ row }) => {
+        const date = row.getValue("last_contact")
+        return (
+          <span className="text-xs whitespace-nowrap">
+            {date ? new Date(date as string).toLocaleDateString() : "—"}
+          </span>
+        )
+      },
+    },
+    {
+      accessorKey: "region",
+      meta: { thClass: COL_W.region },
+      header: ({ column, table }) =>
+        FilterHeader({
+          title: "Region",
+          accessor: "region",
+          filter: regionFilter,
+          setFilter: setRegionFilter,
+          options: regionOptions,
+        }),
+      enableSorting: true,
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("region") as string} className="text-xs" />
+      ),
+    },
+    {
+      accessorKey: "lead_source",
+      meta: { thClass: COL_W.leadSource },
+      header: ({ column, table }) =>
+        FilterHeader({
+          title: "Lead Source",
+          shortTitle: "Source",
+          accessor: "lead_source",
+          filter: leadSourceFilter,
+          setFilter: setLeadSourceFilter,
+          options: leadSourceOptions,
+        }),
+      enableSorting: true,
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("lead_source") as string} className="text-xs" />
+      ),
+    },
+    {
+      accessorKey: "address",
+      meta: { thClass: COL_W.address },
+      header: () => <HeaderLabel>Address</HeaderLabel>,
+      cell: ({ row }) => (
+        <TruncatedText value={row.getValue("address") as string} />
+      ),
+    },
     {
       accessorKey: "notes",
       meta: { thClass: COL_W.notes },
-      header: "Notes",
+      header: () => <HeaderLabel>Notes</HeaderLabel>,
       cell: ({ row }) => {
         const notes = row.getValue("notes") as string
         if (!notes) return <span className="text-muted-foreground">—</span>
@@ -647,14 +666,14 @@ export const getColumns = ({
       accessorKey: "created_at",
       meta: { thClass: COL_W.createdAt },
       header: ({ column }) => (
-        <Button
-          variant="ghost"
+        <button
+          type="button"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="p-0 hover:bg-transparent text-left"
+          className="group flex min-w-0 max-w-full items-center gap-0.5 overflow-hidden hover:bg-transparent"
         >
-          Created At
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+          <HeaderLabel title="Created At">Created</HeaderLabel>
+          <ArrowUpDown className={SORT_ICON} />
+        </button>
       ),
       enableSorting: true,
       cell: ({ row }) => {
