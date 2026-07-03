@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { sendEmail } from '@/lib/sendEmail';
+import { sanitizePdfText } from '@/lib/sanitizePdfText';
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
@@ -234,9 +235,10 @@ const drawBarChart = (
     }
 
     // Draw label below bar
-    const labelText = item.label.length > 10 ? item.label.substring(0, 10) + '...' : item.label;
-    const labelWidth = font.widthOfTextAtSize(labelText, 8);
-    page.drawText(labelText, {
+    const labelText = sanitizePdfText(item.label);
+    const displayLabel = labelText.length > 10 ? labelText.substring(0, 10) + '...' : labelText;
+    const labelWidth = font.widthOfTextAtSize(displayLabel, 8);
+    page.drawText(displayLabel, {
       x: barX + (barWidth - labelWidth) / 2,
       y: y + 15,
       size: 7,
@@ -289,7 +291,7 @@ const drawPieChartLegend = (
     });
 
     // Draw text
-    page.drawText(`${item.name}: ${item.value} (${item.percentage.toFixed(1)}%)`, {
+    page.drawText(`${sanitizePdfText(item.name)}: ${item.value} (${item.percentage.toFixed(1)}%)`, {
       x: x + 20,
       y: currentY - 10,
       size: 10,
@@ -902,7 +904,7 @@ const reportYear = format(today, 'yyyy');
       size: number,
       lineHeight: number
     ) => {
-      const words = text.split(' ');
+      const words = sanitizePdfText(text).split(/\s+/).filter(Boolean);
       let line = '';
       let y = yStart;
 
@@ -911,7 +913,8 @@ const reportYear = format(today, 'yyyy');
         const testWidth = font.widthOfTextAtSize(testLine, size);
 
         if (testWidth > maxWidth && line !== '') {
-          webinarPage.drawText(line.trim(), { x, y, size, font });
+          const trimmed = line.trim();
+          if (trimmed) webinarPage.drawText(trimmed, { x, y, size, font });
           line = word + ' ';
           y -= lineHeight;
         } else {
@@ -919,7 +922,8 @@ const reportYear = format(today, 'yyyy');
         }
 
         if (index === words.length - 1) {
-          webinarPage.drawText(line.trim(), { x, y, size, font });
+          const trimmed = line.trim();
+          if (trimmed) webinarPage.drawText(trimmed, { x, y, size, font });
           y -= lineHeight;
         }
       });
@@ -956,16 +960,17 @@ const reportYear = format(today, 'yyyy');
       webinarPage = check.page;
       let y = check.y;
       
-      webinarPage.drawText(label, { x: col1X, y, size, font });
+      webinarPage.drawText(sanitizePdfText(label), { x: col1X, y, size, font });
 
-      const words = String(value).split(' ');
+      const words = sanitizePdfText(value).split(/\s+/).filter(Boolean);
       let line = '';
       words.forEach((word, index) => {
         const testLine = line + word + ' ';
         const testWidth = font.widthOfTextAtSize(testLine, size);
 
         if (testWidth > maxWidth && line !== '') {
-          webinarPage.drawText(line.trim(), { x: col2X, y, size, font });
+          const trimmed = line.trim();
+          if (trimmed) webinarPage.drawText(trimmed, { x: col2X, y, size, font });
           line = word + ' ';
           y -= lineHeight;
         } else {
@@ -973,7 +978,8 @@ const reportYear = format(today, 'yyyy');
         }
 
         if (index === words.length - 1) {
-          webinarPage.drawText(line.trim(), { x: col2X, y, size, font });
+          const trimmed = line.trim();
+          if (trimmed) webinarPage.drawText(trimmed, { x: col2X, y, size, font });
         }
       });
 
@@ -1081,7 +1087,8 @@ if ((currentData.webinars?.length || 0) > 0 || (previousData.webinars?.length ||
   // Add current month webinars
   currentData.webinars.forEach((wb, index) => {
     if (wb.webinar_title && wb.attended_participants != null) {
-      const label = wb.webinar_title.length > 15 ? wb.webinar_title.substring(0, 15) + '...' : wb.webinar_title;
+      const title = sanitizePdfText(wb.webinar_title);
+      const label = title.length > 15 ? title.substring(0, 15) + '...' : title;
       webinarChartData.push({
         label: `${label} (${reportMonth})`,
         value: wb.attended_participants,
@@ -1099,7 +1106,8 @@ if ((currentData.webinars?.length || 0) > 0 || (previousData.webinars?.length ||
       );
       
       if (!existsInCurrent) {
-        const label = wb.webinar_title.length > 15 ? wb.webinar_title.substring(0, 15) + '...' : wb.webinar_title;
+        const title = sanitizePdfText(wb.webinar_title);
+        const label = title.length > 15 ? title.substring(0, 15) + '...' : title;
         webinarChartData.push({
           label: `${label} (${previousReportMonth})`,
           value: wb.attended_participants,
@@ -1342,12 +1350,12 @@ if ((currentData.webinars?.length || 0) > 0 || (previousData.webinars?.length ||
     
     const topService = Object.entries(serviceBreakdown).sort(([,a], [,b]) => b - a)[0];
     if (topService) {
-      recommendations.push(`• Consider expanding ${topService[0]} offerings based on high demand`);
+      recommendations.push(`• Consider expanding ${sanitizePdfText(topService[0])} offerings based on high demand`);
     }
 
     const topPerformer = Object.entries(capturedByBreakdown).sort(([,a], [,b]) => b - a)[0];
     if (topPerformer) {
-      recommendations.push(`• Leverage ${topPerformer[0]}'s success strategies across the team`);
+      recommendations.push(`• Leverage ${sanitizePdfText(topPerformer[0])}'s success strategies across the team`);
     }
 
     if (currentData.inProgressLeads > currentData.closedWonLeads * 2) {
@@ -1374,7 +1382,7 @@ if ((currentData.webinars?.length || 0) > 0 || (previousData.webinars?.length ||
     }
 
     recommendations.forEach(rec => {
-      detailPage.drawText(rec, { x: 60, y: dy, size: 10, font });
+      detailPage.drawText(sanitizePdfText(rec), { x: 60, y: dy, size: 10, font });
       dy -= 16;
     });
 
@@ -1399,11 +1407,11 @@ if ((currentData.webinars?.length || 0) > 0 || (previousData.webinars?.length ||
 
     const topLeadSource = Object.entries(leadSourceBreakdown).sort(([,a], [,b]) => b - a)[0];
     if (topLeadSource) {
-      insights.push(`• ${topLeadSource[0]} remains the primary lead source (${topLeadSource[1]} leads)`);
+      insights.push(`• ${sanitizePdfText(topLeadSource[0])} remains the primary lead source (${topLeadSource[1]} leads)`);
     }
 
     insights.forEach(insight => {
-      detailPage.drawText(insight, { x: 60, y: dy, size: 10, font });
+      detailPage.drawText(sanitizePdfText(insight), { x: 60, y: dy, size: 10, font });
       dy -= 16;
     });
 
