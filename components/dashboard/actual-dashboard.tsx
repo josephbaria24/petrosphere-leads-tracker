@@ -36,6 +36,10 @@ import { LeadAgingChart, type LeadAgingData } from '@/components/charts/lead-agi
 import { logSupabaseError } from '@/lib/format-error'
 
 
+// ─── Report export types ─────────────────────────────────────
+type ReportPeriodType = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+type ReportPeriodOption = { value: string; label: string; sublabel?: string }
+
 // ─── Helpers ─────────────────────────────────────────────────
 
 function generateTimeLabels(interval: string, month: string, year: number, availableYears: number[]): string[] {
@@ -346,6 +350,8 @@ export function ActualDashboardPage() {
   const [userPosition, setUserPosition] = useState("")
 
   const [loading, setLoading] = useState(false);
+  const [reportType, setReportType] = useState<ReportPeriodType>('monthly');
+  const [reportPopoverOpen, setReportPopoverOpen] = useState(false);
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [isTrendsLoading, setIsTrendsLoading] = useState(true);
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
@@ -1008,10 +1014,18 @@ export function ActualDashboardPage() {
       .catch(() => setAvailableMonths([]));
   }, []);
 
-  const handleGenerate = async (month: string) => {
+  const handleGenerate = async (
+    reportType: ReportPeriodType,
+    value: string,
+    label: string
+  ) => {
     setLoading(true);
+    setReportPopoverOpen(false);
+    const toastId = toast.loading(`Generating ${label} report...`);
     try {
-      const res = await fetch(`/api/send-weekly-reports?month=${month}`);
+      const res = await fetch(
+        `/api/send-weekly-reports?type=${reportType}&value=${encodeURIComponent(value)}`
+      );
       const contentType = res.headers.get('content-type');
 
       if (contentType?.includes('application/json')) {
@@ -1025,7 +1039,8 @@ export function ActualDashboardPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Monthly_Report_${month.replace('-', '_')}.pdf`;
+      const safeValue = value.replace(/[^a-zA-Z0-9]/g, '_');
+      link.download = `Petrosphere_${reportType}_Report_${safeValue}.pdf`;
       document.body.appendChild(link);
       link.click();
 
@@ -1034,14 +1049,72 @@ export function ActualDashboardPage() {
         window.URL.revokeObjectURL(url);
       }, 100);
 
-      toast.success("Report downloaded successfully!");
+      toast.success("Report downloaded successfully!", { id: toastId });
     } catch (err: any) {
       console.error('Download error:', err);
-      toast.error(err?.message || "Failed to generate report");
+      toast.error(err?.message || "Failed to generate report", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
+
+  const reportPeriodOptions = useMemo<ReportPeriodOption[]>(() => {
+    const years = availableYears.length ? availableYears : [currentYear]
+
+    if (reportType === 'monthly') {
+      return availableMonths.map((m) => ({
+        value: m,
+        label: format(parse(m, 'yyyy-MM', new Date()), 'MMMM yyyy'),
+      }))
+    }
+
+    if (reportType === 'yearly') {
+      return years.map((y) => ({ value: String(y), label: String(y) }))
+    }
+
+    if (reportType === 'quarterly') {
+      const opts: ReportPeriodOption[] = []
+      years.forEach((y) => {
+        for (let q = 4; q >= 1; q--) {
+          const startMonth = monthNames[(q - 1) * 3]
+          const endMonth = monthNames[(q - 1) * 3 + 2]
+          opts.push({
+            value: `${y}-Q${q}`,
+            label: `Q${q} ${y}`,
+            sublabel: `${startMonth} - ${endMonth}`,
+          })
+        }
+      })
+      return opts
+    }
+
+    // weekly: last 12 weeks (Mon–Sun)
+    const opts: ReportPeriodOption[] = []
+    const toMonday = (d: Date) => {
+      const x = new Date(d)
+      const day = x.getDay()
+      const diff = day === 0 ? -6 : 1 - day
+      x.setDate(x.getDate() + diff)
+      x.setHours(0, 0, 0, 0)
+      return x
+    }
+    const thisMonday = toMonday(new Date())
+    for (let i = 0; i < 12; i++) {
+      const s = new Date(thisMonday)
+      s.setDate(thisMonday.getDate() - i * 7)
+      const e = new Date(s)
+      e.setDate(s.getDate() + 6)
+      const value = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(
+        s.getDate()
+      ).padStart(2, '0')}`
+      opts.push({
+        value,
+        label: `${format(s, 'MMM d')} - ${format(e, 'MMM d')}`,
+        sublabel: i === 0 ? 'This week' : i === 1 ? 'Last week' : format(s, 'yyyy'),
+      })
+    }
+    return opts
+  }, [reportType, availableMonths, availableYears, currentYear])
 
   const handleRefreshFilters = () => {
     prefetchCache.current.clear()
@@ -1202,7 +1275,7 @@ export function ActualDashboardPage() {
 
 
           <div className='flex justify-end'>
-            <Popover>
+            <Popover open={reportPopoverOpen} onOpenChange={setReportPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button
                   disabled={loading}
@@ -1211,30 +1284,83 @@ export function ActualDashboardPage() {
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Sending...
+                      Generating...
                     </>
                   ) : (
                     <>
-                      <Send className="w-4 h-4" />
+                      <FileText className="w-4 h-4" />
                       Generate Report
                     </>
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[200px]">
-                <p className="text-sm font-medium text-gray-600 mb-2">Select Month:</p>
-                <ul className="space-y-1">
-                  {availableMonths.map((monthStr) => (
-                    <li key={monthStr}>
-                      <button
-                        className="w-full text-left text-sm text-blue-600 hover:underline"
-                        onClick={() => handleGenerate(monthStr)}
-                      >
-                        {format(parse(monthStr, "yyyy-MM", new Date()), "MMMM yyyy")}
-                      </button>
-                    </li>
+              <PopoverContent align="end" className="w-[300px] p-0 overflow-hidden">
+                {/* Header */}
+                <div className="bg-[#00044a] px-4 py-3">
+                  <p className="text-sm font-semibold text-white">Generate PDF Report</p>
+                  <p className="text-[11px] text-blue-200/80">
+                    Choose a period type, then pick a range to export.
+                  </p>
+                </div>
+
+                {/* Period type selector */}
+                <div className="grid grid-cols-4 gap-1 p-2 border-b border-border">
+                  {([
+                    { key: 'weekly', label: 'Weekly' },
+                    { key: 'monthly', label: 'Monthly' },
+                    { key: 'quarterly', label: 'Quarterly' },
+                    { key: 'yearly', label: 'Yearly' },
+                  ] as { key: ReportPeriodType; label: string }[]).map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setReportType(t.key)}
+                      className={`rounded-md px-1 py-1.5 text-[11px] font-medium transition-colors cursor-pointer ${
+                        reportType === t.key
+                          ? 'bg-[#00044a] text-white shadow-sm'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
                   ))}
-                </ul>
+                </div>
+
+                {/* Period list */}
+                <div className="max-h-[260px] overflow-y-auto p-2">
+                  {reportPeriodOptions.length === 0 ? (
+                    <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+                      No periods available yet.
+                    </p>
+                  ) : (
+                    <ul className="space-y-0.5">
+                      {reportPeriodOptions.map((opt) => (
+                        <li key={opt.value}>
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => handleGenerate(reportType, opt.value, opt.label)}
+                            className="group flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-foreground">
+                                {opt.label}
+                              </p>
+                              {opt.sublabel && (
+                                <p className="truncate text-[11px] text-muted-foreground">
+                                  {opt.sublabel}
+                                </p>
+                              )}
+                            </div>
+                            <span className="shrink-0 rounded-md bg-muted p-1.5 text-muted-foreground transition-colors group-hover:bg-[#00044a] group-hover:text-white">
+                              <Send className="h-3.5 w-3.5" />
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </PopoverContent>
             </Popover>
           </div>
