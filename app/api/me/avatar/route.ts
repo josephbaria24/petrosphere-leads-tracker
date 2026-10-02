@@ -1,6 +1,8 @@
 // app/api/me/avatar/route.ts
 import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase-server"
+import { readGraphToken } from "@/lib/auth-cookies"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -17,7 +19,8 @@ export async function GET() {
     return new NextResponse("Session error", { status: 401 })
   }
 
-  const token = session.provider_token
+  const cookieStore = await cookies()
+  const token = readGraphToken(cookieStore.getAll()) || session.provider_token
   if (!token) {
     return new NextResponse("No provider token", { status: 401 })
   }

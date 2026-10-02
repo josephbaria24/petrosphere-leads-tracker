@@ -64,7 +64,7 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
   return (
     <SessionContextProvider supabaseClient={supabase}>
       {isLoginPage ? (
-        <main className="flex h-screen items-center justify-center bg-muted p-6 md:p-10">
+        <main className="h-screen w-full overflow-hidden bg-[#f3f4f6]">
           {children}
         </main>
       ) : (

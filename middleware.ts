@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import {
   clearSupabaseAuthCookiesOnResponse,
   getSupabaseAuthCookies,
+  slimAuthCookieWrites,
   supabaseAuthCookieBytes,
 } from "@/lib/auth-cookies"
 
@@ -12,8 +13,14 @@ export async function middleware(request: NextRequest) {
   const authCookies = getSupabaseAuthCookies(request.cookies.getAll())
   const authBytes = supabaseAuthCookieBytes(request.cookies.getAll())
 
-  // Recover from bloated cookies left by mixed auth-helpers / SSR cookie formats.
-  if (authCookies.length > 8 || authBytes > MAX_AUTH_COOKIE_BYTES) {
+  // Recover from duplicated auth cookies left by mixed auth-helpers / SSR formats.
+  // Do not interrupt the Microsoft callback: redirecting here drops the OAuth
+  // code, and the next sign-in hits the same redirect.
+  const isOAuthCallback = request.nextUrl.pathname === "/auth/callback"
+  if (
+    !isOAuthCallback &&
+    (authCookies.length > 8 || authBytes > MAX_AUTH_COOKIE_BYTES)
+  ) {
     const response = NextResponse.redirect(
       new URL("/login?cleared=1", request.url)
     )
@@ -32,11 +39,13 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
+          const slimmed = slimAuthCookieWrites(cookiesToSet)
+          slimmed.forEach(({ name, value }) => {
+            if (value) request.cookies.set(name, value)
+            else request.cookies.delete(name)
+          })
           supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
+          slimmed.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
         },
