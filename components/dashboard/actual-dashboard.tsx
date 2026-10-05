@@ -64,58 +64,6 @@ function generateTimeLabels(interval: string, month: string, year: number, avail
   }
 }
 
-/** X-axis bucket index to center on “today” for Lead Captures chart labels (matches generateTimeLabels). */
-function getLeadCapturesFocusIndexForToday(
-  labels: string[],
-  interval: string,
-  selectedMonth: string,
-  selectedYear: number
-): number | undefined {
-  if (!labels.length) return undefined
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = now.getMonth()
-  const d = now.getDate()
-  const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
-  const last = labels.length - 1
-  const clamp = (i: number) => Math.max(0, Math.min(last, i))
-
-  switch (interval) {
-    case 'all':
-    case 'annually': {
-      if (selectedYear !== y) return selectedYear < y ? last : 0
-      const idx = labels.indexOf(String(y))
-      return idx >= 0 ? idx : last
-    }
-    case 'weekly': {
-      if (selectedYear !== y) return selectedYear < y ? last : 0
-      const start = new Date(selectedYear, 0, 1).getTime()
-      const diffDays = Math.floor((now.getTime() - start) / 86400000)
-      const weekNum = Math.min(52, Math.max(1, Math.floor(diffDays / 7) + 1))
-      const idx = labels.indexOf(`W${weekNum}`)
-      return idx >= 0 ? idx : clamp(weekNum - 1)
-    }
-    case 'quarterly': {
-      if (selectedYear !== y) return selectedYear < y ? last : 0
-      const q = Math.floor(m / 3) + 1
-      const idx = labels.indexOf(`Q${q}`)
-      return idx >= 0 ? idx : last
-    }
-    default: {
-      if (selectedMonth === 'all') {
-        if (selectedYear !== y) return selectedYear < y ? last : 0
-        const idx = labels.indexOf(monthShort[m])
-        return idx >= 0 ? idx : last
-      }
-      const viewedMonth = new Date(`${selectedMonth} 1, ${selectedYear}`).getMonth()
-      if (y !== selectedYear || m !== viewedMonth) return last
-      const dayLabel = String(d).padStart(2, '0')
-      const idx = labels.indexOf(dayLabel)
-      return idx >= 0 ? idx : last
-    }
-  }
-}
-
 /** Map UI interval + month to SQL bucket param */
 function getBucket(interval: string, month: string): string {
   if (interval === 'all') return 'year'
@@ -302,6 +250,7 @@ export function ActualDashboardPage() {
   }
 
   const [leadAreaChartData, setLeadAreaChartData] = useState<AreaData[]>([])
+  const [leadCapturePoints, setLeadCapturePoints] = useState<{ t: number; source: string }[]>([])
 
   const currentYear = new Date().getFullYear()
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -311,6 +260,7 @@ export function ActualDashboardPage() {
   const [availableYears, setAvailableYears] = useState<number[]>([])
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthName)
   const [selectedInterval, setSelectedInterval] = useState<string>('monthly')
+  const [capturesExpanded, setCapturesExpanded] = useState(false)
 
   const [capturedByData, setCapturedByData] = useState<{ name: string; value: number }[]>([])
   const [newestLeads, setNewestLeads] = useState<NewestLead[]>([])
@@ -323,10 +273,6 @@ export function ActualDashboardPage() {
   ])
 
   const timeLabels = generateTimeLabels(selectedInterval, selectedMonth, selectedYear, availableYears)
-  const leadCapturesFocusIndex = useMemo(
-    () => getLeadCapturesFocusIndexForToday(timeLabels, selectedInterval, selectedMonth, selectedYear),
-    [timeLabels, selectedInterval, selectedMonth, selectedYear]
-  )
   const currentRange = useMemo(() => computeDateRange(
     selectedYear, selectedMonth, selectedInterval,
     rangeIndex, timeLabels, availableYears
@@ -515,6 +461,54 @@ export function ActualDashboardPage() {
     }
 
     init()
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadCapturePoints = async () => {
+      const points: { t: number; source: string }[] = []
+      const pageSize = 1000
+
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from('crm_leads')
+          .select('first_contact, lead_source')
+          .not('first_contact', 'is', null)
+          .order('id', { ascending: true })
+          .range(from, from + pageSize - 1)
+
+        if (cancelled) return
+        if (error) {
+          console.error('Lead capture points:', error)
+          return
+        }
+        if (!data?.length) break
+
+        for (const row of data) {
+          const raw = String(row.first_contact)
+          const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw)
+          const t = match
+            ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).getTime()
+            : new Date(raw).getTime()
+          if (!Number.isFinite(t)) continue
+          points.push({
+            t,
+            source: normalizeKey((row.lead_source || 'Unknown').trim() || 'Unknown'),
+          })
+        }
+
+        if (data.length < pageSize) break
+      }
+
+      points.sort((a, b) => a.t - b.t)
+      if (!cancelled) setLeadCapturePoints(points)
+    }
+
+    loadCapturePoints()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // ─── Core: loadDashboard via RPC ─────────────────────────
@@ -1377,23 +1371,33 @@ export function ActualDashboardPage() {
           )}
 
           {/* Top Overview Visuals */}
-          <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-[1.6fr_1fr] pb-4">
+          <div
+            className={`grid gap-4 pb-4 sm:grid-cols-1 transition-[grid-template-columns] duration-300 ease-out ${
+              capturesExpanded
+                ? 'lg:grid-cols-[minmax(0,1fr)_220px]'
+                : 'lg:grid-cols-[1.6fr_minmax(280px,1fr)]'
+            }`}
+          >
             {/* Lead Captures Over Time */}
             <LeadSourceAreaChart
               data={leadAreaChartData}
+              points={leadCapturePoints}
+              initialStart={currentRange?.chartStart}
+              initialEnd={currentRange?.chartEnd}
               height={220}
-              initialFocusIndex={leadCapturesFocusIndex}
+              expanded={capturesExpanded}
+              onToggleExpanded={() => setCapturesExpanded((open) => !open)}
             />
 
-            <Card className="bg-background">
+            <Card className="min-w-0 bg-background">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Successful Deals</CardTitle>
+                <CardTitle className={capturesExpanded ? 'text-base' : 'text-lg'}>Successful Deals</CardTitle>
                 <CardDescription>
                   Closed Win / Total Leads in {getDateHeaderLabel()}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex items-center justify-center">
-                <SuccessfulDealsGauge percentage={filteredWinRate} />
+                <SuccessfulDealsGauge percentage={filteredWinRate} size={capturesExpanded ? 160 : 220} />
               </CardContent>
             </Card>
           </div>

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { supabase } from "@/lib/supabase-client"
 import { Eye, EyeOff, Lock, Mail } from "lucide-react"
-import { PetroMark } from "@/components/petro-mark"
+import { PetroLogo } from "@/components/petro-mark"
 
 const REMEMBER_EMAIL_KEY = "petrosphere-login-email"
 
@@ -113,10 +113,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
         </p>
       )}
 
-      <div className="mb-8 flex items-center gap-2.5">
-        <PetroMark className="h-9 w-7" />
-        <span className="text-[15px] font-semibold tracking-tight text-[#1c1c1e]">Petrosphere</span>
-      </div>
+      <PetroLogo className="mb-8 h-[120px]" />
 
       <h1 className="text-[1.75rem] font-semibold tracking-tight text-[#161616]">Sign in</h1>
       <p className="mt-1.5 text-sm text-[#6d6d78]">

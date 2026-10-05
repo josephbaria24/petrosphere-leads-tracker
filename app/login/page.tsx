@@ -1,5 +1,5 @@
 import { LoginForm } from "../../components/login-form"
-import { PetroHeroMark } from "../../components/petro-mark"
+import { PetroLogo } from "../../components/petro-mark"
 import { FileText, MapPinned, Users, Video } from "lucide-react"
 
 const modules = [
@@ -23,7 +23,7 @@ export default function LoginPage() {
           <div className="pointer-events-none absolute right-24 top-[-6%] h-[120%] w-px rotate-[24deg] bg-white/20" />
 
           <div className="relative flex min-h-0 flex-1 items-end justify-center overflow-hidden px-8 pt-6">
-            <PetroHeroMark className="h-full max-h-[420px] w-auto drop-shadow-[0_30px_40px_rgba(0,0,0,0.45)]" />
+            <PetroLogo className="h-full max-h-[320px]" />
           </div>
 
           <div className="relative z-10 px-10 pb-4 xl:px-12">
