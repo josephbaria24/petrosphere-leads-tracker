@@ -22,6 +22,7 @@ import {
   Users2Icon,
   Video,
   Facebook,
+  Mail,
   MapPinnedIcon,
   Package,
   ClipboardList,
@@ -92,7 +93,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   ]
 
   const crmNavigation = [
-    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, isActive: pathname === "/dashboard" },
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, isActive: pathname === "/dashboard" || pathname.startsWith("/dashboard/performance") },
     {
       title: "Manage Lead",
       url: "#",
@@ -129,6 +130,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "/regional-map",
       icon: MapPinnedIcon,
       isActive: pathname === "/regional-map",
+    },
+    {
+      title: "Email",
+      url: "/email",
+      icon: Mail,
+      isActive: pathname.startsWith("/email"),
     },
   ]
 

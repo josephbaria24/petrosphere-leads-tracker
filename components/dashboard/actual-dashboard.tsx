@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { format, parse } from 'date-fns'
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { FloatingDateFilter } from './floating-date-filter'
+import { DashboardViewTabs } from './dashboard-view-tabs'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { NewLeadsWeeklyBar } from '@/components/charts/new-leads-weekly-bar'
 import { SuccessfulDealsGauge } from '@/components/charts/successful-deals-gauge'
@@ -1264,9 +1265,8 @@ export function ActualDashboardPage() {
         <Separator className="mb-4" />
 
 
-        <div className="flex justify-between pb-3">
-          {/* Month Dropdown */}
-
+        <div className="flex items-center justify-between gap-3 pb-3">
+          <DashboardViewTabs />
 
           <div className='flex justify-end'>
             <Popover open={reportPopoverOpen} onOpenChange={setReportPopoverOpen}>
