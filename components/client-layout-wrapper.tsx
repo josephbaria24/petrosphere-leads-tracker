@@ -10,6 +10,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { LeadAgingManager } from './LeadAgingManager'
 import { PwaProvider } from '@/components/pwa/pwa-provider'
+import { PullToRefresh } from '@/components/pwa/pull-to-refresh'
 import { MobileQuickAdd } from '@/components/mobile-quick-add'
 
 import { supabase } from '@/lib/supabase-client'
@@ -69,7 +70,9 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
   return (
     <SessionContextProvider supabaseClient={supabase}>
       {isLoginPage || isQuickAddWidget ? (
-        <main className="h-dvh w-full overflow-hidden bg-[#f3f4f6]">{children}</main>
+        <PullToRefresh className="h-dvh w-full overflow-y-auto overscroll-contain bg-[#f3f4f6]">
+          <main className="min-h-dvh w-full">{children}</main>
+        </PullToRefresh>
       ) : (
         <SidebarProvider>
           <LeadAgingManager />
@@ -106,11 +109,11 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
                 </div>
               </header>
 
-              <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50/50 dark:bg-zinc-950">
+              <PullToRefresh className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50/50 dark:bg-zinc-950">
                 <main className="mx-auto w-full max-w-[1600px] p-3 pb-[max(5.5rem,calc(env(safe-area-inset-bottom)+4.5rem))] sm:p-4 md:pb-6 md:p-6">
                   {children}
                 </main>
-              </div>
+              </PullToRefresh>
             </div>
           </div>
         </SidebarProvider>
