@@ -944,7 +944,7 @@ export function PerformanceDashboard() {
         </div>
       )}
 
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
         <Stat label="Captured" value={capturedTotal} hint="Leads with a capturer in this period" icon={UserPlus} tone="sky" />
         <Stat label="Status updates" value={statusTotal} hint="Status changes recorded in lead history" icon={RefreshCw} tone="violet" />
         <Stat label="Nurture touches" value={nurtureTotal} hint="Last-contact updates" icon={HeartHandshake} tone="emerald" />
@@ -1051,11 +1051,11 @@ export function PerformanceDashboard() {
                       'perf-funnel-bar relative h-14 w-full overflow-hidden rounded-md select-none',
                       editing ? 'cursor-grab touch-none' : 'cursor-pointer',
                       dragging && 'z-20 scale-[1.18] cursor-grabbing shadow-xl',
-                      !dragging && !editing && 'hover:z-10 hover:scale-[1.045]',
                       selected && !dragging && 'ring-2 ring-[#00044a] ring-offset-2 ring-offset-background dark:ring-sky-300'
                     )}
                     style={{
                       clipPath: funnelClip(top, bottom),
+                      WebkitClipPath: funnelClip(top, bottom),
                       background: 'color-mix(in srgb, var(--color, #3b82f6) 16%, transparent)',
                       ['--color' as string]: layer.color,
                     }}
@@ -1630,25 +1630,33 @@ export function PerformanceDashboard() {
       <style jsx global>{`
         .perf-fill {
           transition: height 700ms cubic-bezier(0.22, 1, 0.36, 1);
+          transform: translateZ(0);
+          -webkit-transform: translateZ(0);
         }
         .perf-funnel-bar {
+          -webkit-transform: translateZ(0);
+          transform: translateZ(0);
           transition:
             clip-path 320ms cubic-bezier(0.22, 1, 0.36, 1),
-            transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+            -webkit-clip-path 320ms cubic-bezier(0.22, 1, 0.36, 1),
             box-shadow 320ms ease,
             filter 320ms ease,
             background 320ms ease;
         }
-        .perf-funnel-bar:hover:not(:active) {
-          background: color-mix(in srgb, var(--color, #3b82f6) 28%, transparent);
-          box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--color, #3b82f6) 70%, transparent);
-          filter: brightness(1.06) saturate(1.08);
-        }
-        .perf-funnel-bar:hover:not(:active) .perf-fill {
-          filter: brightness(1.08);
-        }
-        .group\\/layer:hover .perf-funnel-bar:not(:active) {
-          background: color-mix(in srgb, var(--color, #3b82f6) 24%, transparent);
+        @media (hover: hover) and (pointer: fine) {
+          .perf-funnel-bar:hover:not(:active) {
+            z-index: 10;
+            background: color-mix(in srgb, var(--color, #3b82f6) 28%, transparent);
+            box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--color, #3b82f6) 70%, transparent);
+            filter: brightness(1.06) saturate(1.08);
+            transform: translateZ(0) scale(1.045);
+          }
+          .perf-funnel-bar:hover:not(:active) .perf-fill {
+            filter: brightness(1.08);
+          }
+          .group\\/layer:hover .perf-funnel-bar:not(:active) {
+            background: color-mix(in srgb, var(--color, #3b82f6) 24%, transparent);
+          }
         }
         .perf-wave {
           position: absolute;
@@ -1658,12 +1666,19 @@ export function PerformanceDashboard() {
           display: flex;
           width: 200%;
           height: 22px;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+          -webkit-animation: perf-wave 3.6s linear infinite;
           animation: perf-wave 3.6s linear infinite;
-          will-change: transform;
+          will-change: left;
+        }
+        @-webkit-keyframes perf-wave {
+          from { left: 0; }
+          to { left: -50%; }
         }
         @keyframes perf-wave {
-          from { transform: translate3d(0, 0, 0); }
-          to { transform: translate3d(-50%, 0, 0); }
+          from { left: 0; }
+          to { left: -50%; }
         }
         @keyframes perf-shake {
           0%, 100% { transform: translate3d(0, 0, 0); }
@@ -1705,10 +1720,14 @@ export function PerformanceDashboard() {
           pointer-events: none;
         }
         @media (prefers-reduced-motion: reduce) {
-          .perf-wave { animation: none; }
+          .perf-wave {
+            -webkit-animation: none;
+            animation: none;
+            left: 0;
+          }
           .perf-fill { transition: none; }
           .perf-funnel-bar { transition: none; }
-          .perf-funnel-bar:hover:not(:active) { transform: none; filter: none; box-shadow: none; }
+          .perf-funnel-bar:hover:not(:active) { transform: translateZ(0); filter: none; box-shadow: none; }
           .perf-shake { animation: none; }
           .perf-jiggle { animation: none; }
           .perf-person-enter, .perf-person-leave { animation: none; }

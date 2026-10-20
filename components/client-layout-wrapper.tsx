@@ -77,30 +77,32 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
             <AppSidebar />
             <Toaster richColors position="top-center" className="sm:!top-4 sm:!right-4 sm:!left-auto" />
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              <header className="z-50 flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-3 pt-[env(safe-area-inset-top)] sm:px-4 dark:border-zinc-800 dark:bg-zinc-950">
-                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-                  <SidebarTrigger className="shrink-0 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200" />
-                  <Link href="/dashboard" className="min-w-0 shrink" aria-label="Go to dashboard">
-                    <Image
-                      src="/Petros logo1.png"
-                      alt="Petrosphere Logo"
-                      width={200}
-                      height={40}
-                      className="h-7 w-auto max-w-[140px] object-contain sm:h-8 sm:max-w-none dark:hidden"
-                      priority
-                    />
-                    <Image
-                      src="/Petros logo white logo.png"
-                      alt="Petrosphere Logo"
-                      width={200}
-                      height={40}
-                      className="hidden h-7 w-auto max-w-[140px] object-contain sm:h-8 sm:max-w-none dark:block"
-                      priority
-                    />
-                  </Link>
-                </div>
-                <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-                  <ThemeToggle />
+              <header className="z-50 shrink-0 border-b border-zinc-200 bg-white pt-[env(safe-area-inset-top,0px)] dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="flex h-14 items-center justify-between px-3 sm:px-4">
+                  <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                    <SidebarTrigger className="shrink-0 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200" />
+                    <Link href="/dashboard" className="min-w-0 shrink" aria-label="Go to dashboard">
+                      <Image
+                        src="/Petros logo1.png"
+                        alt="Petrosphere Logo"
+                        width={200}
+                        height={40}
+                        className="h-7 w-auto max-w-[140px] object-contain sm:h-8 sm:max-w-none dark:hidden"
+                        priority
+                      />
+                      <Image
+                        src="/Petros logo white logo.png"
+                        alt="Petrosphere Logo"
+                        width={200}
+                        height={40}
+                        className="hidden h-7 w-auto max-w-[140px] object-contain sm:h-8 sm:max-w-none dark:block"
+                        priority
+                      />
+                    </Link>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+                    <ThemeToggle />
+                  </div>
                 </div>
               </header>
 
