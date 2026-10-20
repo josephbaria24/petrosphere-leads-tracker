@@ -6,7 +6,6 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -14,11 +13,10 @@ import EditListModal from '@/components/shared/EditListModal'
 import { supabase } from '@/lib/supabase-client'
 import { useRouter } from 'next/navigation'
 import { DatePicker } from '@/components/date-picker'
-import { Separator } from '@/components/ui/separator'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
-import { Check, ChevronDown, User, Building2, Phone, Mail, MapPin, Calendar, DollarSign, FileText, Settings, Search, Plus, Edit3, PersonStandingIcon, UserPlus2, Trash2, X } from "lucide-react"
+import { Check, ChevronDown, User, Building2, Phone, Mail, MapPin, Calendar, DollarSign, FileText, Settings, Search, Plus, Edit3, UserPlus2, Trash2, X } from "lucide-react"
 import { cn, formatLocalDate } from "@/lib/utils"
 import EditLeadModal from '@/components/EditLeadModal'
 import { Badge } from '@/components/ui/badge'
@@ -451,38 +449,46 @@ export default function AddNewLeadPage() {
   }, [fetchTable])
 
 
+  const fieldClass =
+    'h-10 text-sm bg-white/90 dark:bg-zinc-950/80 border-zinc-200/80 dark:border-zinc-700 focus-visible:ring-2'
+  const labelClass = 'text-[11px] font-medium text-slate-600 dark:text-slate-300'
+
   return (
-    <div className="min-h-screen rounded-lg bg-card">
-      <div className="max-w-7xl mx-auto p-4 space-y-4">
-        {/* Header Section */}
-        <div className="bg-white/80 dark:bg-card backdrop-blur-sm border-0 rounded-xl px-5 py-4 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-600 rounded-lg shadow-md">
-                <UserPlus2 className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink href="/dashboard" className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600">Manage Lead</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator className="text-slate-300" />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage className="text-xs font-semibold text-slate-800 dark:text-slate-200">Add New Lead</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
-                <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">Add New Lead</h1>
+    <div className="relative min-h-screen overflow-x-hidden rounded-lg bg-gradient-to-b from-sky-50 via-slate-50 to-teal-50/40 dark:from-zinc-950 dark:via-zinc-950 dark:to-sky-950/20">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(14,165,233,0.18),_transparent_60%)] dark:bg-[radial-gradient(ellipse_at_top,_rgba(14,165,233,0.12),_transparent_55%)]" />
+      <div className="relative mx-auto max-w-7xl space-y-3 p-3 pb-28 sm:space-y-4 sm:p-4 md:pb-6">
+        {/* Header */}
+        <div className="overflow-hidden rounded-2xl border border-sky-200/70 bg-gradient-to-br from-[#00044a] via-sky-900 to-teal-800 px-4 py-3.5 text-white shadow-lg shadow-sky-900/20 dark:border-sky-900/50 sm:px-5 sm:py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <Breadcrumb className="mb-1 hidden sm:block">
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink href="/dashboard" className="text-[11px] text-sky-200/80 hover:text-white">Manage Lead</BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="text-sky-300/50" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="text-[11px] font-medium text-white">Add New Lead</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm sm:size-10">
+                  <UserPlus2 className="size-4 text-white sm:size-5" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">Add New Lead</h1>
+                  <p className="text-[11px] text-sky-100/80 sm:text-xs">Capture contact, company, and services</p>
+                </div>
               </div>
             </div>
-            <ExcelActions showExport={false} onImportSuccess={() => router.refresh()} />
+            <div className="shrink-0 [&_button]:border-white/25 [&_button]:bg-white/10 [&_button]:text-white [&_button]:hover:bg-white/20">
+              <ExcelActions showExport={false} onImportSuccess={() => router.refresh()} />
+            </div>
           </div>
         </div>
 
-        <Card className="border-0 shadow-xl bg-white/95 dark:bg-background backdrop-blur-sm">
-          <CardContent className="p-5 space-y-5">
-            {/* Duplicate Lead Modal */}
+        <div className="space-y-3 sm:space-y-4">
             {duplicateLead && (
               <EditLeadModal
                 isOpen={isEditModalOpen}
@@ -499,57 +505,61 @@ export default function AddNewLeadPage() {
               />
             )}
 
-            {/* ── Contact Details ── */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-blue-100 dark:border-blue-900/30">
-                <User className="w-4 h-4 text-blue-500" />
-                <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Contact Details</h3>
+            {/* Contact */}
+            <section className="overflow-hidden rounded-2xl border border-sky-200/80 bg-white/90 shadow-sm dark:border-sky-900/40 dark:bg-zinc-900/80">
+              <div className="flex items-center gap-2 border-b border-sky-100 bg-sky-50/80 px-3.5 py-2.5 dark:border-sky-900/40 dark:bg-sky-950/40">
+                <span className="flex size-7 items-center justify-center rounded-lg bg-sky-500 text-white shadow-sm shadow-sky-500/30">
+                  <User className="size-3.5" />
+                </span>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-sky-700 dark:text-sky-300">Contact</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 gap-2.5 p-3 sm:grid-cols-2 sm:gap-3 sm:p-4 lg:grid-cols-4">
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Contact Name <span className="text-red-400">*</span></Label>
-                  <Input id="contact_name" value={form.contact_name} onChange={(e) => handleChange('contact_name', e.target.value)} onBlur={() => checkDuplicateLead(form.contact_name, form.email)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-blue-500" placeholder="Full name" />
+                  <Label className={labelClass}>Name <span className="text-red-400">*</span></Label>
+                  <Input id="contact_name" value={form.contact_name} onChange={(e) => handleChange('contact_name', e.target.value)} onBlur={() => checkDuplicateLead(form.contact_name, form.email)} className={cn(fieldClass, 'focus-visible:ring-sky-400')} placeholder="Full name" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1"><Mail className="w-3 h-3" />Email <span className="text-red-400">*</span></Label>
-                  <Input id="email" type="email" value={form.email} onChange={(e) => handleChange('email', e.target.value)} onBlur={() => checkDuplicateLead(form.contact_name, form.email)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-blue-500" placeholder="contact@example.com" />
+                  <Label className={cn(labelClass, 'flex items-center gap-1')}><Mail className="size-3" />Email <span className="text-red-400">*</span></Label>
+                  <Input id="email" type="email" value={form.email} onChange={(e) => handleChange('email', e.target.value)} onBlur={() => checkDuplicateLead(form.contact_name, form.email)} className={cn(fieldClass, 'focus-visible:ring-sky-400')} placeholder="contact@example.com" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1"><Phone className="w-3 h-3" />Phone <span className="text-red-400">*</span></Label>
-                  <Input id="phone" value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-blue-500" placeholder="+63 xxx xxx xxxx" />
+                  <Label className={cn(labelClass, 'flex items-center gap-1')}><Phone className="size-3" />Phone <span className="text-red-400">*</span></Label>
+                  <Input id="phone" value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} className={cn(fieldClass, 'focus-visible:ring-sky-400')} placeholder="+63 xxx xxx xxxx" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Mobile <span className="text-red-400">*</span></Label>
-                  <Input id="mobile" value={form.mobile} onChange={(e) => handleChange('mobile', e.target.value)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-blue-500" placeholder="+63 9xx xxx xxxx" />
+                  <Label className={labelClass}>Mobile <span className="text-red-400">*</span></Label>
+                  <Input id="mobile" value={form.mobile} onChange={(e) => handleChange('mobile', e.target.value)} className={cn(fieldClass, 'focus-visible:ring-sky-400')} placeholder="+63 9xx xxx xxxx" />
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* ── Company Information ── */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-emerald-100 dark:border-emerald-900/30">
-                <Building2 className="w-4 h-4 text-emerald-500" />
-                <h3 className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Company Information</h3>
+            {/* Company */}
+            <section className="overflow-hidden rounded-2xl border border-emerald-200/80 bg-white/90 shadow-sm dark:border-emerald-900/40 dark:bg-zinc-900/80">
+              <div className="flex items-center gap-2 border-b border-emerald-100 bg-emerald-50/80 px-3.5 py-2.5 dark:border-emerald-900/40 dark:bg-emerald-950/40">
+                <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-500 text-white shadow-sm shadow-emerald-500/30">
+                  <Building2 className="size-3.5" />
+                </span>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Company</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 gap-2.5 p-3 sm:grid-cols-2 sm:gap-3 sm:p-4 lg:grid-cols-4">
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Company Name <span className="text-red-400">*</span></Label>
-                  <Input id="company" value={form.company} onChange={(e) => handleChange('company', e.target.value)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-emerald-500" placeholder="Company name" />
+                  <Label className={labelClass}>Company <span className="text-red-400">*</span></Label>
+                  <Input id="company" value={form.company} onChange={(e) => handleChange('company', e.target.value)} className={cn(fieldClass, 'focus-visible:ring-emerald-400')} placeholder="Company name" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1"><MapPin className="w-3 h-3" />Address <span className="text-red-400">*</span></Label>
-                  <Input id="address" value={form.address} onChange={(e) => handleChange('address', e.target.value)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-emerald-500" placeholder="Complete address" />
+                  <Label className={cn(labelClass, 'flex items-center gap-1')}><MapPin className="size-3" />Address <span className="text-red-400">*</span></Label>
+                  <Input id="address" value={form.address} onChange={(e) => handleChange('address', e.target.value)} className={cn(fieldClass, 'focus-visible:ring-emerald-400')} placeholder="Complete address" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Region <span className="text-red-400">*</span></Label>
+                  <Label className={labelClass}>Region <span className="text-red-400">*</span></Label>
                   <Popover open={isRegionOpen} onOpenChange={setIsRegionOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" className="w-full h-9 justify-between text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-normal">
+                      <Button variant="outline" role="combobox" className={cn(fieldClass, 'w-full justify-between font-normal')}>
                         <span className="truncate">{form.region || "Select region"}</span>
-                        <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-50 shrink-0" />
+                        <ChevronDown className="ml-1 size-3.5 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[220px] p-0">
+                    <PopoverContent className="w-[min(100vw-2rem,220px)] p-0">
                       <Command>
                         <CommandInput placeholder="Search region..." className="h-8 text-sm" />
                         <CommandEmpty>No region found.</CommandEmpty>
@@ -565,15 +575,15 @@ export default function AddNewLeadPage() {
                   </Popover>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Lead Source <span className="text-red-400">*</span></Label>
+                  <Label className={labelClass}>Lead Source <span className="text-red-400">*</span></Label>
                   <Popover open={isLeadSourceOpen} onOpenChange={setIsLeadSourceOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" className="w-full h-9 justify-between text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-normal">
+                      <Button variant="outline" role="combobox" className={cn(fieldClass, 'w-full justify-between font-normal')}>
                         <span className="truncate">{form.lead_source || "Select source"}</span>
-                        <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-50 shrink-0" />
+                        <ChevronDown className="ml-1 size-3.5 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[220px] p-0">
+                    <PopoverContent className="w-[min(100vw-2rem,220px)] p-0">
                       <Command>
                         <CommandInput placeholder="Search source..." className="h-8 text-sm" />
                         <CommandEmpty>No source found.</CommandEmpty>
@@ -589,70 +599,96 @@ export default function AddNewLeadPage() {
                   </Popover>
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* ── Timeline & Status ── */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-amber-100 dark:border-amber-900/30">
-                <Calendar className="w-4 h-4 text-amber-500" />
-                <h3 className="text-sm font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Timeline & Status</h3>
+            {/* Timeline & Status */}
+            <section className="overflow-hidden rounded-2xl border border-amber-200/80 bg-white/90 shadow-sm dark:border-amber-900/40 dark:bg-zinc-900/80">
+              <div className="flex items-center gap-2 border-b border-amber-100 bg-amber-50/80 px-3.5 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/40">
+                <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500 text-white shadow-sm shadow-amber-500/30">
+                  <Calendar className="size-3.5" />
+                </span>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">Timeline & Status</h3>
               </div>
-              <div className="flex flex-col lg:flex-row lg:items-end gap-3">
-                <div className="grid grid-cols-2 gap-3 lg:w-[340px] shrink-0">
+              <div className="space-y-3 p-3 sm:p-4">
+                <div className="grid grid-cols-2 gap-2.5 lg:max-w-md">
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">First Contact <span className="text-red-400">*</span></Label>
+                    <Label className={labelClass}>First Contact <span className="text-red-400">*</span></Label>
                     <DatePicker value={form.first_contact ? new Date(form.first_contact) : undefined} onChange={(date) => handleChange('first_contact', date ? formatLocalDate(date) : '')} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Last Contact <span className="text-red-400">*</span></Label>
+                    <Label className={labelClass}>Last Contact <span className="text-red-400">*</span></Label>
                     <DatePicker value={form.last_contact ? new Date(form.last_contact) : undefined} onChange={(date) => handleChange('last_contact', date ? formatLocalDate(date) : '')} />
                   </div>
                 </div>
 
-                {/* Status Pipeline */}
-                <div className="space-y-1 flex-1 min-w-0">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Status <span className="text-red-400">*</span></Label>
+                {/* Mobile: compact status select + chips */}
+                <div className="space-y-1.5 md:hidden">
+                  <Label className={labelClass}>Status <span className="text-red-400">*</span></Label>
+                  <Select value={form.status || undefined} onValueChange={(v) => handleChange('status', v)}>
+                    <SelectTrigger className={cn(fieldClass, 'w-full')}>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leadStatuses.map((st) => (
+                        <SelectItem key={st} value={st}>
+                          <span className="flex items-center gap-2">
+                            <span className="size-2 rounded-full" style={{ backgroundColor: STATUS_COLORS[st] || '#64748b' }} />
+                            {st}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {leadStatuses.map((st) => {
+                      const active = form.status === st
+                      return (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => handleChange('status', st)}
+                          className={cn(
+                            'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all',
+                            active ? 'border-transparent text-white shadow-sm' : 'border-zinc-200 bg-white text-slate-500 dark:border-zinc-700 dark:bg-zinc-900'
+                          )}
+                          style={active ? { backgroundColor: STATUS_COLORS[st] || '#64748b' } : undefined}
+                        >
+                          {st}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Desktop pipeline */}
+                <div className="hidden space-y-1 md:block">
+                  <Label className={labelClass}>Status <span className="text-red-400">*</span></Label>
                   <div className="relative w-full overflow-x-auto pb-0.5">
-                    {/* Background track line */}
                     <div className="absolute top-[8px] left-[9px] right-[9px] h-[2px] bg-zinc-200 dark:bg-zinc-700" />
-                    {/* Progress fill line */}
                     {form.status && leadStatuses.indexOf(form.status) >= 0 && (
                       <div
                         className="absolute top-[8px] left-[9px] h-[2px] transition-all duration-300"
                         style={{ width: `calc(${(leadStatuses.indexOf(form.status) / Math.max(leadStatuses.length - 1, 1)) * 100}% - 18px)`, backgroundColor: STATUS_COLORS[form.status] || '#64748b' }}
                       />
                     )}
-                    {/* Dots row */}
                     <div className="relative flex items-start justify-between">
                       {leadStatuses.map((st, i) => {
                         const selectedIdx = leadStatuses.indexOf(form.status)
                         const isSelected = form.status === st
                         const isPast = selectedIdx >= 0 && i < selectedIdx
-
                         return (
-                          <button
-                            key={st}
-                            type="button"
-                            onClick={() => handleChange('status', st)}
-                            className="flex flex-col items-center gap-0.5 group z-[1]"
-                            title={st}
-                          >
+                          <button key={st} type="button" onClick={() => handleChange('status', st)} className="z-[1] flex flex-col items-center gap-0.5 group" title={st}>
                             <div
                               className={cn(
-                                "w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center transition-all",
-                                (isSelected || isPast)
-                                  ? "border-transparent"
-                                  : "bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 group-hover:scale-105"
+                                'flex size-[18px] items-center justify-center rounded-full border-2 transition-all',
+                                (isSelected || isPast) ? 'border-transparent' : 'border-zinc-300 bg-white group-hover:scale-105 dark:border-zinc-600 dark:bg-zinc-900'
                               )}
                               style={(isSelected || isPast) ? { backgroundColor: STATUS_COLORS[st] || '#64748b', borderColor: STATUS_COLORS[st] || '#64748b', ...(isSelected ? { boxShadow: `0 2px 6px ${STATUS_COLORS[st]}50`, transform: 'scale(1.15)' } : {}) } : {}}
                             >
-                              {(isPast || isSelected) && <Check className="w-2.5 h-2.5 text-white" />}
+                              {(isPast || isSelected) && <Check className="size-2.5 text-white" />}
                             </div>
                             <span
-                              className={cn(
-                                "text-[10px] leading-tight text-center max-w-[64px] transition-colors whitespace-nowrap",
-                                (isSelected || isPast) ? "font-bold" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600"
-                              )}
+                              className={cn('max-w-[64px] whitespace-nowrap text-center text-[10px] leading-tight transition-colors', (isSelected || isPast) ? 'font-bold' : 'text-slate-400 group-hover:text-slate-600 dark:text-slate-500')}
                               style={(isSelected || isPast) ? { color: STATUS_COLORS[st] || '#64748b' } : {}}
                             >
                               {st}
@@ -664,28 +700,30 @@ export default function AddNewLeadPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* ── Assignment & Notes ── */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-violet-100 dark:border-violet-900/30">
-                <Settings className="w-4 h-4 text-violet-500" />
-                <h3 className="text-sm font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Assignment & Notes</h3>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setEditingDropdown('captured_by_settings')} className="ml-auto h-6 w-6 p-0 text-slate-400 hover:text-violet-600">
-                  <Settings className="w-3.5 h-3.5" />
+            {/* Assignment */}
+            <section className="overflow-hidden rounded-2xl border border-violet-200/80 bg-white/90 shadow-sm dark:border-violet-900/40 dark:bg-zinc-900/80">
+              <div className="flex items-center gap-2 border-b border-violet-100 bg-violet-50/80 px-3.5 py-2.5 dark:border-violet-900/40 dark:bg-violet-950/40">
+                <span className="flex size-7 items-center justify-center rounded-lg bg-violet-500 text-white shadow-sm shadow-violet-500/30">
+                  <Settings className="size-3.5" />
+                </span>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300">Assignment</h3>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setEditingDropdown('captured_by_settings')} className="ml-auto size-7 p-0 text-violet-400 hover:bg-violet-100 hover:text-violet-700 dark:hover:bg-violet-950">
+                  <Settings className="size-3.5" />
                 </Button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-2.5 p-3 sm:grid-cols-2 sm:gap-3 sm:p-4 lg:grid-cols-3">
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Captured By <span className="text-red-400">*</span></Label>
+                  <Label className={labelClass}>Captured By <span className="text-red-400">*</span></Label>
                   <Popover open={isCapturedByOpen} onOpenChange={setIsCapturedByOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" className="w-full h-9 justify-between text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-normal">
+                      <Button variant="outline" role="combobox" className={cn(fieldClass, 'w-full justify-between font-normal')}>
                         <span className="truncate">{form.captured_by || "Select member"}</span>
-                        <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-50 shrink-0" />
+                        <ChevronDown className="ml-1 size-3.5 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[220px] p-0">
+                    <PopoverContent className="w-[min(100vw-2rem,220px)] p-0">
                       <Command>
                         <CommandInput placeholder="Search member..." className="h-8 text-sm" />
                         <CommandEmpty>No member found.</CommandEmpty>
@@ -701,63 +739,64 @@ export default function AddNewLeadPage() {
                   </Popover>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400">Or enter custom name</Label>
-                  <Input placeholder="Custom name..." value={form.captured_by} onChange={(e) => handleChange('captured_by', e.target.value)} className="h-9 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-violet-500" />
+                  <Label className={labelClass}>Custom name</Label>
+                  <Input placeholder="Or type a name..." value={form.captured_by} onChange={(e) => handleChange('captured_by', e.target.value)} className={cn(fieldClass, 'focus-visible:ring-violet-400')} />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1"><FileText className="w-3 h-3" />Notes</Label>
-                  <Textarea id="notes" value={form.notes} onChange={(e) => handleChange('notes', e.target.value)} className="text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-violet-500 min-h-[36px] h-9 resize-none" placeholder="Additional notes..." />
+                <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+                  <Label className={cn(labelClass, 'flex items-center gap-1')}><FileText className="size-3" />Notes</Label>
+                  <Textarea id="notes" value={form.notes} onChange={(e) => handleChange('notes', e.target.value)} className="min-h-[72px] resize-none border-zinc-200/80 bg-white/90 text-sm focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-zinc-700 dark:bg-zinc-950/80 sm:min-h-[40px] sm:h-10" placeholder="Additional notes..." />
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* ── Services & Pricing ── */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-teal-100 dark:border-teal-900/30">
-                <DollarSign className="w-4 h-4 text-teal-500" />
-                <h3 className="text-sm font-semibold text-teal-600 dark:text-teal-400 uppercase tracking-wider">Services & Pricing</h3>
+            {/* Services */}
+            <section className="overflow-hidden rounded-2xl border border-teal-200/80 bg-white/90 shadow-sm dark:border-teal-900/40 dark:bg-zinc-900/80">
+              <div className="flex items-center gap-2 border-b border-teal-100 bg-teal-50/80 px-3.5 py-2.5 dark:border-teal-900/40 dark:bg-teal-950/40">
+                <span className="flex size-7 items-center justify-center rounded-lg bg-teal-500 text-white shadow-sm shadow-teal-500/30">
+                  <DollarSign className="size-3.5" />
+                </span>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-300">Services & Pricing</h3>
               </div>
-
-              <div className="space-y-3">
+              <div className="space-y-2.5 p-3 sm:space-y-3 sm:p-4">
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                    <Input id="service_search" type="text" placeholder="Search services..." value={serviceSearch} onChange={(e) => setServiceSearch(e.target.value)} className="h-9 pl-8 text-sm bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 focus:border-teal-500" />
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+                    <Input id="service_search" type="text" placeholder="Search services..." value={serviceSearch} onChange={(e) => setServiceSearch(e.target.value)} className={cn(fieldClass, 'pl-8 focus-visible:ring-teal-400')} />
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsAddServiceModalOpen(true)} className="h-9 text-xs bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/30 text-teal-700 dark:text-teal-300">
-                    <Plus className="w-3.5 h-3.5 mr-1" />Add
+                  <Button type="button" variant="outline" size="sm" onClick={() => setIsAddServiceModalOpen(true)} className="h-10 shrink-0 border-teal-200 bg-teal-50 text-xs text-teal-700 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-900/20 dark:text-teal-300 dark:hover:bg-teal-900/30">
+                    <Plus className="mr-1 size-3.5" />Add
                   </Button>
                 </div>
 
-                <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-3 space-y-2 max-h-[300px] overflow-y-auto border border-zinc-200 dark:border-zinc-700">
+                <div className="max-h-[240px] space-y-2 overflow-y-auto rounded-xl border border-teal-100 bg-teal-50/40 p-2 dark:border-teal-900/40 dark:bg-teal-950/20 sm:max-h-[300px] sm:p-3">
                   {filteredServices.length === 0 ? (
-                    <div className="text-center py-6 text-xs text-slate-400">No services found.</div>
+                    <div className="py-6 text-center text-xs text-slate-400">No services found.</div>
                   ) : (
                     filteredServices.map((service) => {
                       const selected = serviceDetails.find((s) => s.name === service)
                       return (
-                        <div key={service} className={cn("group rounded-lg p-2.5 border transition-all", selected ? "bg-teal-50/50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800" : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700")}>
-                          <div className="flex items-center justify-between">
-                            <label className="flex items-center gap-2 cursor-pointer flex-1">
-                              <input type="checkbox" checked={!!selected} onChange={(e) => handleServiceToggle(service, e.target.checked)} className="w-3.5 h-3.5 rounded border-zinc-300 text-teal-600 focus:ring-teal-500" />
-                              <span className="text-sm font-medium text-slate-800 dark:text-white">{service}</span>
+                        <div key={service} className={cn('group rounded-xl border p-2.5 transition-all', selected ? 'border-teal-300 bg-white shadow-sm dark:border-teal-700 dark:bg-zinc-900' : 'border-zinc-200/80 bg-white/70 dark:border-zinc-700 dark:bg-zinc-900/60')}>
+                          <div className="flex items-center justify-between gap-2">
+                            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+                              <input type="checkbox" checked={!!selected} onChange={(e) => handleServiceToggle(service, e.target.checked)} className="size-3.5 rounded border-zinc-300 text-teal-600 focus:ring-teal-500" />
+                              <span className="truncate text-sm font-medium text-slate-800 dark:text-white">{service}</span>
                             </label>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button type="button" variant="ghost" size="sm" onClick={() => handleEditService(service)} className="h-7 w-7 p-0 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20">
-                                <Edit3 className="w-3.5 h-3.5" />
+                            <div className="flex shrink-0 items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                              <Button type="button" variant="ghost" size="sm" onClick={() => handleEditService(service)} className="size-7 p-0 text-slate-400 hover:bg-sky-50 hover:text-sky-600 dark:hover:bg-sky-950/20">
+                                <Edit3 className="size-3.5" />
                               </Button>
-                              <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteService(service)} className="h-7 w-7 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20">
-                                <Trash2 className="w-3.5 h-3.5" />
+                              <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteService(service)} className="size-7 p-0 text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/20">
+                                <Trash2 className="size-3.5" />
                               </Button>
                             </div>
                           </div>
                           {selected && (
-                            <div className="grid grid-cols-2 gap-2 mt-2 ml-5">
+                            <div className="ml-5 mt-2 grid grid-cols-2 gap-2">
                               <Select value={selected?.mode || ''} onValueChange={(v) => handleServiceModeChange(service, v)}>
-                                <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700"><SelectValue placeholder="Mode" /></SelectTrigger>
+                                <SelectTrigger className="h-8 border-zinc-200 bg-white text-xs dark:border-zinc-700 dark:bg-zinc-900"><SelectValue placeholder="Mode" /></SelectTrigger>
                                 <SelectContent>{SERVICE_MODES.map(m => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}</SelectContent>
                               </Select>
-                              <Input type="number" placeholder="₱ 0.00" value={selected?.price || ''} onChange={(e) => handleServicePriceChange(service, Number(e.target.value))} className="h-8 text-xs bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700" />
+                              <Input type="number" placeholder="₱ 0.00" value={selected?.price || ''} onChange={(e) => handleServicePriceChange(service, Number(e.target.value))} className="h-8 border-zinc-200 bg-white text-xs dark:border-zinc-700 dark:bg-zinc-900" />
                             </div>
                           )}
                         </div>
@@ -767,36 +806,43 @@ export default function AddNewLeadPage() {
                 </div>
 
                 {serviceDetails.length > 0 && (
-                  <div className="bg-teal-50 dark:bg-teal-950/20 rounded-lg p-3 border border-teal-200 dark:border-teal-800">
-                    <div className="space-y-1.5 mb-2">
+                  <div className="rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 to-emerald-50 p-3 dark:border-teal-800 dark:from-teal-950/40 dark:to-emerald-950/20">
+                    <div className="mb-2 space-y-1.5">
                       {serviceDetails.map((s) => (
-                        <div key={s.name} className="flex items-center justify-between text-sm py-1 px-2 bg-white/60 dark:bg-zinc-900/40 rounded">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-slate-800 dark:text-white">{s.name}</span>
-                            {s.mode && <Badge variant="secondary" className="text-[10px] h-5 bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300">{s.mode}</Badge>}
+                        <div key={s.name} className="flex items-center justify-between rounded-lg bg-white/70 px-2 py-1 text-sm dark:bg-zinc-900/50">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="truncate font-medium text-slate-800 dark:text-white">{s.name}</span>
+                            {s.mode && <Badge variant="secondary" className="h-5 shrink-0 bg-teal-100 text-[10px] text-teal-700 dark:bg-teal-900 dark:text-teal-300">{s.mode}</Badge>}
                           </div>
-                          <span className="font-semibold text-teal-700 dark:text-teal-300">₱{s.price.toFixed(2)}</span>
+                          <span className="shrink-0 font-semibold text-teal-700 dark:text-teal-300">₱{s.price.toFixed(2)}</span>
                         </div>
                       ))}
                     </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-teal-200 dark:border-teal-800">
-                      <span className="text-xs font-medium text-teal-700 dark:text-teal-300">Total:</span>
+                    <div className="flex items-center justify-between border-t border-teal-200/80 pt-2 dark:border-teal-800">
+                      <span className="text-xs font-medium text-teal-700 dark:text-teal-300">Total</span>
                       <span className="text-lg font-bold text-teal-800 dark:text-teal-200">₱{totalServicePrice.toFixed(2)}</span>
                     </div>
                   </div>
                 )}
               </div>
-            </div>
+            </section>
 
-            {/* Submit */}
-            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
-              <Button onClick={handleSubmit} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 h-10">
-                <Plus className="w-4 h-4 mr-2" />
+            {/* Desktop submit */}
+            <div className="hidden border-t border-zinc-200/80 pt-4 dark:border-zinc-800 md:block">
+              <Button onClick={handleSubmit} className="h-10 bg-[#00044a] text-white shadow-lg shadow-sky-900/20 hover:bg-[#0a1168]">
+                <Plus className="mr-2 size-4" />
                 Add Lead
               </Button>
             </div>
-          </CardContent>
-        </Card>
+        </div>
+
+        {/* Mobile sticky submit */}
+        <div className="fixed inset-x-0 bottom-0 z-[60] border-t border-sky-200/60 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/95 md:hidden">
+          <Button onClick={handleSubmit} className="h-11 w-full bg-gradient-to-r from-[#00044a] to-sky-700 text-white shadow-lg shadow-sky-900/25">
+            <Plus className="mr-2 size-4" />
+            Add Lead
+          </Button>
+        </div>
 
         {/* Edit Modal */}
         {editingDropdown && (

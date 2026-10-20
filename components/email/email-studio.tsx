@@ -200,30 +200,70 @@ export function EmailStudio() {
   }
 
   const sendBatch = async (people: LeadRecipient[], mode: 'test' | 'blast') => {
+    const subject = draft.subject.trim()
+    if (mode === 'blast' && !subject) {
+      toast('Add a subject line first')
+      return
+    }
+    if (mode === 'test') {
+      const address = people[0]?.email?.trim() || ''
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+        toast('Enter a valid test address first')
+        return
+      }
+    }
     setSending(mode)
     let sent = 0
+    let messageId = ''
     const failures: string[] = []
     try {
       for (let index = 0; index < people.length; index += 15) {
         const chunk = people.slice(index, index + 15)
         const response = await fetch('/api/email/blast', {
           method: 'POST',
+          credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            subject: draft.subject,
+            subject: subject || 'Petrosphere test email',
             html: renderEmailHtml(draft.blocks, draft.font),
             recipients: chunk,
+            mode,
           }),
         })
-        const payload = await response.json().catch(() => ({}))
-        if (!response.ok) throw new Error(payload.error || 'Send failed')
+        const payload = await response.json().catch(
+          () =>
+            ({} as {
+              error?: string
+              sent?: number
+              messageId?: string | null
+              failed?: { email: string; error: string }[]
+              config?: { hasApiKey?: boolean; hasSmtp?: boolean; fromEmail?: string }
+            })
+        )
+        if (!response.ok) {
+          const hint = payload.config
+            ? `From ${payload.config.fromEmail || '(missing)'} · API key ${payload.config.hasApiKey ? 'set' : 'missing'} · SMTP ${payload.config.hasSmtp ? 'set' : 'missing'}`
+            : ''
+          throw new Error([payload.error || 'Send failed', hint].filter(Boolean).join(' · '))
+        }
         sent += Number(payload.sent || 0)
+        if (payload.messageId) messageId = payload.messageId
         for (const item of payload.failed || []) failures.push(`${item.email}: ${item.error}`)
       }
+      if (!sent) throw new Error(failures[0] || 'SendLayer did not accept the message.')
       if (failures.length) {
-        toast('Some messages did not send', { description: failures[0] })
+        toast(`Sent ${sent}, but some failed`, { description: failures[0] })
       } else {
-        toast(mode === 'test' ? 'Test email sent' : `Sent to ${sent} people`)
+        toast(mode === 'test' ? `Test sent to ${people[0]?.email}` : `Sent to ${sent} people`, {
+          description: [
+            mode === 'test'
+              ? 'Look in Inbox (and Promotions). Subject starts with CRM test'
+              : '',
+            messageId ? `SendLayer id ${messageId}` : '',
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        })
       }
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Send failed')
@@ -234,14 +274,14 @@ export function EmailStudio() {
   }
 
   return (
-    <SidebarInset>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <Mail className="size-5" />
+    <SidebarInset className="min-w-0 overflow-x-hidden">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
+            <Mail className="size-5 shrink-0" />
             Email
           </h1>
-          <p className="text-sm text-muted-foreground">Build a promotion, drop in blocks, then send it through SendLayer.</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">Build a promotion, drop in blocks, then send it through SendLayer.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={saveTemplate}>Save template</Button>
@@ -250,7 +290,12 @@ export function EmailStudio() {
             variant="outline"
             size="sm"
             disabled={!!sending || !testEmail.includes('@')}
-            onClick={() => sendBatch([{ email: testEmail.trim(), name: 'there', company: 'your team', status: '' }], 'test')}
+            onClick={() =>
+              sendBatch(
+                [{ email: testEmail.trim(), name: 'Test reader', company: 'your team', status: '' }],
+                'test'
+              )
+            }
           >
             {sending === 'test' ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
             Test
@@ -278,13 +323,13 @@ export function EmailStudio() {
         </div>
       )}
 
-      <div className="grid items-start gap-4 xl:grid-cols-[220px_minmax(0,1fr)_300px]">
+      <div className="grid items-start gap-4 lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_300px]">
         <aside
-          className="space-y-3 overflow-auto rounded-xl border border-zinc-200 bg-card p-3 shadow-sm xl:min-h-0 dark:border-zinc-800"
+          className="order-2 space-y-3 overflow-auto rounded-xl border border-zinc-200 bg-card p-3 shadow-sm lg:order-1 xl:min-h-0 dark:border-zinc-800"
           style={sideHeight ? { maxHeight: sideHeight } : undefined}
         >
           <p className="text-xs font-semibold">Blocks</p>
-          <p className="text-[11px] text-muted-foreground">Drag a block onto the email.</p>
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Drag a block onto the email.</p>
           <div className="grid gap-1.5">
             {PALETTE.map((item) => {
               const Icon = item.icon
@@ -300,10 +345,10 @@ export function EmailStudio() {
                   onClick={() => insertBlock(item.type, draft.blocks.length)}
                   className="flex cursor-grab items-center gap-2 rounded-lg border border-zinc-200 px-2 py-1.5 text-left hover:bg-zinc-50 active:cursor-grabbing dark:border-zinc-800 dark:hover:bg-zinc-900"
                 >
-                  <Icon className="size-3.5 text-sky-600" />
+                  <Icon className="size-3.5 text-sky-600 dark:text-sky-400" />
                   <span>
-                    <span className="block text-xs font-medium">{BLOCK_LABEL[item.type]}</span>
-                    <span className="block text-[10px] text-muted-foreground">{item.hint}</span>
+                    <span className="block text-xs font-medium text-zinc-900 dark:text-zinc-100">{BLOCK_LABEL[item.type]}</span>
+                    <span className="block text-[10px] text-zinc-500 dark:text-zinc-400">{item.hint}</span>
                   </span>
                 </button>
               )
@@ -328,9 +373,9 @@ export function EmailStudio() {
           </div>
         </aside>
 
-        <section ref={canvasColumnRef} className="min-w-0">
+        <section ref={canvasColumnRef} className="order-1 min-w-0 lg:order-2">
           <div className="mb-3 grid gap-2 sm:grid-cols-2">
-            <label className="text-[11px] text-muted-foreground">
+            <label className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
               Campaign name
               <Input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} className="mt-1 h-9" />
             </label>
@@ -352,7 +397,7 @@ export function EmailStudio() {
             className="rounded-xl border border-zinc-200 bg-zinc-100 p-4 dark:border-zinc-800 dark:bg-zinc-900"
             onDragOver={(event) => event.preventDefault()}
           >
-            <div className="mx-auto max-w-[600px] overflow-hidden rounded-2xl bg-white shadow-sm">
+            <div className="mx-auto max-w-[600px] overflow-hidden rounded-2xl bg-white text-zinc-900 shadow-sm">
               {draft.blocks.map((block, index) => (
                 <div key={block.id}>
                   <DropLine
@@ -412,7 +457,7 @@ export function EmailStudio() {
         </section>
 
         <aside
-          className="flex min-h-0 flex-col gap-3 xl:overflow-hidden"
+          className="order-3 flex min-h-0 flex-col gap-3 xl:overflow-hidden"
           style={sideHeight ? { height: sideHeight } : undefined}
         >
           <div className="shrink-0 overflow-auto rounded-xl border border-zinc-200 bg-card p-3 shadow-sm xl:max-h-[46%] dark:border-zinc-800">
@@ -464,7 +509,7 @@ export function EmailStudio() {
                     />
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-medium">{lead.name || lead.email}</span>
-                      <span className="block truncate text-[10px] text-muted-foreground">{lead.email}{lead.company ? ` · ${lead.company}` : ''}</span>
+                      <span className="block truncate text-[10px] text-zinc-500 dark:text-zinc-400">{lead.email}{lead.company ? ` · ${lead.company}` : ''}</span>
                     </span>
                   </label>
                 )
@@ -473,7 +518,7 @@ export function EmailStudio() {
                 <p className="text-xs text-muted-foreground">No leads with an email address match.</p>
               )}
             </div>
-            <label className="mt-3 block text-[11px] text-muted-foreground">
+            <label className="mt-3 block text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
               Test address
               <Input value={testEmail} onChange={(event) => setTestEmail(event.target.value)} placeholder="you@company.com" className="mt-1 h-8 text-xs" />
             </label>
@@ -483,7 +528,7 @@ export function EmailStudio() {
 
       <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900">
         <p className="px-3 py-2 text-sm font-medium text-muted-foreground">Preview with sample name Alex</p>
-        <iframe title="Email preview" sandbox="" srcDoc={previewHtml} className="h-[78vh] min-h-[640px] w-full bg-white" />
+        <iframe title="Email preview" sandbox="" srcDoc={previewHtml} className="h-[60vh] min-h-[420px] w-full bg-white sm:h-[70vh] sm:min-h-[560px] xl:h-[78vh] xl:min-h-[640px]" />
       </div>
     </SidebarInset>
   )
@@ -630,7 +675,7 @@ function BlockPreview({ block, font, onChange }: { block: EmailBlock; font?: str
     )
   }
   if (block.type === 'heading') return <p className={cn('px-6 pt-4 text-lg font-semibold', align)} style={{ fontFamily: family }}>{edit('text', false, true)}</p>
-  if (block.type === 'text') return <p className={cn('whitespace-pre-wrap px-6 pt-3 text-sm leading-6 text-zinc-600', align)} style={{ fontFamily: family }}>{edit('text', true, true)}</p>
+  if (block.type === 'text') return <p className={cn('whitespace-pre-wrap px-6 pt-3 text-sm leading-6 text-zinc-700', align)} style={{ fontFamily: family }}>{edit('text', true, true)}</p>
   if (block.type === 'image') {
     const width = Math.max(20, Math.min(100, Number(block.fields.width) || 100))
     return block.fields.url ? (
@@ -652,9 +697,9 @@ function BlockPreview({ block, font, onChange }: { block: EmailBlock; font?: str
   if (block.type === 'offer') {
     return (
       <div className={cn('mx-6 mt-3 rounded-xl border bg-zinc-50 p-3', align)} style={{ fontFamily: family }}>
-        <p className="text-[11px] font-semibold text-sky-700">{edit('price')}</p>
-        <p className="font-semibold">{edit('title', false, true)}</p>
-        <p className="text-sm text-zinc-600">{edit('detail', true, true)}</p>
+        <p className="text-[11px] font-semibold text-sky-700 dark:text-sky-600">{edit('price')}</p>
+        <p className="font-semibold text-zinc-900">{edit('title', false, true)}</p>
+        <p className="text-sm text-zinc-700">{edit('detail', true, true)}</p>
         <span className="mt-2 inline-block rounded-lg bg-sky-600 px-3 py-1.5 text-sm text-white">{edit('buttonLabel')}</span>
       </div>
     )
@@ -787,8 +832,8 @@ function FriendlyText({
   }
 
   return (
-    <div className="text-[11px] text-muted-foreground">
-      {label}
+    <div className="text-[11px]">
+      <span className="font-medium text-zinc-600 dark:text-zinc-300">{label}</span>
       <div
         ref={ref}
         contentEditable
@@ -816,12 +861,12 @@ function FriendlyText({
           commit()
         }}
         className={cn(
-          'mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 whitespace-pre-wrap',
+          'mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-zinc-900 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 whitespace-pre-wrap dark:text-zinc-100',
           multiline ? 'min-h-24' : 'min-h-9',
-          !value && 'before:text-muted-foreground before:content-[attr(data-placeholder)]'
+          !value && 'before:text-zinc-400 before:content-[attr(data-placeholder)] dark:before:text-zinc-500'
         )}
       />
-      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+      <div className="mt-1.5 flex flex-wrap items-center gap-1 text-zinc-500 dark:text-zinc-400">
         <span>Add</span>
         {PERSONAL.map((item) => (
           <button
@@ -829,7 +874,7 @@ function FriendlyText({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => insert(item.token, item.label)}
-            className="rounded-md bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-800 hover:bg-sky-200"
+            className="rounded-md bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-800 hover:bg-sky-200 dark:bg-sky-950 dark:text-sky-200 dark:hover:bg-sky-900"
           >
             {item.label}
           </button>
@@ -854,7 +899,7 @@ function ChoiceRow({
 }) {
   return (
     <div className="mb-2">
-      <p className="mb-1 text-[11px] text-muted-foreground">{label}</p>
+      <p className="mb-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300">{label}</p>
       <div className="flex flex-wrap gap-1">
         {options.map((option) => (
           <button
@@ -863,7 +908,9 @@ function ChoiceRow({
             onClick={() => onChange(option.id)}
             className={cn(
               'rounded-md border px-2 py-1 text-[11px]',
-              value === option.id ? 'border-sky-500 bg-sky-50 text-sky-900' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+              value === option.id
+                ? 'border-sky-500 bg-sky-50 text-sky-900 dark:border-sky-400 dark:bg-sky-950 dark:text-sky-100'
+                : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800'
             )}
             style={fontButtons ? { fontFamily: fontStack(option.id) } : undefined}
           >
@@ -893,7 +940,7 @@ function BlockEditor({
   onRemove: () => void
 }) {
   const field = (key: string, label: string, placeholder = '') => (
-    <label key={key} className="mb-2 block text-[11px] text-muted-foreground">
+    <label key={key} className="mb-2 block text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
       {label}
       <Input value={block.fields[key] || ''} placeholder={placeholder} onChange={(event) => onChange({ [key]: event.target.value })} className="mt-1 h-8 text-xs" />
     </label>
@@ -961,12 +1008,12 @@ function BlockEditor({
       {block.type === 'image' && (
         <>
           {look(false)}
-          <label className="mb-2 block text-[11px] text-muted-foreground">
+          <label className="mb-2 block text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
             Picture
             <input
               type="file"
               accept="image/*"
-              className="mt-1 block w-full text-xs"
+              className="mt-1 block w-full text-xs text-zinc-700 dark:text-zinc-200"
               onChange={(event) => {
                 readPicture(event.target.files?.[0])
                 event.target.value = ''
@@ -979,7 +1026,7 @@ function BlockEditor({
             field('url', 'Or paste a web address', 'https://')
           )}
           {field('link', 'Open this page when clicked', 'https://')}
-          <label className="mb-2 block text-[11px] text-muted-foreground">
+          <label className="mb-2 block text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
             Size · {Math.max(20, Math.min(100, Number(block.fields.width) || 100))}%
             <input
               type="range"
@@ -1011,7 +1058,7 @@ function BlockEditor({
         </>
       )}
       {block.type === 'spacer' && field('size', 'Height in pixels')}
-      {block.type === 'divider' && <p className="mb-2 text-xs text-muted-foreground">A thin line between sections.</p>}
+      {block.type === 'divider' && <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">A thin line between sections.</p>}
       <Button type="button" variant="outline" size="sm" className="mt-1 text-red-600" onClick={onRemove}>
         <Trash2 className="size-3.5" />
         Remove block

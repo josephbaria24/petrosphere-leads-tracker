@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { flushSync } from 'react-dom'
 import {
   ChevronDown,
@@ -106,7 +107,77 @@ function funnelClip(topWidth: number, bottomWidth: number) {
   return `polygon(${rounded.map((point) => `${(point.x / width) * 100}% ${(point.y / height) * 100}%`).join(', ')})`
 }
 
-type Period = 'month' | 'quarter' | 'year' | 'all'
+type Period = string
+
+function pad2(value: number) {
+  return String(value).padStart(2, '0')
+}
+
+function toDateKey(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+}
+
+function parseLocalDate(value: string) {
+  return new Date(value.length === 10 ? `${value}T00:00:00` : value)
+}
+
+function startOfWeek(date: Date) {
+  const next = new Date(date)
+  next.setHours(0, 0, 0, 0)
+  const day = (next.getDay() + 6) % 7
+  next.setDate(next.getDate() - day)
+  return next
+}
+
+function endOfWeek(date: Date) {
+  const next = startOfWeek(date)
+  next.setDate(next.getDate() + 7)
+  return next
+}
+
+function formatWeekLabel(start: Date) {
+  const end = new Date(start)
+  end.setDate(end.getDate() + 6)
+  const sameMonth = start.getMonth() === end.getMonth()
+  const startLabel = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  const endLabel = end.toLocaleDateString(undefined, sameMonth ? { day: 'numeric' } : { month: 'short', day: 'numeric' })
+  const year = end.getFullYear()
+  return `Week of ${startLabel}–${endLabel}, ${year}`
+}
+
+function formatMonthLabel(year: number, monthIndex: number) {
+  return new Date(year, monthIndex, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+}
+
+function buildPeriodOptions(now = new Date()) {
+  const options: { value: string; label: string; group: string }[] = [
+    { value: 'week', label: 'This week', group: 'Weeks' },
+    { value: 'week-1', label: 'Last week', group: 'Weeks' },
+  ]
+  for (let offset = 2; offset <= 7; offset++) {
+    const start = startOfWeek(now)
+    start.setDate(start.getDate() - offset * 7)
+    options.push({ value: `w:${toDateKey(start)}`, label: formatWeekLabel(start), group: 'Weeks' })
+  }
+  options.push({ value: 'month', label: 'This month', group: 'Months' })
+  for (let offset = 1; offset <= 11; offset++) {
+    const cursor = new Date(now.getFullYear(), now.getMonth() - offset, 1)
+    const value = `m:${cursor.getFullYear()}-${pad2(cursor.getMonth() + 1)}`
+    options.push({ value, label: formatMonthLabel(cursor.getFullYear(), cursor.getMonth()), group: 'Months' })
+  }
+  options.push(
+    { value: 'quarter', label: 'This quarter', group: 'Ranges' },
+    { value: 'year', label: 'This year', group: 'Ranges' },
+    { value: 'all', label: 'All time', group: 'Ranges' }
+  )
+  return options
+}
+
+const PERIOD_OPTIONS = buildPeriodOptions()
+
+function periodLabel(period: Period) {
+  return PERIOD_OPTIONS.find((item) => item.value === period)?.label || period
+}
 
 type Layer = {
   id: string
@@ -233,12 +304,37 @@ function readLocal(): Board | null {
 function inPeriod(value: string | null | undefined, period: Period) {
   if (period === 'all') return true
   if (!value) return false
-  const date = new Date(value.length === 10 ? `${value}T00:00:00` : value)
+  const date = parseLocalDate(value)
   if (Number.isNaN(date.getTime())) return false
   const now = new Date()
+
+  if (period === 'week' || period === 'week-1') {
+    const start = startOfWeek(now)
+    if (period === 'week-1') start.setDate(start.getDate() - 7)
+    const end = endOfWeek(start)
+    return date >= start && date < end
+  }
+  if (period.startsWith('w:')) {
+    const start = parseLocalDate(period.slice(2))
+    if (Number.isNaN(start.getTime())) return false
+    const end = endOfWeek(start)
+    return date >= start && date < end
+  }
+  if (period === 'month') {
+    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
+  }
+  if (period.startsWith('m:')) {
+    const [yearText, monthText] = period.slice(2).split('-')
+    const year = Number(yearText)
+    const month = Number(monthText)
+    if (!year || !month) return false
+    return date.getFullYear() === year && date.getMonth() + 1 === month
+  }
   if (period === 'year') return date.getFullYear() === now.getFullYear()
-  if (period === 'month') return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
-  return date.getFullYear() === now.getFullYear() && Math.floor(date.getMonth() / 3) === Math.floor(now.getMonth() / 3)
+  if (period === 'quarter') {
+    return date.getFullYear() === now.getFullYear() && Math.floor(date.getMonth() / 3) === Math.floor(now.getMonth() / 3)
+  }
+  return true
 }
 
 function keyOf(name: string) {
@@ -260,6 +356,7 @@ async function fetchPages<T>(table: 'crm_leads' | 'lead_history' | 'captured_by_
 }
 
 export function PerformanceDashboard() {
+  const searchParams = useSearchParams()
   const [board, setBoard] = useState<Board>(defaultBoard)
   const [ready, setReady] = useState(false)
   const [sync, setSync] = useState<'checking' | 'team' | 'browser'>('checking')
@@ -272,8 +369,10 @@ export function PerformanceDashboard() {
   const [roster, setRoster] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [logHighlight, setLogHighlight] = useState(false)
   const dirty = useRef(false)
   const listRef = useRef<HTMLDivElement>(null)
+  const logSectionRef = useRef<HTMLElement>(null)
   const peopleGridRef = useRef<HTMLDivElement>(null)
   const previewIdsRef = useRef<string[] | null>(null)
   const suppressClick = useRef(false)
@@ -297,6 +396,7 @@ export function PerformanceDashboard() {
   const [note, setNote] = useState('')
   const [activityDate, setActivityDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [customStatus, setCustomStatus] = useState('')
+  const [logging, setLogging] = useState(false)
 
   useEffect(() => {
     let cancel = false
@@ -328,6 +428,43 @@ export function PerformanceDashboard() {
       cancel = true
     }
   }, [])
+
+  useEffect(() => {
+    let cancel = false
+    const loadName = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user || cancel) return
+      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
+      const name = profile?.full_name?.trim() || user.user_metadata?.full_name || user.email || ''
+      if (!cancel && name) setActor((current) => current || name)
+    }
+    loadName()
+    return () => {
+      cancel = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (selectedPerson) setActor(selectedPerson)
+  }, [selectedPerson])
+
+  useEffect(() => {
+    if (searchParams.get('log') !== '1') return
+    const scrollTimer = window.setTimeout(() => {
+      logSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      setLogHighlight(true)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('log')
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`)
+    }, 180)
+    const clearTimer = window.setTimeout(() => setLogHighlight(false), 2800)
+    return () => {
+      window.clearTimeout(scrollTimer)
+      window.clearTimeout(clearTimer)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (!ready) return
@@ -471,7 +608,7 @@ export function PerformanceDashboard() {
         return keyOf(lead.captured_by || '') === focusKey
       }).length
       const logged = periodAchievements
-        .filter((item) => item.layerId === layer.id && (!focusKey || keyOf(item.user) === focusKey) && (!selectedTask || item.task === selectedTask))
+        .filter((item) => item.layerId === layer.id && (!focusKey || keyOf(item.user) === focusKey))
         .reduce((sum, item) => sum + item.quantity, 0)
       const total = live + logged
       return {
@@ -484,7 +621,7 @@ export function PerformanceDashboard() {
         ratio: Math.max(0, Math.min(1, total / Math.max(1, layer.target))),
       }
     })
-  }, [board.layers, focusKey, periodAchievements, periodLeads, selectedTask])
+  }, [board.layers, focusKey, periodAchievements, periodLeads])
 
   const orderedLayers = useMemo(() => {
     if (!previewIds) return layers
@@ -691,8 +828,8 @@ export function PerformanceDashboard() {
   const visibleAchievements = periodAchievements
     .filter((item) => !focusKey || keyOf(item.user) === focusKey)
     .filter((item) => !selectedTask || item.task === selectedTask)
-    .filter((item) => selectedTask || item.layerId === selectedLayer?.id)
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .filter((item) => !selectedLayer || item.layerId === selectedLayer.id)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
     .slice(0, 12)
 
   const capturedTotal = focusKey
@@ -704,27 +841,50 @@ export function PerformanceDashboard() {
     .filter((item) => !focusKey || keyOf(item.user) === focusKey)
     .reduce((sum, item) => sum + item.quantity, 0)
 
-  const logAchievement = () => {
-    if (!selectedLayer || !actor.trim()) return
-    const label = (task === 'Custom' ? customTask : task).trim()
-    if (!label) return
+  const logAchievement = (override?: { task?: string; quantity?: number }) => {
+    const layer = selectedLayer
+    const who = actor.trim()
+    if (!layer) {
+      toast('Choose a funnel layer first')
+      return
+    }
+    if (!who) {
+      toast('Add a name in Who first')
+      return
+    }
+    const nextTask = (override?.task ?? (task === 'Custom' ? customTask : task)).trim()
+    if (!nextTask) {
+      toast('Choose or type a task')
+      return
+    }
+    const nextQuantity = Math.max(1, Math.min(999, override?.quantity ?? quantity))
+    const date = activityDate || new Date().toISOString().slice(0, 10)
+    setLogging(true)
     updateBoard((current) => ({
       ...current,
       achievements: [
         {
           id: crypto.randomUUID(),
-          user: actor.trim(),
-          task: label,
-          quantity,
-          layerId: selectedLayer.id,
+          user: who,
+          task: nextTask,
+          quantity: nextQuantity,
+          layerId: layer.id,
           note: note.trim(),
-          date: activityDate,
+          date,
         },
         ...current.achievements,
       ].slice(0, 400),
     }))
+    setSelectedTask(nextTask)
+    setTask(TASKS.some((item) => item.name === nextTask) ? nextTask : 'Custom')
+    if (!TASKS.some((item) => item.name === nextTask)) setCustomTask(nextTask)
     setNote('')
     setQuantity(1)
+    const shown = inPeriod(date, period)
+    toast(`${nextQuantity} ${nextTask} added to ${layer.label}`, {
+      description: shown ? `${who} · ${date}` : `${who} · ${date} · outside ${periodLabel(period)}`,
+    })
+    window.setTimeout(() => setLogging(false), 280)
   }
 
   const personOptions = people.map((person) => person.name)
@@ -745,15 +905,21 @@ export function PerformanceDashboard() {
           <span className="text-[11px] text-muted-foreground">
             {sync === 'checking' ? 'Checking save' : sync === 'team' ? 'Shared with the team' : 'Saved in this browser'}
           </span>
-          <Select value={period} onValueChange={(value) => setPeriod(value as Period)}>
-            <SelectTrigger className="h-8 w-[140px] text-xs">
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="h-8 w-[200px] text-xs">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="month">This month</SelectItem>
-              <SelectItem value="quarter">This quarter</SelectItem>
-              <SelectItem value="year">This year</SelectItem>
-              <SelectItem value="all">All time</SelectItem>
+            <SelectContent className="max-h-72">
+              {(['Weeks', 'Months', 'Ranges'] as const).map((group) => (
+                <div key={group}>
+                  <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{group}</p>
+                  {PERIOD_OPTIONS.filter((item) => item.group === group).map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </div>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -791,7 +957,7 @@ export function PerformanceDashboard() {
         </p>
       )}
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.9fr)] xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <section className="rounded-xl border border-zinc-200 bg-card p-4 shadow-sm dark:border-zinc-800">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
@@ -860,7 +1026,7 @@ export function PerformanceDashboard() {
                 >
                   <div
                     className={cn(
-                      'grid items-center gap-3 sm:grid-cols-[220px_minmax(0,1fr)]',
+                      'group/layer grid items-center gap-3 sm:grid-cols-[220px_minmax(0,1fr)]',
                       editing && !dragging && 'perf-jiggle',
                       editing && !dragging && layer.index % 2 === 1 && 'perf-jiggle-alt'
                     )}
@@ -882,9 +1048,10 @@ export function PerformanceDashboard() {
                       setSelectedLayerId(layer.id)
                     }}
                     className={cn(
-                      'relative h-14 w-full overflow-hidden rounded-md transition-[clip-path,transform,box-shadow] duration-300 ease-out select-none',
+                      'perf-funnel-bar relative h-14 w-full overflow-hidden rounded-md select-none',
                       editing ? 'cursor-grab touch-none' : 'cursor-pointer',
                       dragging && 'z-20 scale-[1.18] cursor-grabbing shadow-xl',
+                      !dragging && !editing && 'hover:z-10 hover:scale-[1.045]',
                       selected && !dragging && 'ring-2 ring-[#00044a] ring-offset-2 ring-offset-background dark:ring-sky-300'
                     )}
                     style={{
@@ -903,7 +1070,7 @@ export function PerformanceDashboard() {
                       </span>
                       <span className="absolute inset-0 bg-current" />
                     </span>
-                    <span className="absolute inset-0 z-[1] flex items-center justify-center text-[11px] font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
+                    <span className="absolute inset-0 z-[1] flex items-center justify-center text-[11px] font-semibold tabular-nums text-zinc-800 transition-transform duration-300 ease-out group-hover/layer:scale-105 dark:text-zinc-100">
                       {Math.round(layer.ratio * 100)}%
                     </span>
                   </button>
@@ -911,17 +1078,22 @@ export function PerformanceDashboard() {
                     type="button"
                     onClick={() => setSelectedLayerId(layer.id)}
                     className={cn(
-                      'flex min-w-0 items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
-                      selected ? 'bg-zinc-100 dark:bg-zinc-900' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/60'
+                      'flex min-w-0 items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-all duration-300 ease-out',
+                      selected
+                        ? 'bg-zinc-100 dark:bg-zinc-900'
+                        : 'hover:translate-x-0.5 hover:bg-zinc-50 group-hover/layer:bg-zinc-50 dark:hover:bg-zinc-900/60 dark:group-hover/layer:bg-zinc-900/60'
                     )}
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium">{layer.label}</span>
+                      <span className="block truncate text-sm font-medium transition-colors duration-300 group-hover/layer:text-zinc-950 dark:group-hover/layer:text-white">{layer.label}</span>
                       <span className="block text-[11px] text-muted-foreground">
                         {layer.live} from pipeline · {layer.logged} logged · target {layer.target}
                       </span>
                     </span>
-                    <span className="size-2.5 shrink-0 rounded-full" style={{ background: layer.color }} />
+                    <span
+                      className="size-2.5 shrink-0 rounded-full transition-transform duration-300 ease-out group-hover/layer:scale-125"
+                      style={{ background: layer.color }}
+                    />
                   </button>
                   </div>
                 </div>
@@ -1098,11 +1270,33 @@ export function PerformanceDashboard() {
           )}
         </section>
 
-        <section className="rounded-xl border border-zinc-200 bg-card p-4 shadow-sm dark:border-zinc-800">
+        <section
+          ref={logSectionRef}
+          id="log-achievement"
+          className={cn(
+            'scroll-mt-20 rounded-xl border border-zinc-200 bg-card p-4 shadow-sm transition-shadow duration-500 dark:border-zinc-800',
+            logHighlight && 'ring-2 ring-amber-400 shadow-amber-200/50 dark:ring-amber-500 dark:shadow-amber-900/40'
+          )}
+        >
           <h2 className="text-sm font-semibold">Log an achievement</h2>
           <p className="mb-3 text-[11px] text-muted-foreground">
-            {selectedLayer ? `This count pours into ${selectedLayer.label}.` : 'Choose a layer first.'}
+            Tap a task to add 1, or fill the form and press Add. Counts pour into the selected funnel layer.
           </p>
+          <label className="mb-3 block text-[11px] text-muted-foreground">
+            Pour into layer
+            <Select value={selectedLayer?.id || ''} onValueChange={setSelectedLayerId}>
+              <SelectTrigger className="mt-1 h-9 text-xs">
+                <SelectValue placeholder="Choose a layer" />
+              </SelectTrigger>
+              <SelectContent>
+                {layers.map((layer) => (
+                  <SelectItem key={layer.id} value={layer.id}>
+                    {layer.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
           <div className="mb-3 flex flex-wrap gap-1.5">
             {taskTotals.map((item) => {
               const Icon = item.icon
@@ -1112,15 +1306,22 @@ export function PerformanceDashboard() {
                   key={item.name}
                   type="button"
                   aria-pressed={active}
+                  title={actor.trim() ? `Add 1 ${item.name}` : 'Add a name in Who first'}
                   onClick={() => {
                     setTask(item.name)
-                    setSelectedTask((current) => (current === item.name ? null : item.name))
+                    setSelectedTask(item.name)
+                    if (!actor.trim()) {
+                      toast('Add a name in Who first')
+                      return
+                    }
+                    logAchievement({ task: item.name, quantity: 1 })
                   }}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors',
+                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-all duration-200',
                     active
-                      ? 'border-transparent bg-[#00044a] text-white dark:bg-sky-500'
-                      : 'border-zinc-200 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900'
+                      ? 'border-transparent bg-[#00044a] text-white shadow-sm dark:bg-sky-500'
+                      : 'border-zinc-200 hover:scale-[1.03] hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900',
+                    logging && active && 'scale-105'
                   )}
                 >
                   <Icon className="size-3" />
@@ -1154,6 +1355,7 @@ export function PerformanceDashboard() {
                 onChange={(event) => {
                   setCustomTask(event.target.value)
                   setTask('Custom')
+                  setSelectedTask(null)
                 }}
                 placeholder="Or type a task that is not listed"
                 className="mt-1 h-9"
@@ -1181,19 +1383,36 @@ export function PerformanceDashboard() {
               Note
               <Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional detail" className="mt-1 h-9" />
             </label>
-            <Button type="button" className="bg-[#00044a] text-white hover:bg-[#0a1168]" disabled={!actor.trim() || !selectedLayer} onClick={logAchievement}>
+            <Button
+              type="button"
+              className="bg-[#00044a] text-white hover:bg-[#0a1168]"
+              disabled={!selectedLayer}
+              onClick={() => logAchievement()}
+            >
+              {logging ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
               Add to {selectedLayer?.label || 'layer'}
             </Button>
           </div>
 
           <div className="mt-4 space-y-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-medium text-muted-foreground">
+                Recent · {selectedLayer?.label || 'layer'}
+                {selectedTask ? ` · ${selectedTask}` : ''}
+              </p>
+              {selectedTask && (
+                <button type="button" className="text-[11px] text-sky-700 dark:text-sky-300" onClick={() => setSelectedTask(null)}>
+                  Show all tasks
+                </button>
+              )}
+            </div>
             {visibleAchievements.length === 0 && (
-              <p className="text-xs text-muted-foreground">No achievements in this view yet.</p>
+              <p className="text-xs text-muted-foreground">No achievements in this view yet. Tap a task above to log one.</p>
             )}
             {visibleAchievements.map((item) => {
               const layer = board.layers.find((entry) => entry.id === item.layerId)
               return (
-                <div key={item.id} className="flex items-start justify-between gap-2 text-xs">
+                <div key={item.id} className="flex items-start justify-between gap-2 rounded-lg px-1 py-1 text-xs transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
                   <div className="min-w-0">
                     <p className="truncate font-medium">
                       {item.user} · {item.quantity} {item.task}
@@ -1207,12 +1426,13 @@ export function PerformanceDashboard() {
                     type="button"
                     aria-label="Remove achievement"
                     className="text-muted-foreground hover:text-foreground"
-                    onClick={() =>
+                    onClick={() => {
                       updateBoard((current) => ({
                         ...current,
                         achievements: current.achievements.filter((entry) => entry.id !== item.id),
                       }))
-                    }
+                      toast('Achievement removed')
+                    }}
                   >
                     <Trash2 className="size-3.5" />
                   </button>
@@ -1411,6 +1631,25 @@ export function PerformanceDashboard() {
         .perf-fill {
           transition: height 700ms cubic-bezier(0.22, 1, 0.36, 1);
         }
+        .perf-funnel-bar {
+          transition:
+            clip-path 320ms cubic-bezier(0.22, 1, 0.36, 1),
+            transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+            box-shadow 320ms ease,
+            filter 320ms ease,
+            background 320ms ease;
+        }
+        .perf-funnel-bar:hover:not(:active) {
+          background: color-mix(in srgb, var(--color, #3b82f6) 28%, transparent);
+          box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--color, #3b82f6) 70%, transparent);
+          filter: brightness(1.06) saturate(1.08);
+        }
+        .perf-funnel-bar:hover:not(:active) .perf-fill {
+          filter: brightness(1.08);
+        }
+        .group\\/layer:hover .perf-funnel-bar:not(:active) {
+          background: color-mix(in srgb, var(--color, #3b82f6) 24%, transparent);
+        }
         .perf-wave {
           position: absolute;
           top: -14px;
@@ -1437,14 +1676,14 @@ export function PerformanceDashboard() {
           animation: perf-shake 0.42s ease-in-out infinite;
         }
         @keyframes perf-jiggle {
-          0% { transform: rotate(-1.25deg); }
-          50% { transform: rotate(1.25deg); }
-          100% { transform: rotate(-1.25deg); }
+          0% { transform: rotate(-0.4deg); }
+          50% { transform: rotate(0.4deg); }
+          100% { transform: rotate(-0.4deg); }
         }
         .perf-jiggle {
           animation-name: perf-jiggle;
-          animation-duration: 0.22s;
-          animation-timing-function: linear;
+          animation-duration: 0.45s;
+          animation-timing-function: ease-in-out;
           animation-iteration-count: infinite;
           transform-origin: center center;
         }
@@ -1468,6 +1707,8 @@ export function PerformanceDashboard() {
         @media (prefers-reduced-motion: reduce) {
           .perf-wave { animation: none; }
           .perf-fill { transition: none; }
+          .perf-funnel-bar { transition: none; }
+          .perf-funnel-bar:hover:not(:active) { transform: none; filter: none; box-shadow: none; }
           .perf-shake { animation: none; }
           .perf-jiggle { animation: none; }
           .perf-person-enter, .perf-person-leave { animation: none; }

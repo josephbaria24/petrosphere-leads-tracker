@@ -58,6 +58,12 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { ExcelActions } from "@/components/leads/ExcelActions"
+import {
+  DateRangeFilter,
+  EMPTY_DATE_RANGE,
+  applyDateRangeToQuery,
+  type DateRangeValue,
+} from "@/components/leads/DateRangeFilter"
 import { cn } from "@/lib/utils"
 import { formatUnknownError, logSupabaseError } from "@/lib/format-error"
 
@@ -114,6 +120,7 @@ export default function DataTablePage() {
   const [modeOfServiceFilter, setModeOfServiceFilter] = useState<string[]>([])
   const [leadSourceFilter, setLeadSourceFilter] = useState<string[]>([])
   const [firstContactFilter, setFirstContactFilter] = useState<string[]>([])
+  const [dateRange, setDateRange] = useState<DateRangeValue>(EMPTY_DATE_RANGE)
 
   // Table state
   const [data, setData] = React.useState<Lead[]>([])
@@ -290,6 +297,8 @@ export default function DataTablePage() {
         query = query.or(filters.join(','));
       }
 
+      query = applyDateRangeToQuery(query, dateRange)
+
       const { data: fetchedData, error } = await query
 
       if (error) {
@@ -354,6 +363,7 @@ export default function DataTablePage() {
     modeOfServiceFilter,
     leadSourceFilter,
     firstContactFilter,
+    dateRange,
     pageSize,
   ])
 
@@ -541,7 +551,9 @@ export default function DataTablePage() {
               </div>
 
               {/* Controls */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <DateRangeFilter value={dateRange} onChange={setDateRange} />
+
                 {/* Column Visibility */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
